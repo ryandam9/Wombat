@@ -5,6 +5,7 @@ import '../providers/chat_provider.dart';
 import '../providers/settings_provider.dart';
 import '../providers/usage_provider.dart';
 import '../screens/debug_screen.dart';
+import '../screens/settings_screen.dart';
 import '../screens/usage_screen.dart';
 import 'chat_input.dart';
 import 'message_bubble.dart';
@@ -13,11 +14,19 @@ import 'ui_kit.dart';
 
 /// The main chat pane: header (model selector), message list and composer.
 class ChatView extends StatelessWidget {
-  const ChatView({super.key, this.showMenuButton = false});
+  const ChatView({
+    super.key,
+    this.showMenuButton = false,
+    this.onExpandSidebar,
+  });
 
   /// Whether to show a hamburger button that opens the conversation drawer
   /// (used on narrow layouts).
   final bool showMenuButton;
+
+  /// When provided (wide layout with the sidebar collapsed), shows a button to
+  /// re-open the sidebar.
+  final VoidCallback? onExpandSidebar;
 
   @override
   Widget build(BuildContext context) {
@@ -26,7 +35,10 @@ class ChatView extends StatelessWidget {
 
     return Column(
       children: [
-        _Header(showMenuButton: showMenuButton),
+        _Header(
+          showMenuButton: showMenuButton,
+          onExpandSidebar: onExpandSidebar,
+        ),
         const Divider(height: 1),
         Expanded(
           child: chat.loading
@@ -52,9 +64,10 @@ class ChatView extends StatelessWidget {
 }
 
 class _Header extends StatelessWidget {
-  const _Header({required this.showMenuButton});
+  const _Header({required this.showMenuButton, this.onExpandSidebar});
 
   final bool showMenuButton;
+  final VoidCallback? onExpandSidebar;
 
   @override
   Widget build(BuildContext context) {
@@ -73,6 +86,12 @@ class _Header extends StatelessWidget {
                 icon: const Icon(Icons.menu),
                 tooltip: 'Conversations',
                 onPressed: () => Scaffold.of(context).openDrawer(),
+              )
+            else if (onExpandSidebar != null)
+              IconButton(
+                icon: const Icon(Icons.menu_open),
+                tooltip: 'Show sidebar',
+                onPressed: onExpandSidebar,
               ),
             const Expanded(child: ModelSelector()),
             if (responding && animate)
@@ -97,6 +116,13 @@ class _Header extends StatelessWidget {
               icon: const Icon(Icons.add_comment_outlined),
               tooltip: 'New chat',
               onPressed: () => context.read<ChatProvider>().newConversation(),
+            ),
+            IconButton(
+              icon: const Icon(Icons.settings_outlined),
+              tooltip: 'Settings',
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(builder: (_) => const SettingsScreen()),
+              ),
             ),
           ],
         ),
