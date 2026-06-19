@@ -1,10 +1,10 @@
-import 'package:auris/auris_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../models/openrouter_model.dart';
 import '../providers/settings_provider.dart';
 import '../services/openrouter_service.dart';
+import '../widgets/ui_kit.dart';
 
 enum _Sort { name, context, price }
 
@@ -131,22 +131,25 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
             child: Row(
               children: [
-                AurisSwitch(
-                  value: _freeOnly,
-                  label: 'FREE ONLY',
-                  onChanged: (v) => setState(() => _freeOnly = v),
+                FilterChip(
+                  label: const Text('Free only'),
+                  selected: _freeOnly,
+                  onSelected: (v) => setState(() => _freeOnly = v),
                 ),
                 const Spacer(),
-                AurisSelect<_Sort>(
+                const Text('Sort'),
+                const SizedBox(width: 8),
+                DropdownButton<_Sort>(
                   value: _sort,
-                  placeholder: 'SORT',
-                  width: 150,
-                  options: const [
-                    AurisSelectOption(value: _Sort.name, label: 'NAME'),
-                    AurisSelectOption(value: _Sort.context, label: 'CONTEXT'),
-                    AurisSelectOption(value: _Sort.price, label: 'PRICE'),
+                  onChanged: (v) {
+                    if (v != null) setState(() => _sort = v);
+                  },
+                  items: const [
+                    DropdownMenuItem(value: _Sort.name, child: Text('Name')),
+                    DropdownMenuItem(
+                        value: _Sort.context, child: Text('Context')),
+                    DropdownMenuItem(value: _Sort.price, child: Text('Price')),
                   ],
-                  onChanged: (v) => setState(() => _sort = v),
                 ),
               ],
             ),
@@ -204,8 +207,14 @@ class _ModelTile extends StatelessWidget {
 
     return InkWell(
       onTap: () => Navigator.of(context).pop(model),
-      child: AurisContainer(
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
         padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: theme.colorScheme.outlineVariant),
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -220,7 +229,7 @@ class _ModelTile extends StatelessWidget {
                   ),
                 ),
                 if (model.isFree)
-                  const AurisBadge('FREE', variant: AurisBadgeVariant.success),
+                  StatusChip('Free', color: theme.colorScheme.tertiary),
               ],
             ),
             const SizedBox(height: 2),
@@ -231,22 +240,28 @@ class _ModelTile extends StatelessWidget {
             ),
             if (ctx > 0) ...[
               const SizedBox(height: 10),
-              AurisProgressBar(
-                value: (ctx / maxContext).clamp(0.0, 1.0),
-                label: 'CONTEXT',
-                valueLabel: _compact(ctx),
-                segments: 16,
-                height: 8,
+              Row(
+                children: [
+                  Text('CONTEXT', style: theme.textTheme.labelSmall),
+                  const Spacer(),
+                  Text(_compact(ctx), style: theme.textTheme.labelSmall),
+                ],
+              ),
+              const SizedBox(height: 4),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: LinearProgressIndicator(
+                  value: (ctx / maxContext).clamp(0.0, 1.0),
+                  minHeight: 6,
+                ),
               ),
             ],
-            if (!model.isFree && model.promptPrice != null) ...[
-              const SizedBox(height: 8),
-              AurisDataRow(
+            if (!model.isFree && model.promptPrice != null)
+              LabelValueRow(
                 label: 'Prompt',
-                value: '\$${(model.promptPrice! * 1000000).toStringAsFixed(2)}/M',
-                height: 28,
+                value:
+                    '\$${(model.promptPrice! * 1000000).toStringAsFixed(2)}/M',
               ),
-            ],
           ],
         ),
       ),
@@ -274,10 +289,10 @@ class _ErrorView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            AurisNotification(
-              title: 'CATALOGUE UNAVAILABLE',
+            InfoBanner(
+              title: 'Catalogue unavailable',
               message: message,
-              variant: AurisNotificationVariant.error,
+              kind: BannerKind.error,
             ),
             const SizedBox(height: 16),
             FilledButton.icon(

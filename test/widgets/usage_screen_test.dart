@@ -1,11 +1,11 @@
-import 'package:auris/auris.dart';
-import 'package:auris/auris_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:route/models/usage.dart';
 import 'package:route/providers/usage_provider.dart';
 import 'package:route/screens/usage_screen.dart';
+import 'package:route/theme/app_theme.dart';
+import 'package:route/widgets/ui_kit.dart';
 
 import '../helpers/fakes.dart';
 
@@ -28,7 +28,7 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
-        theme: AurisTheme.dark(),
+        theme: AppTheme.dark,
         home: ChangeNotifierProvider<UsageProvider>.value(
           value: usage,
           child: const UsageScreen(),
@@ -42,9 +42,9 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(find.text('Session usage'), findsOneWidget);
     // Input / output / cost / requests.
-    expect(find.byType(AurisStatCard), findsNWidgets(4));
+    expect(find.byType(StatCard), findsNWidgets(4));
     expect(find.text('openai/gpt-4o'), findsOneWidget);
-    // AurisDataRow renders labels uppercase.
+    // LabelValueRow renders labels uppercase.
     expect(find.text('REMAINING'), findsOneWidget);
   });
 }

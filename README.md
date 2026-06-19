@@ -4,8 +4,7 @@
 models through [OpenRouter](https://openrouter.ai). With a single OpenRouter API
 key you get one chat interface over hundreds of models from OpenAI, Anthropic,
 Google, Meta, Mistral, and more — with streaming replies, saved conversations,
-and live usage/cost tracking, all wrapped in the amber-on-near-black
-["Auris"](https://pub.dev/packages/auris) HUD theme.
+live usage/cost tracking, and a clean Material 3 interface.
 
 > Targets **Android** and **Linux desktop** out of the box (other platforms are
 > a one-command scaffold away — see [Other platforms](#other-platforms)).
@@ -54,7 +53,7 @@ A typical flow:
 | 📊 **Usage tracking** | Per-session input/output tokens, USD cost, request count, a per-model breakdown, and account credit balance. See [below](#usage--cost-tracking). |
 | 🔐 **Secure key storage** | API key kept in the platform secure store (Android Keystore / Linux libsecret / macOS Keychain). |
 | 📝 **Markdown rendering** | Assistant replies render Markdown (code blocks, lists, tables) with copy-to-clipboard. |
-| 🎨 **Auris HUD theme** | Sci-fi Material 3 theme plus HUD widgets (panels, badges, terminals, meters, scan brackets) used throughout. |
+| 🎨 **Material 3 UI** | Clean light/dark Material 3 theme with selectable fonts. |
 | 🌗 **Theming** | Light / dark / system, persisted across launches. |
 | 🖥️ **Responsive** | Persistent sidebar on wide/desktop layouts; navigation drawer on narrow/mobile. |
 
@@ -144,8 +143,8 @@ The project has a comprehensive suite (91 tests across 16 files) covering:
   extraction, credit fetching, and error mapping; file-based conversation store.
 - **Providers** — settings, chat (send/stream/stop/delete/title/error), and
   usage accumulation.
-- **Widgets** — message bubble, chat composer, the Auris theme, every adopted
-  Auris widget, and the usage screen.
+- **Widgets** — message bubble, chat composer, the app theme, the settings
+  screen, and the usage screen.
 
 > Running in [Claude Code on the web](https://code.claude.com/docs/en/claude-code-on-the-web)?
 > A `SessionStart` hook (`.claude/hooks/session-start.sh`) installs the pinned
@@ -162,7 +161,7 @@ plain service classes for testability.
 ```
 lib/
   main.dart                      Entry point + provider wiring
-  app.dart                       MaterialApp + Auris theme
+  app.dart                       MaterialApp + Material 3 theme
   models/
     chat_message.dart            A single message (role, content, streaming)
     conversation.dart            A saved chat (messages + model)
@@ -199,7 +198,7 @@ lib/
 | [`shared_preferences`](https://pub.dev/packages/shared_preferences) | Theme & default-model prefs |
 | [`path_provider`](https://pub.dev/packages/path_provider) | Conversation file location |
 | [`flutter_markdown`](https://pub.dev/packages/flutter_markdown) | Render assistant replies |
-| [`auris`](https://pub.dev/packages/auris) | HUD theme + widget kit |
+| [`google_fonts`](https://pub.dev/packages/google_fonts) | Selectable fonts |
 | [`uuid`](https://pub.dev/packages/uuid) · [`intl`](https://pub.dev/packages/intl) | IDs · number/date formatting |
 
 ## How it talks to OpenRouter

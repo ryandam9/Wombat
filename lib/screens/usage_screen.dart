@@ -1,9 +1,9 @@
-import 'package:auris/auris_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/usage_provider.dart';
+import '../widgets/ui_kit.dart';
 
 /// Shows OpenRouter usage accumulated during the current app session, plus the
 /// account credit balance.
@@ -51,14 +51,14 @@ class _UsageScreenState extends State<UsageScreen> {
           Row(
             children: [
               Expanded(
-                child: AurisStatCard(
+                child: StatCard(
                   label: 'Input tokens',
                   value: _int.format(usage.promptTokens),
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: AurisStatCard(
+                child: StatCard(
                   label: 'Output tokens',
                   value: _int.format(usage.completionTokens),
                 ),
@@ -69,7 +69,7 @@ class _UsageScreenState extends State<UsageScreen> {
           Row(
             children: [
               Expanded(
-                child: AurisStatCard(
+                child: StatCard(
                   label: 'Cost',
                   value: _money(usage.cost),
                   unit: 'USD',
@@ -77,7 +77,7 @@ class _UsageScreenState extends State<UsageScreen> {
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: AurisStatCard(
+                child: StatCard(
                   label: 'Requests',
                   value: '${usage.requests}',
                 ),
@@ -104,9 +104,8 @@ class _AccountPanel extends StatelessWidget {
     final usage = context.watch<UsageProvider>();
     final credits = usage.credits;
 
-    return AurisPanel(
+    return SectionPanel(
       title: 'Account balance',
-      code: 'LIVE',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -116,19 +115,20 @@ class _AccountPanel extends StatelessWidget {
               child: Center(child: CircularProgressIndicator()),
             )
           else if (usage.creditsError != null)
-            AurisNotification(
-              title: 'BALANCE UNAVAILABLE',
+            InfoBanner(
+              title: 'Balance unavailable',
               message: usage.creditsError!,
-              variant: AurisNotificationVariant.warning,
+              kind: BannerKind.warning,
             )
           else if (credits != null) ...[
-            AurisDataRow(
+            LabelValueRow(
               label: 'Remaining',
               value: money(credits.remaining, dp: 2),
               highlight: true,
             ),
-            AurisDataRow(label: 'Used', value: money(credits.totalUsage, dp: 2)),
-            AurisDataRow(
+            LabelValueRow(
+                label: 'Used', value: money(credits.totalUsage, dp: 2)),
+            LabelValueRow(
               label: 'Purchased',
               value: money(credits.totalCredits, dp: 2),
             ),
@@ -170,9 +170,8 @@ class _ByModelPanel extends StatelessWidget {
         ? 0.0
         : models.map((m) => m.cost).reduce((a, b) => a > b ? a : b);
 
-    return AurisPanel(
+    return SectionPanel(
       title: 'By model',
-      code: '${models.length}',
       child: models.isEmpty
           ? const Padding(
               padding: EdgeInsets.symmetric(vertical: 8),
@@ -183,8 +182,14 @@ class _ByModelPanel extends StatelessWidget {
                 for (final m in models)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 10),
-                    child: AurisContainer(
+                    child: Container(
                       padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(10),
+                        border:
+                            Border.all(color: theme.colorScheme.outlineVariant),
+                      ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -198,28 +203,33 @@ class _ByModelPanel extends StatelessWidget {
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               ),
-                              AurisBadge(
-                                '${m.requests}×',
-                                variant: AurisBadgeVariant.slate,
-                              ),
+                              StatusChip('${m.requests}×',
+                                  color: theme.colorScheme.outline),
                             ],
                           ),
                           const SizedBox(height: 8),
-                          AurisProgressBar(
-                            value: maxCost <= 0
-                                ? 0
-                                : (m.cost / maxCost).clamp(0.0, 1.0),
-                            label: 'COST',
-                            valueLabel: money(m.cost),
-                            segments: 16,
-                            height: 8,
+                          Row(
+                            children: [
+                              Text('COST', style: theme.textTheme.labelSmall),
+                              const Spacer(),
+                              Text(money(m.cost),
+                                  style: theme.textTheme.labelSmall),
+                            ],
                           ),
-                          const SizedBox(height: 6),
-                          AurisDataRow(
+                          const SizedBox(height: 4),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(4),
+                            child: LinearProgressIndicator(
+                              value: maxCost <= 0
+                                  ? 0
+                                  : (m.cost / maxCost).clamp(0.0, 1.0),
+                              minHeight: 6,
+                            ),
+                          ),
+                          LabelValueRow(
                             label: 'Tokens',
                             value: '${intFmt.format(m.promptTokens)} in  ·  '
                                 '${intFmt.format(m.completionTokens)} out',
-                            height: 28,
                           ),
                         ],
                       ),

@@ -1,4 +1,3 @@
-import 'package:auris/auris_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -6,6 +5,7 @@ import '../models/app_font.dart';
 import '../models/openrouter_model.dart';
 import '../providers/settings_provider.dart';
 import '../services/download_service.dart';
+import '../widgets/ui_kit.dart';
 import 'model_picker_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -51,239 +51,248 @@ class _SettingsScreenState extends State<SettingsScreen> {
       // Apply the chosen settings font to this whole screen.
       body: Theme(
         data: theme.copyWith(
-          textTheme: theme.textTheme.apply(fontFamily: settings.settingsFont.family),
+          textTheme:
+              theme.textTheme.apply(fontFamily: settings.settingsFont.family),
         ),
         child: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          _SetupProgress(hasApiKey: settings.hasApiKey),
-          const SizedBox(height: 16),
+          padding: const EdgeInsets.all(16),
+          children: [
+            _SetupProgress(hasApiKey: settings.hasApiKey),
+            const SizedBox(height: 16),
 
-          // ── API key ──────────────────────────────────────────────────
-          AurisPanel(
-            title: 'API Key',
-            code: '01',
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                AurisDataRow(
-                  label: 'Status',
-                  trailing: AurisBadge(
-                    settings.hasApiKey ? 'CONFIGURED' : 'MISSING',
-                    variant: settings.hasApiKey
-                        ? AurisBadgeVariant.success
-                        : AurisBadgeVariant.danger,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: _keyController,
-                  obscureText: _obscure,
-                  autocorrect: false,
-                  enableSuggestions: false,
-                  decoration: InputDecoration(
-                    hintText: 'sk-or-...',
-                    border: const OutlineInputBorder(),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                          _obscure ? Icons.visibility : Icons.visibility_off),
-                      onPressed: () => setState(() => _obscure = !_obscure),
+            // ── API key ────────────────────────────────────────────────
+            SectionPanel(
+              title: 'API Key',
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  LabelValueRow(
+                    label: 'Status',
+                    trailing: StatusChip(
+                      settings.hasApiKey ? 'Configured' : 'Missing',
+                      color: settings.hasApiKey
+                          ? theme.colorScheme.primary
+                          : theme.colorScheme.error,
                     ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Get a key at openrouter.ai/keys. Stored securely on this '
-                  'device and only sent to OpenRouter.',
-                  style: theme.textTheme.bodySmall
-                      ?.copyWith(color: theme.colorScheme.outline),
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    FilledButton.icon(
-                      onPressed: _save,
-                      icon: const Icon(Icons.save_outlined),
-                      label: const Text('Save'),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _keyController,
+                    obscureText: _obscure,
+                    autocorrect: false,
+                    enableSuggestions: false,
+                    decoration: InputDecoration(
+                      hintText: 'sk-or-...',
+                      border: const OutlineInputBorder(),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                            _obscure ? Icons.visibility : Icons.visibility_off),
+                        onPressed: () => setState(() => _obscure = !_obscure),
+                      ),
                     ),
-                    const SizedBox(width: 12),
-                    if (settings.hasApiKey)
-                      OutlinedButton.icon(
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Get a key at openrouter.ai/keys. Stored securely on this '
+                    'device and only sent to OpenRouter.',
+                    style: theme.textTheme.bodySmall
+                        ?.copyWith(color: theme.colorScheme.outline),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      FilledButton.icon(
+                        onPressed: _save,
+                        icon: const Icon(Icons.save_outlined),
+                        label: const Text('Save'),
+                      ),
+                      const SizedBox(width: 12),
+                      if (settings.hasApiKey)
+                        OutlinedButton.icon(
+                          onPressed: () async {
+                            await context
+                                .read<SettingsProvider>()
+                                .clearApiKey();
+                            _keyController.clear();
+                          },
+                          icon: const Icon(Icons.delete_outline),
+                          label: const Text('Clear'),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // ── Default model ──────────────────────────────────────────
+            SectionPanel(
+              title: 'Default Model',
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  LabelValueRow(
+                    label: 'Model',
+                    value: settings.defaultModel,
+                    highlight: true,
+                  ),
+                  const SizedBox(height: 12),
+                  FilledButton.tonalIcon(
+                    onPressed: () async {
+                      final selected =
+                          await Navigator.of(context).push<OpenRouterModel>(
+                        MaterialPageRoute(
+                            builder: (_) => const ModelPickerScreen()),
+                      );
+                      if (selected != null && context.mounted) {
+                        context
+                            .read<SettingsProvider>()
+                            .setDefaultModel(selected.id);
+                      }
+                    },
+                    icon: const Icon(Icons.smart_toy_outlined),
+                    label: const Text('Change model'),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // ── Appearance ─────────────────────────────────────────────
+            SectionPanel(
+              title: 'Appearance',
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  RadioGroup<ThemeMode>(
+                    groupValue: settings.themeMode,
+                    onChanged: (m) {
+                      if (m != null) {
+                        context.read<SettingsProvider>().setThemeMode(m);
+                      }
+                    },
+                    child: Column(
+                      children: [
+                        for (final mode in ThemeMode.values)
+                          RadioListTile<ThemeMode>(
+                            value: mode,
+                            title: Text(_themeLabel(mode)),
+                            contentPadding: EdgeInsets.zero,
+                            dense: true,
+                          ),
+                      ],
+                    ),
+                  ),
+                  SwitchListTile(
+                    value: settings.animateModelIndicator,
+                    onChanged: (v) => context
+                        .read<SettingsProvider>()
+                        .setAnimateModelIndicator(v),
+                    title: const Text('Show activity indicator while replying'),
+                    contentPadding: EdgeInsets.zero,
+                    dense: true,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // ── Downloads ──────────────────────────────────────────────
+            SectionPanel(
+              title: 'Downloads',
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  LabelValueRow(
+                    label: 'Folder',
+                    value: settings.downloadDir ?? 'Ask each time (Save as…)',
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Desktop: saved files go here (or a Save-As dialog when '
+                    'unset). On Android, saving opens the share sheet instead.',
+                    style: theme.textTheme.bodySmall
+                        ?.copyWith(color: theme.colorScheme.outline),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      FilledButton.tonalIcon(
                         onPressed: () async {
-                          await context
-                              .read<SettingsProvider>()
-                              .clearApiKey();
-                          _keyController.clear();
+                          final dir =
+                              await const DownloadService().chooseDirectory();
+                          if (dir != null && context.mounted) {
+                            context
+                                .read<SettingsProvider>()
+                                .setDownloadDir(dir);
+                          }
                         },
-                        icon: const Icon(Icons.delete_outline),
-                        label: const Text('Clear'),
+                        icon: const Icon(Icons.folder_open),
+                        label: const Text('Choose folder'),
                       ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // ── Default model ────────────────────────────────────────────
-          AurisPanel(
-            title: 'Default Model',
-            code: '02',
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                AurisDataRow(
-                  label: 'Model',
-                  value: settings.defaultModel,
-                  highlight: true,
-                ),
-                const SizedBox(height: 12),
-                FilledButton.tonalIcon(
-                  onPressed: () async {
-                    final selected =
-                        await Navigator.of(context).push<OpenRouterModel>(
-                      MaterialPageRoute(
-                          builder: (_) => const ModelPickerScreen()),
-                    );
-                    if (selected != null && context.mounted) {
-                      context
-                          .read<SettingsProvider>()
-                          .setDefaultModel(selected.id);
-                    }
-                  },
-                  icon: const Icon(Icons.smart_toy_outlined),
-                  label: const Text('Change model'),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // ── Appearance ───────────────────────────────────────────────
-          AurisPanel(
-            title: 'Appearance',
-            code: '03',
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                for (final mode in ThemeMode.values)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 2),
-                    child: AurisRadio<ThemeMode>(
-                      value: mode,
-                      groupValue: settings.themeMode,
-                      onChanged: (m) =>
-                          context.read<SettingsProvider>().setThemeMode(m),
-                      label: _themeLabel(mode),
-                    ),
+                      const SizedBox(width: 12),
+                      if (settings.downloadDir != null)
+                        OutlinedButton.icon(
+                          onPressed: () => context
+                              .read<SettingsProvider>()
+                              .setDownloadDir(null),
+                          icon: const Icon(Icons.clear),
+                          label: const Text('Clear'),
+                        ),
+                    ],
                   ),
-                const SizedBox(height: 8),
-                AurisSwitch(
-                  value: settings.animateModelIndicator,
-                  label: 'PULSE MODEL INDICATOR',
-                  onChanged: (v) => context
-                      .read<SettingsProvider>()
-                      .setAnimateModelIndicator(v),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: 16),
+            const SizedBox(height: 16),
 
-          // ── Downloads ────────────────────────────────────────────────
-          AurisPanel(
-            title: 'Downloads',
-            code: '04',
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                AurisDataRow(
-                  label: 'Folder',
-                  value: settings.downloadDir ?? 'Ask each time (Save as…)',
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  'Desktop: saved files go here (or a Save-As dialog when unset). '
-                  'On Android, saving opens the share sheet instead.',
-                  style: theme.textTheme.bodySmall
-                      ?.copyWith(color: theme.colorScheme.outline),
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    FilledButton.tonalIcon(
-                      onPressed: () async {
-                        final dir = await const DownloadService().chooseDirectory();
-                        if (dir != null && context.mounted) {
-                          context.read<SettingsProvider>().setDownloadDir(dir);
-                        }
-                      },
-                      icon: const Icon(Icons.folder_open),
-                      label: const Text('Choose folder'),
-                    ),
-                    const SizedBox(width: 12),
-                    if (settings.downloadDir != null)
-                      OutlinedButton.icon(
-                        onPressed: () =>
-                            context.read<SettingsProvider>().setDownloadDir(null),
-                        icon: const Icon(Icons.clear),
-                        label: const Text('Clear'),
-                      ),
-                  ],
-                ),
-              ],
+            // ── Fonts ──────────────────────────────────────────────────
+            SectionPanel(
+              title: 'Fonts',
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _FontRow(
+                    label: 'Heading',
+                    value: settings.headingFont,
+                    onChanged: (f) =>
+                        context.read<SettingsProvider>().setHeadingFont(f),
+                  ),
+                  _FontRow(
+                    label: 'Your text',
+                    value: settings.userFont,
+                    onChanged: (f) =>
+                        context.read<SettingsProvider>().setUserFont(f),
+                  ),
+                  _FontRow(
+                    label: 'Model output',
+                    value: settings.modelFont,
+                    onChanged: (f) =>
+                        context.read<SettingsProvider>().setModelFont(f),
+                  ),
+                  _FontRow(
+                    label: 'Settings',
+                    value: settings.settingsFont,
+                    onChanged: (f) =>
+                        context.read<SettingsProvider>().setSettingsFont(f),
+                  ),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: 16),
-
-          // ── Fonts ─────────────────────────────────────────────────────
-          AurisPanel(
-            title: 'Fonts',
-            code: '05',
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _FontRow(
-                  label: 'Heading',
-                  value: settings.headingFont,
-                  onChanged: (f) =>
-                      context.read<SettingsProvider>().setHeadingFont(f),
-                ),
-                _FontRow(
-                  label: 'Your text',
-                  value: settings.userFont,
-                  onChanged: (f) =>
-                      context.read<SettingsProvider>().setUserFont(f),
-                ),
-                _FontRow(
-                  label: 'Model output',
-                  value: settings.modelFont,
-                  onChanged: (f) =>
-                      context.read<SettingsProvider>().setModelFont(f),
-                ),
-                _FontRow(
-                  label: 'Settings',
-                  value: settings.settingsFont,
-                  onChanged: (f) =>
-                      context.read<SettingsProvider>().setSettingsFont(f),
-                ),
-              ],
-            ),
-          ),
-        ],
+          ],
         ),
       ),
     );
   }
 
   String _themeLabel(ThemeMode mode) => switch (mode) {
-        ThemeMode.system => 'SYSTEM',
-        ThemeMode.light => 'LIGHT',
-        ThemeMode.dark => 'DARK',
+        ThemeMode.system => 'System',
+        ThemeMode.light => 'Light',
+        ThemeMode.dark => 'Dark',
       };
 }
 
-/// A labelled font dropdown for the Fonts panel.
+/// A labelled font picker row.
 class _FontRow extends StatelessWidget {
   const _FontRow({
     required this.label,
@@ -307,8 +316,6 @@ class _FontRow extends StatelessWidget {
           ),
           // A dialog picker (rather than a dropdown overlay) so all options are
           // visible and scrollable regardless of where the row sits on screen.
-          // The button shrink-wraps its content (mainAxisSize.min) — no flex
-          // children, since it sits under an unbounded-width button child.
           OutlinedButton(
             onPressed: () async {
               final picked = await _showFontPicker(context, label, value);
@@ -348,9 +355,8 @@ Future<AppFont?> _showFontPicker(
               for (final f in AppFont.values)
                 ListTile(
                   title: Text(f.label, style: TextStyle(fontFamily: f.family)),
-                  trailing: f == current
-                      ? const Icon(Icons.check, size: 18)
-                      : null,
+                  trailing:
+                      f == current ? const Icon(Icons.check, size: 18) : null,
                   onTap: () => Navigator.of(ctx).pop(f),
                 ),
             ],
@@ -361,7 +367,7 @@ Future<AppFont?> _showFontPicker(
   );
 }
 
-/// A three-step setup progress strip using [AurisStepIndicator].
+/// A three-step setup progress strip.
 class _SetupProgress extends StatelessWidget {
   const _SetupProgress({required this.hasApiKey});
 
@@ -369,27 +375,14 @@ class _SetupProgress extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AurisPanel(
+    return SectionPanel(
       title: 'Setup',
-      code: hasApiKey ? 'OK' : 'TODO',
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
-          _Step(
-            step: 1,
-            label: 'API key',
-            state: hasApiKey
-                ? AurisStepState.complete
-                : AurisStepState.active,
-          ),
-          _Step(
-            step: 2,
-            label: 'Model',
-            state: hasApiKey
-                ? AurisStepState.active
-                : AurisStepState.inactive,
-          ),
-          const _Step(step: 3, label: 'Chat', state: AurisStepState.inactive),
+          _Step(step: 1, label: 'API key', done: hasApiKey, active: !hasApiKey),
+          _Step(step: 2, label: 'Model', active: hasApiKey),
+          const _Step(step: 3, label: 'Chat'),
         ],
       ),
     );
@@ -397,21 +390,35 @@ class _SetupProgress extends StatelessWidget {
 }
 
 class _Step extends StatelessWidget {
-  const _Step({required this.step, required this.label, required this.state});
+  const _Step({
+    required this.step,
+    required this.label,
+    this.done = false,
+    this.active = false,
+  });
 
   final int step;
   final String label;
-  final AurisStepState state;
+  final bool done;
+  final bool active;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final scheme = Theme.of(context).colorScheme;
+    final color = done || active ? scheme.primary : scheme.surfaceContainerHighest;
+    final fg = done || active ? scheme.onPrimary : scheme.outline;
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        AurisStepIndicator(step: step, state: state),
+        CircleAvatar(
+          radius: 14,
+          backgroundColor: color,
+          child: done
+              ? Icon(Icons.check, size: 16, color: fg)
+              : Text('$step', style: TextStyle(color: fg)),
+        ),
         const SizedBox(height: 6),
-        Text(label, style: theme.textTheme.labelSmall),
+        Text(label, style: Theme.of(context).textTheme.labelSmall),
       ],
     );
   }

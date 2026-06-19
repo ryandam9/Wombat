@@ -1,9 +1,9 @@
-import 'package:auris/auris.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:route/providers/settings_provider.dart';
 import 'package:route/screens/settings_screen.dart';
+import 'package:route/theme/app_theme.dart';
 
 import '../helpers/fakes.dart';
 
@@ -23,7 +23,7 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
-        theme: AurisTheme.dark(),
+        theme: AppTheme.dark,
         home: ChangeNotifierProvider<SettingsProvider>.value(
           value: settings,
           child: const SettingsScreen(),
@@ -35,7 +35,7 @@ void main() {
     // The font-picker Row previously threw a RenderFlex unbounded-width error.
     expect(tester.takeException(), isNull);
     expect(find.text('HEADING'), findsOneWidget);
-    // Heading defaults to Rajdhani; its button shows the label.
-    expect(find.text('Rajdhani'), findsWidgets);
+    // Heading defaults to the system font; its button shows the label.
+    expect(find.text('System (Roboto)'), findsWidgets);
   });
 }

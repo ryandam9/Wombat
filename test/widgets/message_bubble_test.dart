@@ -1,5 +1,3 @@
-import 'package:auris/auris.dart';
-import 'package:auris/auris_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -7,16 +5,16 @@ import 'package:provider/provider.dart';
 import 'package:route/models/attachment.dart';
 import 'package:route/models/chat_message.dart';
 import 'package:route/providers/settings_provider.dart';
+import 'package:route/theme/app_theme.dart';
 import 'package:route/widgets/message_bubble.dart';
 
 import '../helpers/fakes.dart';
 
 late SettingsProvider _settings;
 
-// Auris HUD widgets read their scheme from the AurisTheme extension, and the
-// bubble reads fonts from SettingsProvider, so provide both.
+// The bubble reads fonts from SettingsProvider, so provide it.
 Widget _wrap(ChatMessage message) => MaterialApp(
-      theme: AurisTheme.dark(),
+      theme: AppTheme.dark,
       home: Scaffold(
         body: ChangeNotifierProvider<SettingsProvider>.value(
           value: _settings,
@@ -32,16 +30,13 @@ void main() {
     _settings = await buildLoadedSettings();
   });
 
-  testWidgets('renders a user message with a YOU badge in a container',
-      (tester) async {
+  testWidgets('renders a user message with a YOU badge', (tester) async {
     await tester.pumpWidget(_wrap(
       ChatMessage(id: '1', role: MessageRole.user, content: 'Hello there'),
     ));
 
     expect(find.text('YOU'), findsOneWidget);
     expect(find.text('Hello there'), findsOneWidget);
-    // The bubble (and the badge) are chamfered Auris containers.
-    expect(find.byType(AurisContainer), findsWidgets);
   });
 
   testWidgets('renders an assistant message as Markdown with a copy button',

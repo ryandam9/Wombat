@@ -28,7 +28,7 @@ class SettingsProvider extends ChangeNotifier {
   ThemeMode _themeMode = ThemeMode.system;
   String? _downloadDir;
   bool _animateModelIndicator = false;
-  AppFont _headingFont = AppFont.rajdhani;
+  AppFont _headingFont = AppFont.system;
   AppFont _userFont = AppFont.system;
   AppFont _modelFont = AppFont.system;
   AppFont _settingsFont = AppFont.system;
@@ -65,7 +65,7 @@ class SettingsProvider extends ChangeNotifier {
     _animateModelIndicator =
         _prefs.getBool(_kAnimateModelIndicator) ?? false;
     _headingFont =
-        AppFontX.fromIndex(_prefs.getInt(_kHeadingFont) ?? AppFont.rajdhani.index);
+        AppFontX.fromIndex(_prefs.getInt(_kHeadingFont));
     _userFont = AppFontX.fromIndex(_prefs.getInt(_kUserFont));
     _modelFont = AppFontX.fromIndex(_prefs.getInt(_kModelFont));
     _settingsFont = AppFontX.fromIndex(_prefs.getInt(_kSettingsFont));

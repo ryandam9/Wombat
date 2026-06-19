@@ -1,4 +1,3 @@
-import 'package:auris/auris_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -6,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../models/conversation.dart';
 import '../providers/chat_provider.dart';
 import '../screens/settings_screen.dart';
+import 'ui_kit.dart';
 
 /// Sidebar listing all saved conversations with controls to create, select
 /// and delete them.
@@ -28,17 +28,14 @@ class ConversationList extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(16, 16, 8, 8),
             child: Row(
               children: [
-                AurisScanBracket(
-                  padding: const EdgeInsets.all(4),
-                  child: Icon(Icons.alt_route, color: theme.colorScheme.primary),
-                ),
+                Icon(Icons.alt_route, color: theme.colorScheme.primary),
                 const SizedBox(width: 10),
-                Text('ROUTE', style: theme.textTheme.titleLarge),
+                Text('Route', style: theme.textTheme.titleLarge),
                 const SizedBox(width: 8),
                 if (chat.conversations.isNotEmpty)
-                  AurisBadge(
+                  StatusChip(
                     '${chat.conversations.length}',
-                    variant: AurisBadgeVariant.slate,
+                    color: theme.colorScheme.outline,
                   ),
                 const Spacer(),
                 IconButton(
