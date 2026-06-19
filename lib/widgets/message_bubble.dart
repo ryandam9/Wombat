@@ -131,22 +131,35 @@ class MessageBubble extends StatelessWidget {
       );
     }
     // Apply the model-output font to the whole Markdown stylesheet.
+    final scheme = theme.colorScheme;
     final mdTheme = theme.copyWith(
-      textTheme: theme.textTheme.apply(fontFamily: settings.modelFont.family),
+      textTheme: theme.textTheme.apply(
+        fontFamily: settings.modelFont.family,
+        // Force readable body text against the bubble's surface background.
+        bodyColor: scheme.onSurface,
+        displayColor: scheme.onSurface,
+      ),
     );
+    final base = MarkdownStyleSheet.fromTheme(mdTheme);
+    // Code uses a clearly distinct, bordered background with on-surface text so
+    // it stays readable in both light and dark themes.
+    final codeBg = scheme.surfaceContainerLowest;
     // selectable:false — selection is handled by the ancestor SelectionArea,
     // and mixing the two breaks copy of Markdown content.
     return MarkdownBody(
       data: message.content,
       selectable: false,
-      styleSheet: MarkdownStyleSheet.fromTheme(mdTheme).copyWith(
-        code: theme.textTheme.bodyMedium?.copyWith(
+      styleSheet: base.copyWith(
+        p: base.p?.copyWith(color: scheme.onSurface),
+        code: base.code?.copyWith(
           fontFamily: 'monospace',
-          backgroundColor: theme.colorScheme.surface,
+          color: scheme.onSurface,
+          backgroundColor: codeBg,
         ),
         codeblockDecoration: BoxDecoration(
-          color: theme.colorScheme.surface,
+          color: codeBg,
           borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: scheme.outlineVariant),
         ),
       ),
     );
