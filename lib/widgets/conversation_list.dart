@@ -105,7 +105,7 @@ class _ConversationTile extends StatelessWidget {
     final theme = Theme.of(context);
     return ListTile(
       selected: selected,
-      selectedTileColor: theme.colorScheme.primaryContainer.withOpacity(0.4),
+      selectedTileColor: theme.colorScheme.primaryContainer.withValues(alpha: 0.4),
       leading: const Icon(Icons.chat_bubble_outline, size: 20),
       title: Text(
         conversation.title,

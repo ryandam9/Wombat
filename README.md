@@ -39,7 +39,7 @@ them locally with the Flutter CLI.
 
 ### 1. Install Flutter
 
-Follow https://docs.flutter.dev/get-started/install (Flutter 3.22+ / Dart 3.4+).
+Follow https://docs.flutter.dev/get-started/install (Flutter 3.27+ / Dart 3.6+).
 
 ### 2. Generate the platform scaffolding
 
