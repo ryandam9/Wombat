@@ -15,9 +15,15 @@ class SettingsScreen extends StatefulWidget {
   State<SettingsScreen> createState() => _SettingsScreenState();
 }
 
+/// One settings section: a nav entry (icon + title) plus its detail content.
+typedef _Section = ({String title, IconData icon, Widget content});
+
 class _SettingsScreenState extends State<SettingsScreen> {
+  static const double _wideBreakpoint = 720;
+
   late final TextEditingController _keyController;
   bool _obscure = true;
+  int _selected = 0;
 
   @override
   void initState() {
@@ -45,6 +51,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget build(BuildContext context) {
     final settings = context.watch<SettingsProvider>();
     final theme = Theme.of(context);
+    final sections = _sections(context, settings);
+    final wide = MediaQuery.of(context).size.width >= _wideBreakpoint;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
@@ -54,234 +62,291 @@ class _SettingsScreenState extends State<SettingsScreen> {
           textTheme:
               theme.textTheme.apply(fontFamily: settings.settingsFont.family),
         ),
-        child: ListView(
-          padding: const EdgeInsets.all(16),
+        child: wide ? _twoPane(sections) : _stacked(sections),
+      ),
+    );
+  }
+
+  // ── Layouts ───────────────────────────────────────────────────────────
+
+  /// Narrow/mobile: every section stacked in a single scrolling column.
+  Widget _stacked(List<_Section> sections) {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        for (final s in sections)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 16),
+            child: SectionPanel(title: s.title, child: s.content),
+          ),
+      ],
+    );
+  }
+
+  /// Wide/desktop: a section list on the left, the selected detail on the right.
+  Widget _twoPane(List<_Section> sections) {
+    final theme = Theme.of(context);
+    final selected = sections[_selected.clamp(0, sections.length - 1)];
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SizedBox(
+          width: 240,
+          child: ListView(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            children: [
+              for (var i = 0; i < sections.length; i++)
+                ListTile(
+                  leading: Icon(sections[i].icon),
+                  title: Text(sections[i].title),
+                  selected: i == _selected,
+                  selectedTileColor:
+                      theme.colorScheme.primaryContainer.withValues(alpha: 0.4),
+                  onTap: () => setState(() => _selected = i),
+                ),
+            ],
+          ),
+        ),
+        const VerticalDivider(width: 1),
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 720),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(selected.title, style: theme.textTheme.headlineSmall),
+                  const SizedBox(height: 16),
+                  selected.content,
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ── Sections ──────────────────────────────────────────────────────────
+
+  List<_Section> _sections(BuildContext context, SettingsProvider settings) => [
+        (
+          title: 'Setup',
+          icon: Icons.checklist_rtl,
+          content: _SetupProgress(hasApiKey: settings.hasApiKey),
+        ),
+        (title: 'API Key', icon: Icons.key, content: _apiKey(settings)),
+        (
+          title: 'Default Model',
+          icon: Icons.smart_toy_outlined,
+          content: _defaultModel(settings),
+        ),
+        (
+          title: 'Appearance',
+          icon: Icons.palette_outlined,
+          content: _appearance(settings),
+        ),
+        (
+          title: 'Downloads',
+          icon: Icons.download_outlined,
+          content: _downloads(settings),
+        ),
+        (
+          title: 'Fonts',
+          icon: Icons.font_download_outlined,
+          content: _fonts(settings),
+        ),
+      ];
+
+  Widget _apiKey(SettingsProvider settings) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        LabelValueRow(
+          label: 'Status',
+          trailing: StatusChip(
+            settings.hasApiKey ? 'Configured' : 'Missing',
+            color: settings.hasApiKey
+                ? theme.colorScheme.primary
+                : theme.colorScheme.error,
+          ),
+        ),
+        const SizedBox(height: 12),
+        TextField(
+          controller: _keyController,
+          obscureText: _obscure,
+          autocorrect: false,
+          enableSuggestions: false,
+          decoration: InputDecoration(
+            hintText: 'sk-or-...',
+            border: const OutlineInputBorder(),
+            suffixIcon: IconButton(
+              icon: Icon(_obscure ? Icons.visibility : Icons.visibility_off),
+              onPressed: () => setState(() => _obscure = !_obscure),
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Get a key at openrouter.ai/keys. Stored securely on this device and '
+          'only sent to OpenRouter.',
+          style: theme.textTheme.bodySmall
+              ?.copyWith(color: theme.colorScheme.outline),
+        ),
+        const SizedBox(height: 12),
+        Row(
           children: [
-            _SetupProgress(hasApiKey: settings.hasApiKey),
-            const SizedBox(height: 16),
-
-            // ── API key ────────────────────────────────────────────────
-            SectionPanel(
-              title: 'API Key',
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  LabelValueRow(
-                    label: 'Status',
-                    trailing: StatusChip(
-                      settings.hasApiKey ? 'Configured' : 'Missing',
-                      color: settings.hasApiKey
-                          ? theme.colorScheme.primary
-                          : theme.colorScheme.error,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: _keyController,
-                    obscureText: _obscure,
-                    autocorrect: false,
-                    enableSuggestions: false,
-                    decoration: InputDecoration(
-                      hintText: 'sk-or-...',
-                      border: const OutlineInputBorder(),
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                            _obscure ? Icons.visibility : Icons.visibility_off),
-                        onPressed: () => setState(() => _obscure = !_obscure),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Get a key at openrouter.ai/keys. Stored securely on this '
-                    'device and only sent to OpenRouter.',
-                    style: theme.textTheme.bodySmall
-                        ?.copyWith(color: theme.colorScheme.outline),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      FilledButton.icon(
-                        onPressed: _save,
-                        icon: const Icon(Icons.save_outlined),
-                        label: const Text('Save'),
-                      ),
-                      const SizedBox(width: 12),
-                      if (settings.hasApiKey)
-                        OutlinedButton.icon(
-                          onPressed: () async {
-                            await context
-                                .read<SettingsProvider>()
-                                .clearApiKey();
-                            _keyController.clear();
-                          },
-                          icon: const Icon(Icons.delete_outline),
-                          label: const Text('Clear'),
-                        ),
-                    ],
-                  ),
-                ],
-              ),
+            FilledButton.icon(
+              onPressed: _save,
+              icon: const Icon(Icons.save_outlined),
+              label: const Text('Save'),
             ),
-            const SizedBox(height: 16),
-
-            // ── Default model ──────────────────────────────────────────
-            SectionPanel(
-              title: 'Default Model',
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  LabelValueRow(
-                    label: 'Model',
-                    value: settings.defaultModel,
-                    highlight: true,
-                  ),
-                  const SizedBox(height: 12),
-                  FilledButton.tonalIcon(
-                    onPressed: () async {
-                      final selected =
-                          await Navigator.of(context).push<OpenRouterModel>(
-                        MaterialPageRoute(
-                            builder: (_) => const ModelPickerScreen()),
-                      );
-                      if (selected != null && context.mounted) {
-                        context
-                            .read<SettingsProvider>()
-                            .setDefaultModel(selected.id);
-                      }
-                    },
-                    icon: const Icon(Icons.smart_toy_outlined),
-                    label: const Text('Change model'),
-                  ),
-                ],
+            const SizedBox(width: 12),
+            if (settings.hasApiKey)
+              OutlinedButton.icon(
+                onPressed: () async {
+                  await context.read<SettingsProvider>().clearApiKey();
+                  _keyController.clear();
+                },
+                icon: const Icon(Icons.delete_outline),
+                label: const Text('Clear'),
               ),
-            ),
-            const SizedBox(height: 16),
-
-            // ── Appearance ─────────────────────────────────────────────
-            SectionPanel(
-              title: 'Appearance',
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  RadioGroup<ThemeMode>(
-                    groupValue: settings.themeMode,
-                    onChanged: (m) {
-                      if (m != null) {
-                        context.read<SettingsProvider>().setThemeMode(m);
-                      }
-                    },
-                    child: Column(
-                      children: [
-                        for (final mode in ThemeMode.values)
-                          RadioListTile<ThemeMode>(
-                            value: mode,
-                            title: Text(_themeLabel(mode)),
-                            contentPadding: EdgeInsets.zero,
-                            dense: true,
-                          ),
-                      ],
-                    ),
-                  ),
-                  SwitchListTile(
-                    value: settings.animateModelIndicator,
-                    onChanged: (v) => context
-                        .read<SettingsProvider>()
-                        .setAnimateModelIndicator(v),
-                    title: const Text('Show activity indicator while replying'),
-                    contentPadding: EdgeInsets.zero,
-                    dense: true,
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // ── Downloads ──────────────────────────────────────────────
-            SectionPanel(
-              title: 'Downloads',
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  LabelValueRow(
-                    label: 'Folder',
-                    value: settings.downloadDir ?? 'Ask each time (Save as…)',
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Desktop: saved files go here (or a Save-As dialog when '
-                    'unset). On Android, saving opens the share sheet instead.',
-                    style: theme.textTheme.bodySmall
-                        ?.copyWith(color: theme.colorScheme.outline),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      FilledButton.tonalIcon(
-                        onPressed: () async {
-                          final dir =
-                              await const DownloadService().chooseDirectory();
-                          if (dir != null && context.mounted) {
-                            context
-                                .read<SettingsProvider>()
-                                .setDownloadDir(dir);
-                          }
-                        },
-                        icon: const Icon(Icons.folder_open),
-                        label: const Text('Choose folder'),
-                      ),
-                      const SizedBox(width: 12),
-                      if (settings.downloadDir != null)
-                        OutlinedButton.icon(
-                          onPressed: () => context
-                              .read<SettingsProvider>()
-                              .setDownloadDir(null),
-                          icon: const Icon(Icons.clear),
-                          label: const Text('Clear'),
-                        ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // ── Fonts ──────────────────────────────────────────────────
-            SectionPanel(
-              title: 'Fonts',
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _FontRow(
-                    label: 'Heading',
-                    value: settings.headingFont,
-                    onChanged: (f) =>
-                        context.read<SettingsProvider>().setHeadingFont(f),
-                  ),
-                  _FontRow(
-                    label: 'Your text',
-                    value: settings.userFont,
-                    onChanged: (f) =>
-                        context.read<SettingsProvider>().setUserFont(f),
-                  ),
-                  _FontRow(
-                    label: 'Model output',
-                    value: settings.modelFont,
-                    onChanged: (f) =>
-                        context.read<SettingsProvider>().setModelFont(f),
-                  ),
-                  _FontRow(
-                    label: 'Settings',
-                    value: settings.settingsFont,
-                    onChanged: (f) =>
-                        context.read<SettingsProvider>().setSettingsFont(f),
-                  ),
-                ],
-              ),
-            ),
           ],
         ),
-      ),
+      ],
+    );
+  }
+
+  Widget _defaultModel(SettingsProvider settings) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        LabelValueRow(
+          label: 'Model',
+          value: settings.defaultModel,
+          highlight: true,
+        ),
+        const SizedBox(height: 12),
+        FilledButton.tonalIcon(
+          onPressed: () async {
+            final selected = await Navigator.of(context).push<OpenRouterModel>(
+              MaterialPageRoute(builder: (_) => const ModelPickerScreen()),
+            );
+            if (selected != null && mounted) {
+              context.read<SettingsProvider>().setDefaultModel(selected.id);
+            }
+          },
+          icon: const Icon(Icons.smart_toy_outlined),
+          label: const Text('Change model'),
+        ),
+      ],
+    );
+  }
+
+  Widget _appearance(SettingsProvider settings) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        RadioGroup<ThemeMode>(
+          groupValue: settings.themeMode,
+          onChanged: (m) {
+            if (m != null) context.read<SettingsProvider>().setThemeMode(m);
+          },
+          child: Column(
+            children: [
+              for (final mode in ThemeMode.values)
+                RadioListTile<ThemeMode>(
+                  value: mode,
+                  title: Text(_themeLabel(mode)),
+                  contentPadding: EdgeInsets.zero,
+                  dense: true,
+                ),
+            ],
+          ),
+        ),
+        SwitchListTile(
+          value: settings.animateModelIndicator,
+          onChanged: (v) =>
+              context.read<SettingsProvider>().setAnimateModelIndicator(v),
+          title: const Text('Show activity indicator while replying'),
+          contentPadding: EdgeInsets.zero,
+          dense: true,
+        ),
+      ],
+    );
+  }
+
+  Widget _downloads(SettingsProvider settings) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        LabelValueRow(
+          label: 'Folder',
+          value: settings.downloadDir ?? 'Ask each time (Save as…)',
+        ),
+        const SizedBox(height: 6),
+        Text(
+          'Desktop: saved files go here (or a Save-As dialog when unset). On '
+          'Android, saving opens the share sheet instead.',
+          style: theme.textTheme.bodySmall
+              ?.copyWith(color: theme.colorScheme.outline),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            FilledButton.tonalIcon(
+              onPressed: () async {
+                final dir = await const DownloadService().chooseDirectory();
+                if (dir != null && mounted) {
+                  context.read<SettingsProvider>().setDownloadDir(dir);
+                }
+              },
+              icon: const Icon(Icons.folder_open),
+              label: const Text('Choose folder'),
+            ),
+            const SizedBox(width: 12),
+            if (settings.downloadDir != null)
+              OutlinedButton.icon(
+                onPressed: () =>
+                    context.read<SettingsProvider>().setDownloadDir(null),
+                icon: const Icon(Icons.clear),
+                label: const Text('Clear'),
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _fonts(SettingsProvider settings) {
+    final read = context.read<SettingsProvider>();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _FontRow(
+          label: 'Heading',
+          value: settings.headingFont,
+          onChanged: read.setHeadingFont,
+        ),
+        _FontRow(
+          label: 'Your text',
+          value: settings.userFont,
+          onChanged: read.setUserFont,
+        ),
+        _FontRow(
+          label: 'Model output',
+          value: settings.modelFont,
+          onChanged: read.setModelFont,
+        ),
+        _FontRow(
+          label: 'Settings',
+          value: settings.settingsFont,
+          onChanged: read.setSettingsFont,
+        ),
+      ],
     );
   }
 
@@ -292,7 +357,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       };
 }
 
-/// A labelled font picker row.
+/// A labelled font picker using a standard, compact dropdown menu.
 class _FontRow extends StatelessWidget {
   const _FontRow({
     required this.label,
@@ -314,57 +379,23 @@ class _FontRow extends StatelessWidget {
           Expanded(
             child: Text(label.toUpperCase(), style: theme.textTheme.labelMedium),
           ),
-          // A dialog picker (rather than a dropdown overlay) so all options are
-          // visible and scrollable regardless of where the row sits on screen.
-          OutlinedButton(
-            onPressed: () async {
-              final picked = await _showFontPicker(context, label, value);
-              if (picked != null) onChanged(picked);
+          DropdownButton<AppFont>(
+            value: value,
+            onChanged: (f) {
+              if (f != null) onChanged(f);
             },
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(value.label, style: TextStyle(fontFamily: value.family)),
-                const SizedBox(width: 8),
-                const Icon(Icons.expand_more, size: 18),
-              ],
-            ),
+            items: [
+              for (final f in AppFont.values)
+                DropdownMenuItem(
+                  value: f,
+                  child: Text(f.label, style: TextStyle(fontFamily: f.family)),
+                ),
+            ],
           ),
         ],
       ),
     );
   }
-}
-
-/// Shows a scrollable dialog of all fonts, each previewed in its own family.
-Future<AppFont?> _showFontPicker(
-  BuildContext context,
-  String label,
-  AppFont current,
-) {
-  return showDialog<AppFont>(
-    context: context,
-    builder: (ctx) => SimpleDialog(
-      title: Text('$label font'),
-      children: [
-        SizedBox(
-          width: 320,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              for (final f in AppFont.values)
-                ListTile(
-                  title: Text(f.label, style: TextStyle(fontFamily: f.family)),
-                  trailing:
-                      f == current ? const Icon(Icons.check, size: 18) : null,
-                  onTap: () => Navigator.of(ctx).pop(f),
-                ),
-            ],
-          ),
-        ),
-      ],
-    ),
-  );
 }
 
 /// A three-step setup progress strip.
@@ -375,16 +406,13 @@ class _SetupProgress extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SectionPanel(
-      title: 'Setup',
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          _Step(step: 1, label: 'API key', done: hasApiKey, active: !hasApiKey),
-          _Step(step: 2, label: 'Model', active: hasApiKey),
-          const _Step(step: 3, label: 'Chat'),
-        ],
-      ),
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: [
+        _Step(step: 1, label: 'API key', done: hasApiKey, active: !hasApiKey),
+        _Step(step: 2, label: 'Model', active: hasApiKey),
+        const _Step(step: 3, label: 'Chat'),
+      ],
     );
   }
 }
@@ -405,7 +433,8 @@ class _Step extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final color = done || active ? scheme.primary : scheme.surfaceContainerHighest;
+    final color =
+        done || active ? scheme.primary : scheme.surfaceContainerHighest;
     final fg = done || active ? scheme.onPrimary : scheme.outline;
     return Column(
       mainAxisSize: MainAxisSize.min,
