@@ -171,6 +171,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       label: _themeLabel(mode),
                     ),
                   ),
+                const SizedBox(height: 8),
+                AurisSwitch(
+                  value: settings.animateModelIndicator,
+                  label: 'PULSE MODEL INDICATOR',
+                  onChanged: (v) => context
+                      .read<SettingsProvider>()
+                      .setAnimateModelIndicator(v),
+                ),
               ],
             ),
           ),

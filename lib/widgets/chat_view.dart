@@ -59,6 +59,8 @@ class _Header extends StatelessWidget {
   Widget build(BuildContext context) {
     final responding =
         context.select<ChatProvider, bool>((c) => c.isResponding);
+    final animate = context
+        .select<SettingsProvider, bool>((s) => s.animateModelIndicator);
     return SafeArea(
       bottom: false,
       child: Padding(
@@ -73,7 +75,7 @@ class _Header extends StatelessWidget {
               ),
             Expanded(
               child: AurisScanBracket(
-                pulse: responding,
+                pulse: responding && animate,
                 child: const ModelSelector(),
               ),
             ),

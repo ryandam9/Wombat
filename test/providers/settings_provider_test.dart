@@ -84,6 +84,18 @@ void main() {
     expect(prefs.getString('download_dir'), isNull);
   });
 
+  test('animateModelIndicator defaults to false and persists', () async {
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    final settings = SettingsProvider(FakeSecureStorageService(), prefs);
+    await waitUntil(() => !settings.loading);
+
+    expect(settings.animateModelIndicator, isFalse);
+    await settings.setAnimateModelIndicator(true);
+    expect(settings.animateModelIndicator, isTrue);
+    expect(prefs.getBool('animate_model_indicator'), isTrue);
+  });
+
   test('notifies listeners on change', () async {
     final settings = await buildLoadedSettings(apiKey: null);
     var notified = 0;

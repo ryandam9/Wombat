@@ -16,11 +16,13 @@ class SettingsProvider extends ChangeNotifier {
   static const _kDefaultModel = 'default_model';
   static const _kThemeMode = 'theme_mode';
   static const _kDownloadDir = 'download_dir';
+  static const _kAnimateModelIndicator = 'animate_model_indicator';
 
   String? _apiKey;
   String _defaultModel = 'openai/gpt-4o-mini';
   ThemeMode _themeMode = ThemeMode.system;
   String? _downloadDir;
+  bool _animateModelIndicator = false;
   bool _loading = true;
 
   bool get loading => _loading;
@@ -28,6 +30,10 @@ class SettingsProvider extends ChangeNotifier {
   bool get hasApiKey => _apiKey != null && _apiKey!.isNotEmpty;
   String get defaultModel => _defaultModel;
   ThemeMode get themeMode => _themeMode;
+
+  /// Whether the model indicator in the chat header pulses while streaming.
+  /// Off by default so it doesn't blink distractingly.
+  bool get animateModelIndicator => _animateModelIndicator;
 
   /// Default directory new downloads are written to (desktop). When null, a
   /// Save-As dialog is shown instead.
@@ -41,6 +47,8 @@ class SettingsProvider extends ChangeNotifier {
     }
     _defaultModel = _prefs.getString(_kDefaultModel) ?? _defaultModel;
     _downloadDir = _prefs.getString(_kDownloadDir);
+    _animateModelIndicator =
+        _prefs.getBool(_kAnimateModelIndicator) ?? false;
     final themeIndex = _prefs.getInt(_kThemeMode);
     if (themeIndex != null &&
         themeIndex >= 0 &&
@@ -80,6 +88,12 @@ class SettingsProvider extends ChangeNotifier {
   Future<void> setDefaultModel(String model) async {
     _defaultModel = model;
     await _prefs.setString(_kDefaultModel, model);
+    notifyListeners();
+  }
+
+  Future<void> setAnimateModelIndicator(bool value) async {
+    _animateModelIndicator = value;
+    await _prefs.setBool(_kAnimateModelIndicator, value);
     notifyListeners();
   }
 
