@@ -1,9 +1,9 @@
+import 'package:auris/auris.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'providers/settings_provider.dart';
 import 'screens/home_screen.dart';
-import 'theme/app_theme.dart';
 
 class RouteApp extends StatelessWidget {
   const RouteApp({super.key});
@@ -16,8 +16,8 @@ class RouteApp extends StatelessWidget {
     return MaterialApp(
       title: 'Route',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.light,
-      darkTheme: AppTheme.dark,
+      theme: AurisTheme.light(),
+      darkTheme: AurisTheme.dark(),
       themeMode: themeMode,
       home: const HomeScreen(),
     );
