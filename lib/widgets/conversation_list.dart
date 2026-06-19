@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../models/conversation.dart';
 import '../providers/chat_provider.dart';
+import '../screens/compare_screen.dart';
 import '../screens/settings_screen.dart';
 import 'ui_kit.dart';
 
@@ -59,6 +60,22 @@ class ConversationList extends StatelessWidget {
               },
               icon: const Icon(Icons.add),
               label: const Text('New chat'),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: OutlinedButton.icon(
+              onPressed: () {
+                if (inDrawer) Navigator.of(context).pop();
+                Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const CompareScreen(),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.compare_arrows),
+              label: const Text('Compare models'),
             ),
           ),
           const SizedBox(height: 8),
