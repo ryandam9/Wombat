@@ -364,22 +364,52 @@ class _FilterBar extends StatelessWidget {
   final Set<_Filter> active;
   final ValueChanged<_Filter> onToggled;
 
+  // Green accent for the "selected" state, legible in both themes.
+  static const _accent = Color(0xFF2E9E5B);
+
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final dark = theme.brightness == Brightness.dark;
+    // Lighten the green on dark backgrounds, darken it on light ones.
+    final hsl = HSLColor.fromColor(_accent);
+    final accentFg = hsl
+        .withLightness(
+            (dark ? hsl.lightness + 0.22 : hsl.lightness - 0.10).clamp(0.0, 1.0))
+        .toColor();
+
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
       child: Row(
         children: [
           for (final f in _Filter.values) ...[
-            FilterChip(
-              avatar: Icon(f.icon, size: 18),
-              label: Text(f.label),
+            Builder(builder: (context) {
               // "All" is selected when no specific filter is active; the rest
               // toggle independently and combine.
-              selected: f == _Filter.all ? active.isEmpty : active.contains(f),
-              onSelected: (_) => onToggled(f),
-            ),
+              final selected =
+                  f == _Filter.all ? active.isEmpty : active.contains(f);
+              return FilterChip(
+                avatar: Icon(
+                  f.icon,
+                  size: 18,
+                  color: selected ? accentFg : null,
+                ),
+                label: Text(f.label),
+                selected: selected,
+                onSelected: (_) => onToggled(f),
+                // Green fill + green border + green checkmark when selected.
+                showCheckmark: true,
+                checkmarkColor: accentFg,
+                selectedColor: _accent.withValues(alpha: dark ? 0.28 : 0.16),
+                labelStyle: selected
+                    ? TextStyle(color: accentFg, fontWeight: FontWeight.w600)
+                    : null,
+                side: selected
+                    ? BorderSide(color: accentFg, width: 1.5)
+                    : null,
+              );
+            }),
             const SizedBox(width: 8),
           ],
         ],
