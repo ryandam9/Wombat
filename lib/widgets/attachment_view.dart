@@ -2,9 +2,10 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 
 import '../models/attachment.dart';
+import 'save_button.dart';
 
 /// Renders a single [MessageAttachment]: an inline image, an audio player, or
-/// a document chip.
+/// a document chip, each with a Save action.
 class AttachmentView extends StatelessWidget {
   const AttachmentView({super.key, required this.attachment});
 
@@ -12,15 +13,33 @@ class AttachmentView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    switch (attachment.kind) {
-      case AttachmentKind.image:
-        return _ImageAttachment(attachment: attachment);
-      case AttachmentKind.audio:
-        return AudioPlayerBar(attachment: attachment);
-      case AttachmentKind.file:
-        return _FileAttachment(attachment: attachment);
-    }
+    final Widget media = switch (attachment.kind) {
+      AttachmentKind.image => _ImageAttachment(attachment: attachment),
+      AttachmentKind.audio => AudioPlayerBar(attachment: attachment),
+      AttachmentKind.file => _FileAttachment(attachment: attachment),
+    };
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        media,
+        SaveButton(
+          compact: true,
+          bytes: () => attachment.bytes,
+          baseName: _baseName,
+          mimeType: attachment.mimeType,
+        ),
+      ],
+    );
   }
+
+  String get _baseName => switch (attachment.kind) {
+        AttachmentKind.image => 'route-image',
+        AttachmentKind.audio => 'route-audio',
+        AttachmentKind.file => (attachment.name ?? 'route-document')
+            .replaceAll(RegExp(r'\.[^.]*$'), ''),
+      };
 }
 
 class _ImageAttachment extends StatelessWidget {

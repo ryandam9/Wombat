@@ -67,6 +67,23 @@ void main() {
     expect(prefs.getInt('theme_mode'), ThemeMode.light.index);
   });
 
+  test('setDownloadDir persists and clears', () async {
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    final settings = SettingsProvider(FakeSecureStorageService(), prefs);
+    await waitUntil(() => !settings.loading);
+
+    expect(settings.downloadDir, isNull);
+
+    await settings.setDownloadDir('/home/me/Downloads');
+    expect(settings.downloadDir, '/home/me/Downloads');
+    expect(prefs.getString('download_dir'), '/home/me/Downloads');
+
+    await settings.setDownloadDir(null);
+    expect(settings.downloadDir, isNull);
+    expect(prefs.getString('download_dir'), isNull);
+  });
+
   test('notifies listeners on change', () async {
     final settings = await buildLoadedSettings(apiKey: null);
     var notified = 0;

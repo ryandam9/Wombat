@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../models/openrouter_model.dart';
 import '../providers/settings_provider.dart';
+import '../services/download_service.dart';
 import 'model_picker_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -170,6 +171,52 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       label: _themeLabel(mode),
                     ),
                   ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // ── Downloads ────────────────────────────────────────────────
+          AurisPanel(
+            title: 'Downloads',
+            code: '04',
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                AurisDataRow(
+                  label: 'Folder',
+                  value: settings.downloadDir ?? 'Ask each time (Save as…)',
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Desktop: saved files go here (or a Save-As dialog when unset). '
+                  'On Android, saving opens the share sheet instead.',
+                  style: theme.textTheme.bodySmall
+                      ?.copyWith(color: theme.colorScheme.outline),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    FilledButton.tonalIcon(
+                      onPressed: () async {
+                        final dir = await const DownloadService().chooseDirectory();
+                        if (dir != null && context.mounted) {
+                          context.read<SettingsProvider>().setDownloadDir(dir);
+                        }
+                      },
+                      icon: const Icon(Icons.folder_open),
+                      label: const Text('Choose folder'),
+                    ),
+                    const SizedBox(width: 12),
+                    if (settings.downloadDir != null)
+                      OutlinedButton.icon(
+                        onPressed: () =>
+                            context.read<SettingsProvider>().setDownloadDir(null),
+                        icon: const Icon(Icons.clear),
+                        label: const Text('Clear'),
+                      ),
+                  ],
+                ),
               ],
             ),
           ),

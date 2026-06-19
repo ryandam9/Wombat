@@ -41,6 +41,40 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
 
   void _reload() => setState(() => _future = _load());
 
+  /// Lets the user type an arbitrary model id (e.g. one too new to be listed).
+  /// Validity is left to OpenRouter — an unknown id surfaces as a request error.
+  Future<void> _enterCustomId() async {
+    final controller = TextEditingController();
+    final id = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Enter model ID'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: const InputDecoration(
+            hintText: 'e.g. z-ai/glm-4.6',
+            helperText: 'Used as-is; an invalid id will return an API error.',
+          ),
+          onSubmitted: (v) => Navigator.of(ctx).pop(v.trim()),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(controller.text.trim()),
+            child: const Text('Use model'),
+          ),
+        ],
+      ),
+    );
+    if (id != null && id.isNotEmpty && mounted) {
+      Navigator.of(context).pop(OpenRouterModel(id: id, name: id));
+    }
+  }
+
   List<OpenRouterModel> _filterAndSort(List<OpenRouterModel> models) {
     final q = _query.toLowerCase();
     final list = models.where((m) {
@@ -67,6 +101,11 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
       appBar: AppBar(
         title: const Text('Choose a model'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.keyboard),
+            tooltip: 'Enter model ID',
+            onPressed: _enterCustomId,
+          ),
           IconButton(
             icon: const Icon(Icons.refresh),
             tooltip: 'Reload',

@@ -48,7 +48,8 @@ A typical flow:
 |------|---------|
 | 💬 **Streaming chat** | Token-by-token replies over Server-Sent Events; stop a response mid-stream. |
 | 🖼️ **Multimodal** | Attach **images, audio (incl. in-app recording) and PDFs** as input; render **generated images** and **audio replies** as output — subject to the selected model's capabilities. See [below](#multimodal-payloads). |
-| 🧠 **Model picker** | Live catalogue from OpenRouter with search, a **free-only** filter, and sort by name / context length / price. Each model shows its context window and prompt pricing. |
+| 🧠 **Model picker** | Live catalogue from OpenRouter with search, a **free-only** filter, and sort by name / context length / price. Each model shows its context window and prompt pricing. You can also **enter a custom model ID** for models not yet listed. |
+| 💾 **Save output** | Save assistant replies, generated images, audio, and your own attachments — to a chosen folder / Save-As dialog on desktop, or the share sheet on Android. |
 | 🗂️ **Conversations** | Multiple chats with titles auto-derived from the first message; persisted on-device as JSON and reorderable by recency. |
 | 📊 **Usage tracking** | Per-session input/output tokens, USD cost, request count, a per-model breakdown, and account credit balance. See [below](#usage--cost-tracking). |
 | 🔐 **Secure key storage** | API key kept in the platform secure store (Android Keystore / Linux libsecret / macOS Keychain). |
@@ -60,13 +61,14 @@ A typical flow:
 ## Settings
 
 Open Settings from the gear icon in the sidebar (or via the conversation
-drawer on mobile). It's organised into three panels:
+drawer on mobile). It's organised into panels:
 
 | Setting | What it does |
 |---------|--------------|
 | **API key** | Paste your key from [openrouter.ai/keys](https://openrouter.ai/keys). It is stored in the device secure store and sent only to OpenRouter. Shows a CONFIGURED / MISSING status badge; you can reveal, save, or clear it. |
 | **Default model** | The model used for **new** conversations. Tap *Change model* to open the picker. (Each conversation can also switch models from its header.) |
 | **Appearance** | Theme mode — System, Light, or Dark — persisted via `shared_preferences`. |
+| **Downloads** | Choose a default folder for saved output (desktop). When unset, saving shows a Save-As dialog; on Android it opens the share sheet. |
 
 A **Setup** strip at the top tracks your progress: API key → model → chat.
 
@@ -133,7 +135,7 @@ flutter test          # run the full suite
 flutter analyze       # static analysis / lints
 ```
 
-The project has a comprehensive suite (85 tests across 15 files) covering:
+The project has a comprehensive suite (91 tests across 16 files) covering:
 
 - **Models** — JSON round-trips and edge cases for messages, conversations,
   models, and usage.

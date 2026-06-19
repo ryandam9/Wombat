@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:auris/auris_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -5,6 +7,7 @@ import 'package:flutter_markdown/flutter_markdown.dart';
 
 import '../models/chat_message.dart';
 import 'attachment_view.dart';
+import 'save_button.dart';
 
 /// Renders a single chat message inside a chamfered [AurisContainer].
 /// Assistant replies are rendered as Markdown; user messages as plain
@@ -48,7 +51,18 @@ class MessageBubble extends StatelessWidget {
             ),
           ),
           if (!_isUser && !message.isStreaming && message.content.isNotEmpty)
-            _CopyButton(text: message.content),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _CopyButton(text: message.content),
+                SaveButton(
+                  compact: true,
+                  bytes: () => utf8.encode(message.content),
+                  baseName: 'route-reply',
+                  mimeType: 'text/markdown',
+                ),
+              ],
+            ),
         ],
       ),
     );
