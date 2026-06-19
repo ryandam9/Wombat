@@ -103,11 +103,11 @@ void main() {
     final settings = SettingsProvider(FakeSecureStorageService(), prefs);
     await waitUntil(() => !settings.loading);
 
-    // All fonts default to the readable system font.
-    expect(settings.headingFont, AppFont.system);
-    expect(settings.userFont, AppFont.system);
-    expect(settings.modelFont, AppFont.system);
-    expect(settings.settingsFont, AppFont.system);
+    // All fonts default to Roboto Condensed (the app's default font).
+    expect(settings.headingFont, AppFont.robotoCondensed);
+    expect(settings.userFont, AppFont.robotoCondensed);
+    expect(settings.modelFont, AppFont.robotoCondensed);
+    expect(settings.settingsFont, AppFont.robotoCondensed);
 
     await settings.setModelFont(AppFont.inter);
     expect(settings.modelFont, AppFont.inter);

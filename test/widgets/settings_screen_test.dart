@@ -35,7 +35,7 @@ void main() {
     // The font-picker Row previously threw a RenderFlex unbounded-width error.
     expect(tester.takeException(), isNull);
     expect(find.text('HEADING'), findsOneWidget);
-    // Heading defaults to the system font; its button shows the label.
-    expect(find.text('System (Roboto)'), findsWidgets);
+    // All fonts default to Roboto Condensed; its label shows on the buttons.
+    expect(find.text('Roboto Condensed'), findsWidgets);
   });
 }
