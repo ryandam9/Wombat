@@ -103,15 +103,15 @@ void main() {
     final settings = SettingsProvider(FakeSecureStorageService(), prefs);
     await waitUntil(() => !settings.loading);
 
-    // Heading keeps the sci-fi flavor; body text defaults to readable system.
-    expect(settings.headingFont, AppFont.rajdhani);
-    expect(settings.userFont, AppFont.system);
-    expect(settings.modelFont, AppFont.system);
-    expect(settings.settingsFont, AppFont.system);
+    // All fonts default to Roboto Condensed (the app's default font).
+    expect(settings.headingFont, AppFont.robotoCondensed);
+    expect(settings.userFont, AppFont.robotoCondensed);
+    expect(settings.modelFont, AppFont.robotoCondensed);
+    expect(settings.settingsFont, AppFont.robotoCondensed);
 
-    await settings.setModelFont(AppFont.exoTwo);
-    expect(settings.modelFont, AppFont.exoTwo);
-    expect(prefs.getInt('font_model'), AppFont.exoTwo.index);
+    await settings.setModelFont(AppFont.inter);
+    expect(settings.modelFont, AppFont.inter);
+    expect(prefs.getInt('font_model'), AppFont.inter.index);
   });
 
   test('notifies listeners on change', () async {

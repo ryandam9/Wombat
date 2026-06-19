@@ -1,4 +1,3 @@
-import 'package:auris/auris_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -9,6 +8,7 @@ import '../screens/usage_screen.dart';
 import 'chat_input.dart';
 import 'message_bubble.dart';
 import 'model_selector.dart';
+import 'ui_kit.dart';
 
 /// The main chat pane: header (model selector), message list and composer.
 class ChatView extends StatelessWidget {
@@ -37,10 +37,10 @@ class ChatView extends StatelessWidget {
         if (chat.error != null)
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
-            child: AurisNotification(
-              title: 'TRANSMISSION ERROR',
+            child: InfoBanner(
+              title: 'Error',
               message: chat.error!,
-              variant: AurisNotificationVariant.error,
+              kind: BannerKind.error,
               onDismiss: () => context.read<ChatProvider>().clearError(),
             ),
           ),
@@ -73,12 +73,16 @@ class _Header extends StatelessWidget {
                 tooltip: 'Conversations',
                 onPressed: () => Scaffold.of(context).openDrawer(),
               ),
-            Expanded(
-              child: AurisScanBracket(
-                pulse: responding && animate,
-                child: const ModelSelector(),
+            const Expanded(child: ModelSelector()),
+            if (responding && animate)
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 8),
+                child: SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
               ),
-            ),
             const SizedBox(width: 8),
             const _UsageButton(),
             IconButton(
@@ -159,7 +163,7 @@ class _MessageListState extends State<_MessageList> {
   }
 }
 
-/// HUD-styled welcome screen shown when there is no active conversation.
+/// Welcome screen shown when there is no active conversation.
 class _EmptyState extends StatelessWidget {
   const _EmptyState();
 
@@ -170,88 +174,88 @@ class _EmptyState extends StatelessWidget {
     final settings = context.watch<SettingsProvider>();
     final hasKey = settings.hasApiKey;
 
-    return Stack(
-      children: [
-        const Positioned.fill(
-          child: AurisHexOrnament(opacity: 0.12, hexRadius: 26),
-        ),
-        Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 460),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 460),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.alt_route, size: 56, color: theme.colorScheme.primary),
+              const SizedBox(height: 16),
+              Text('Route', style: theme.textTheme.headlineSmall),
+              const SizedBox(height: 4),
+              Text(
+                'Chat with LLMs via OpenRouter',
+                style: theme.textTheme.bodyMedium
+                    ?.copyWith(color: theme.colorScheme.outline),
+              ),
+              const SizedBox(height: 20),
+              Row(
                 children: [
-                  AurisScanBracket(
-                    pulse: true,
-                    padding: const EdgeInsets.all(14),
-                    child: Icon(
-                      Icons.alt_route,
-                      size: 56,
-                      color: theme.colorScheme.primary,
+                  Expanded(
+                    child: StatCard(
+                      label: 'Conversations',
+                      value: '${chat.conversations.length}',
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  Text('ROUTE', style: theme.textTheme.headlineSmall),
-                  const SizedBox(height: 4),
-                  Text(
-                    'OpenRouter uplink',
-                    style: theme.textTheme.bodyMedium
-                        ?.copyWith(color: theme.colorScheme.outline),
-                  ),
-                  const SizedBox(height: 20),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: AurisStatCard(
-                          label: 'Sessions',
-                          value: '${chat.conversations.length}',
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: AurisStatCard(
-                          label: 'Link',
-                          value: hasKey ? 'ONLINE' : 'NO KEY',
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  AurisPanel(
-                    title: 'System',
-                    code: hasKey ? 'RDY' : 'WARN',
-                    child: AurisTerminal(
-                      title: 'BOOT LOG',
-                      height: 150,
-                      lines: [
-                        const AurisTerminalLine(
-                          '> auris interface initialised',
-                          type: AurisTerminalLineType.ok,
-                        ),
-                        AurisTerminalLine(
-                          hasKey
-                              ? '> api key loaded from secure store'
-                              : '! no api key — open settings',
-                          type: hasKey
-                              ? AurisTerminalLineType.ok
-                              : AurisTerminalLineType.error,
-                        ),
-                        const AurisTerminalLine('> select a model in the header'),
-                        const AurisTerminalLine(
-                          '> type a message to begin',
-                          type: AurisTerminalLineType.augment,
-                        ),
-                      ],
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: StatCard(
+                      label: 'API key',
+                      value: hasKey ? 'Set' : 'Missing',
                     ),
                   ),
                 ],
               ),
-            ),
+              const SizedBox(height: 16),
+              SectionPanel(
+                title: 'Getting started',
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _Step(
+                      done: hasKey,
+                      text: hasKey
+                          ? 'API key configured'
+                          : 'Add your API key in Settings',
+                    ),
+                    const _Step(text: 'Pick a model in the header'),
+                    const _Step(text: 'Type a message to begin'),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
-      ],
+      ),
+    );
+  }
+}
+
+class _Step extends StatelessWidget {
+  const _Step({required this.text, this.done = false});
+
+  final String text;
+  final bool done;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Icon(
+            done ? Icons.check_circle : Icons.radio_button_unchecked,
+            size: 18,
+            color: done ? theme.colorScheme.primary : theme.colorScheme.outline,
+          ),
+          const SizedBox(width: 10),
+          Expanded(child: Text(text, style: theme.textTheme.bodyMedium)),
+        ],
+      ),
     );
   }
 }

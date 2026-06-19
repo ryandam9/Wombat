@@ -28,10 +28,11 @@ class SettingsProvider extends ChangeNotifier {
   ThemeMode _themeMode = ThemeMode.system;
   String? _downloadDir;
   bool _animateModelIndicator = false;
-  AppFont _headingFont = AppFont.rajdhani;
-  AppFont _userFont = AppFont.system;
-  AppFont _modelFont = AppFont.system;
-  AppFont _settingsFont = AppFont.system;
+  // Roboto Condensed is the default app font (bundled asset).
+  AppFont _headingFont = AppFont.robotoCondensed;
+  AppFont _userFont = AppFont.robotoCondensed;
+  AppFont _modelFont = AppFont.robotoCondensed;
+  AppFont _settingsFont = AppFont.robotoCondensed;
   bool _loading = true;
 
   bool get loading => _loading;
@@ -64,11 +65,12 @@ class SettingsProvider extends ChangeNotifier {
     _downloadDir = _prefs.getString(_kDownloadDir);
     _animateModelIndicator =
         _prefs.getBool(_kAnimateModelIndicator) ?? false;
-    _headingFont =
-        AppFontX.fromIndex(_prefs.getInt(_kHeadingFont) ?? AppFont.rajdhani.index);
-    _userFont = AppFontX.fromIndex(_prefs.getInt(_kUserFont));
-    _modelFont = AppFontX.fromIndex(_prefs.getInt(_kModelFont));
-    _settingsFont = AppFontX.fromIndex(_prefs.getInt(_kSettingsFont));
+    const def = AppFont.robotoCondensed; // default app font
+    _headingFont = AppFontX.fromIndex(_prefs.getInt(_kHeadingFont) ?? def.index);
+    _userFont = AppFontX.fromIndex(_prefs.getInt(_kUserFont) ?? def.index);
+    _modelFont = AppFontX.fromIndex(_prefs.getInt(_kModelFont) ?? def.index);
+    _settingsFont =
+        AppFontX.fromIndex(_prefs.getInt(_kSettingsFont) ?? def.index);
     final themeIndex = _prefs.getInt(_kThemeMode);
     if (themeIndex != null &&
         themeIndex >= 0 &&

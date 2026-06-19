@@ -2,8 +2,8 @@ import 'package:flutter/widgets.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 /// Curated font choices for the app. Most are popular Google Fonts (fetched on
-/// demand at runtime by `google_fonts`); a few are bundled (Roboto ships with
-/// Flutter, the rest with the `auris` package). Intentionally a short, readable
+/// demand at runtime by `google_fonts`); `system` uses Flutter's bundled Roboto
+/// and `robotoCondensed` is a bundled asset. Intentionally a short, readable
 /// list — not the entire Google Fonts catalogue.
 enum AppFont {
   system,
@@ -25,9 +25,6 @@ enum AppFont {
   barlowCondensed,
   merriweather,
   jetBrainsMono,
-  rajdhani,
-  exoTwo,
-  techMono,
 }
 
 extension AppFontX on AppFont {
@@ -52,9 +49,6 @@ extension AppFontX on AppFont {
         AppFont.barlowCondensed => 'Barlow Condensed',
         AppFont.merriweather => 'Merriweather',
         AppFont.jetBrainsMono => 'JetBrains Mono',
-        AppFont.rajdhani => 'Rajdhani',
-        AppFont.exoTwo => 'Exo 2',
-        AppFont.techMono => 'Share Tech Mono',
       };
 
   /// The Google Fonts text style (via the generated, lookup-free methods),
@@ -83,9 +77,6 @@ extension AppFontX on AppFont {
   /// Bundled/system family name, for the non-Google options.
   String get _localFamily => switch (this) {
         AppFont.robotoCondensed => 'RobotoCondensed',
-        AppFont.rajdhani => 'Rajdhani',
-        AppFont.exoTwo => 'ExoTwo',
-        AppFont.techMono => 'ShareTechMono',
         _ => 'Roboto', // system
       };
 

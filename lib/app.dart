@@ -1,10 +1,10 @@
-import 'package:auris/auris.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'models/app_font.dart';
 import 'providers/settings_provider.dart';
 import 'screens/home_screen.dart';
+import 'theme/app_theme.dart';
 
 class RouteApp extends StatelessWidget {
   const RouteApp({super.key});
@@ -15,8 +15,8 @@ class RouteApp extends StatelessWidget {
     return MaterialApp(
       title: 'Route',
       debugShowCheckedModeBanner: false,
-      theme: _withHeadingFont(AurisTheme.light(), settings.headingFont),
-      darkTheme: _withHeadingFont(AurisTheme.dark(), settings.headingFont),
+      theme: _withHeadingFont(AppTheme.light, settings.headingFont),
+      darkTheme: _withHeadingFont(AppTheme.dark, settings.headingFont),
       themeMode: settings.themeMode,
       home: const HomeScreen(),
     );

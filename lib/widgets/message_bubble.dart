@@ -1,6 +1,5 @@
 import 'dart:convert';
 
-import 'package:auris/auris_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
@@ -13,10 +12,10 @@ import '../providers/settings_provider.dart';
 import '../services/download_service.dart';
 import 'attachment_view.dart';
 import 'save_button.dart';
+import 'ui_kit.dart';
 
-/// Renders a single chat message inside a chamfered [AurisContainer].
-/// Assistant replies are rendered as Markdown; user messages as plain
-/// selectable text.
+/// Renders a single chat message in a rounded bubble. Assistant replies are
+/// rendered as Markdown; user messages as plain selectable text.
 class MessageBubble extends StatelessWidget {
   const MessageBubble({super.key, required this.message});
 
@@ -37,10 +36,11 @@ class MessageBubble extends StatelessWidget {
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              AurisBadge(
+              StatusChip(
                 _isUser ? 'YOU' : 'ASSISTANT',
-                variant:
-                    _isUser ? AurisBadgeVariant.gold : AurisBadgeVariant.amber,
+                color: _isUser
+                    ? theme.colorScheme.tertiary
+                    : theme.colorScheme.primary,
               ),
               const SizedBox(width: 8),
               Text(
@@ -55,14 +55,19 @@ class MessageBubble extends StatelessWidget {
             constraints: BoxConstraints(
               maxWidth: _isUser ? 560 : double.infinity,
             ),
-            child: AurisContainer(
+            child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              fill: _isUser
-                  ? theme.colorScheme.primaryContainer
-                  : theme.colorScheme.surfaceContainerHighest,
-              borderColor: _isUser
-                  ? theme.colorScheme.primary
-                  : theme.colorScheme.outline,
+              decoration: BoxDecoration(
+                color: _isUser
+                    ? theme.colorScheme.primaryContainer
+                    : theme.colorScheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: _isUser
+                      ? theme.colorScheme.primary
+                      : theme.colorScheme.outlineVariant,
+                ),
+              ),
               child: _content(context),
             ),
           ),
