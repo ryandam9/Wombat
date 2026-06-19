@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
@@ -101,7 +102,7 @@ class MessageBubble extends StatelessWidget {
     }
 
     final children = <Widget>[];
-    if (message.content.isNotEmpty) children.add(_text(context));
+    if (message.content.isNotEmpty) children.addAll(_textParts(context));
     for (final attachment in message.attachments) {
       children.add(Padding(
         padding: EdgeInsets.only(top: children.isEmpty ? 0 : 8),
@@ -117,19 +118,53 @@ class MessageBubble extends StatelessWidget {
     );
   }
 
-  Widget _text(BuildContext context) {
+  /// The textual content of a message. For assistant replies that contain an
+  /// SVG, the SVG is rendered inline and its code stripped from the Markdown.
+  List<Widget> _textParts(BuildContext context) {
     final theme = Theme.of(context);
     final settings = context.watch<SettingsProvider>();
+
     if (_isUser) {
-      // Plain Text; the surrounding SelectionArea makes it selectable.
-      return Text(
-        message.content,
-        style: TextStyle(
-          color: theme.colorScheme.onPrimaryContainer,
-          fontFamily: settings.userFont.family,
+      return [
+        Text(
+          message.content,
+          style: TextStyle(
+            color: theme.colorScheme.onPrimaryContainer,
+            fontFamily: settings.userFont.family,
+          ),
         ),
-      );
+      ];
     }
+
+    final extracted = DownloadService.textForSave(message.content);
+    if (extracted.mimeType == 'image/svg+xml') {
+      final markdown = _stripSvg(message.content, extracted.text).trim();
+      return [
+        _SvgView(svg: extracted.text),
+        if (markdown.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: _markdown(context, markdown),
+          ),
+      ];
+    }
+    return [_markdown(context, message.content)];
+  }
+
+  /// Removes fenced code blocks (and any bare occurrence) that contain the SVG,
+  /// leaving only the surrounding prose for the Markdown body.
+  String _stripSvg(String content, String svg) {
+    final fenced = RegExp(r'```[a-zA-Z0-9]*\r?\n[\s\S]*?\r?\n```');
+    var out = content.replaceAllMapped(
+      fenced,
+      (m) => m[0]!.contains('<svg') ? '' : m[0]!,
+    );
+    return out.replaceAll(svg, '');
+  }
+
+  Widget _markdown(BuildContext context, String data) {
+    final theme = Theme.of(context);
+    final settings = context.watch<SettingsProvider>();
     // Apply the model-output font to the whole Markdown stylesheet.
     final scheme = theme.colorScheme;
     final mdTheme = theme.copyWith(
@@ -147,8 +182,9 @@ class MessageBubble extends StatelessWidget {
     // selectable:false — selection is handled by the ancestor SelectionArea,
     // and mixing the two breaks copy of Markdown content.
     return MarkdownBody(
-      data: message.content,
+      data: data,
       selectable: false,
+      sizedImageBuilder: _markdownImage,
       styleSheet: base.copyWith(
         p: base.p?.copyWith(color: scheme.onSurface),
         code: base.code?.copyWith(
@@ -161,6 +197,94 @@ class MessageBubble extends StatelessWidget {
           borderRadius: BorderRadius.circular(8),
           border: Border.all(color: scheme.outlineVariant),
         ),
+      ),
+    );
+  }
+
+  /// Renders Markdown image links inline, supporting `data:` URIs (base64),
+  /// `http(s)` URLs, and inline SVG data URIs.
+  Widget _markdownImage(MarkdownImageConfig config) {
+    final uri = config.uri;
+    Widget broken() => const _BrokenImage();
+    const maxW = BoxConstraints(maxWidth: 320);
+    if (uri.scheme == 'data') {
+      try {
+        final data = UriData.fromUri(uri);
+        final bytes = data.contentAsBytes();
+        if (data.mimeType.contains('svg')) {
+          return ConstrainedBox(
+            constraints: maxW,
+            child: SvgPicture.memory(bytes, placeholderBuilder: (_) => broken()),
+          );
+        }
+        return ConstrainedBox(
+          constraints: maxW,
+          child: Image.memory(bytes, errorBuilder: (_, __, ___) => broken()),
+        );
+      } catch (_) {
+        return broken();
+      }
+    }
+    return ConstrainedBox(
+      constraints: maxW,
+      child: Image.network(uri.toString(), errorBuilder: (_, __, ___) => broken()),
+    );
+  }
+}
+
+/// Renders an inline SVG string as an image, tappable to view full-size.
+class _SvgView extends StatelessWidget {
+  const _SvgView({required this.svg});
+
+  final String svg;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    Widget image(double? width, BoxFit fit) => SvgPicture.string(
+          svg,
+          width: width,
+          fit: fit,
+          placeholderBuilder: (_) => const _BrokenImage(),
+        );
+
+    return GestureDetector(
+      onTap: () => showDialog<void>(
+        context: context,
+        builder: (_) => Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.all(16),
+          child: InteractiveViewer(child: image(null, BoxFit.contain)),
+        ),
+      ),
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 320),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: theme.colorScheme.outlineVariant),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: image(320, BoxFit.contain),
+      ),
+    );
+  }
+}
+
+class _BrokenImage extends StatelessWidget {
+  const _BrokenImage();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Padding(
+      padding: EdgeInsets.all(12),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.broken_image_outlined, size: 18),
+          SizedBox(width: 6),
+          Text('Could not display image'),
+        ],
       ),
     );
   }

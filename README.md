@@ -46,7 +46,7 @@ A typical flow:
 | Area | Details |
 |------|---------|
 | 💬 **Streaming chat** | Token-by-token replies over Server-Sent Events; stop a response mid-stream. |
-| 🖼️ **Multimodal** | Attach **images, audio (incl. in-app recording) and PDFs** as input; render **generated images** and **audio replies** as output — subject to the selected model's capabilities. See [below](#multimodal-payloads). |
+| 🖼️ **Multimodal** | Attach **images, audio (incl. in-app recording) and PDFs** as input; render **generated images**, **inline SVG**, Markdown images, and **audio replies** as output — subject to the selected model's capabilities. See [below](#multimodal-payloads). |
 | 🧠 **Model picker** | Live catalogue from OpenRouter with search, a **free-only** filter, and sort by name / context length / price. Each model shows its context window and prompt pricing. You can also **enter a custom model ID** for models not yet listed. |
 | 💾 **Save output** | Save assistant replies, generated images, audio, and your own attachments — to a chosen folder / Save-As dialog on desktop, or the share sheet on Android. |
 | 🗂️ **Conversations** | Multiple chats with titles auto-derived from the first message; persisted on-device as JSON and reorderable by recency. |
@@ -198,6 +198,7 @@ lib/
 | [`shared_preferences`](https://pub.dev/packages/shared_preferences) | Theme & default-model prefs |
 | [`path_provider`](https://pub.dev/packages/path_provider) | Conversation file location |
 | [`flutter_markdown`](https://pub.dev/packages/flutter_markdown) | Render assistant replies |
+| [`flutter_svg`](https://pub.dev/packages/flutter_svg) | Render inline SVG output |
 | [`google_fonts`](https://pub.dev/packages/google_fonts) | Selectable fonts |
 | [`uuid`](https://pub.dev/packages/uuid) · [`intl`](https://pub.dev/packages/intl) | IDs · number/date formatting |
 

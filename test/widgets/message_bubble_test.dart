@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:route/models/attachment.dart';
@@ -72,6 +73,22 @@ void main() {
       ChatMessage(id: '1', role: MessageRole.assistant, content: ''),
     ));
     expect(find.text('Copy'), findsNothing);
+  });
+
+  testWidgets('renders inline SVG from an assistant reply', (tester) async {
+    await tester.pumpWidget(_wrap(
+      ChatMessage(
+        id: '1',
+        role: MessageRole.assistant,
+        content: 'Here is some art:\n\n'
+            '```svg\n<svg width="10" height="10"><rect width="10" height="10"/>'
+            '</svg>\n```',
+      ),
+    ));
+    await tester.pump();
+
+    expect(find.byType(SvgPicture), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('renders an image attachment inline', (tester) async {
