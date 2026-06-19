@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/scheduler.dart';
 
 import '../models/usage.dart';
 
@@ -133,7 +134,7 @@ class DebugLog extends ChangeNotifier {
   set enabled(bool value) {
     if (_enabled == value) return;
     _enabled = value;
-    notifyListeners();
+    _emit();
   }
 
   /// Starts a session and returns it (or null when capture is disabled).
@@ -308,7 +309,7 @@ class DebugLog extends ChangeNotifier {
     _throttle?.cancel();
     _throttle = null;
     _dirty = false;
-    notifyListeners();
+    _emit();
   }
 
   void _notifyThrottled() {
@@ -316,7 +317,7 @@ class DebugLog extends ChangeNotifier {
       _dirty = true;
       return;
     }
-    notifyListeners();
+    _emit();
     _throttle = Timer(const Duration(milliseconds: 120), () {
       _throttle = null;
       if (_dirty) {
@@ -324,6 +325,25 @@ class DebugLog extends ChangeNotifier {
         _notifyThrottled();
       }
     });
+  }
+
+  /// Notifies listeners, deferring to after the current frame when called
+  /// mid-build/layout/paint (e.g. begin() invoked from a widget's initState),
+  /// which would otherwise trip "setState() called during build".
+  void _emit() {
+    SchedulerBinding? binding;
+    try {
+      binding = SchedulerBinding.instance;
+    } catch (_) {
+      binding = null; // no binding (pure unit test) — notify synchronously
+    }
+    if (binding == null || binding.schedulerPhase == SchedulerPhase.idle) {
+      notifyListeners();
+    } else {
+      binding.addPostFrameCallback((_) {
+        if (hasListeners) notifyListeners();
+      });
+    }
   }
 
   @override

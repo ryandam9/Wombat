@@ -73,4 +73,47 @@ void main() {
 
     expect(find.text('No sessions yet'), findsOneWidget);
   });
+
+  testWidgets('begin() during initState does not crash the build',
+      (tester) async {
+    // Reproduces the model-picker path: a screen starts a session in its
+    // initState while the DebugLog provider is being watched.
+    final log = DebugLog();
+    await tester.pumpWidget(
+      ChangeNotifierProvider<DebugLog>.value(
+        value: log,
+        child: MaterialApp(
+          home: Builder(builder: (context) {
+            context.watch<DebugLog>(); // provider has a dependent
+            return const _BeginOnInit();
+          }),
+        ),
+      ),
+    );
+    await tester.pump();
+    // Let the notification throttle timer fire so none is left pending.
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(tester.takeException(), isNull);
+    expect(log.length, 1);
+  });
+}
+
+/// Test helper: starts a debug session from initState (like ModelPickerScreen).
+class _BeginOnInit extends StatefulWidget {
+  const _BeginOnInit();
+
+  @override
+  State<_BeginOnInit> createState() => _BeginOnInitState();
+}
+
+class _BeginOnInitState extends State<_BeginOnInit> {
+  @override
+  void initState() {
+    super.initState();
+    context.read<DebugLog>().begin(title: 'from initState');
+  }
+
+  @override
+  Widget build(BuildContext context) => const SizedBox();
 }
