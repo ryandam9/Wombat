@@ -297,29 +297,74 @@ class _FontRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         children: [
           Expanded(
-            child: Text(
-              label.toUpperCase(),
-              style: Theme.of(context).textTheme.labelMedium,
-            ),
+            child: Text(label.toUpperCase(), style: theme.textTheme.labelMedium),
           ),
-          AurisSelect<AppFont>(
-            value: value,
-            width: 190,
-            options: [
-              for (final f in AppFont.values)
-                AurisSelectOption(value: f, label: f.label),
-            ],
-            onChanged: onChanged,
+          // A dialog picker (rather than a dropdown overlay) so all options are
+          // visible and scrollable regardless of where the row sits on screen.
+          OutlinedButton(
+            onPressed: () async {
+              final picked = await _showFontPicker(context, label, value);
+              if (picked != null) onChanged(picked);
+            },
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minWidth: 150),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Flexible(
+                    child: Text(
+                      value.label,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontFamily: value.family),
+                    ),
+                  ),
+                  const Icon(Icons.expand_more, size: 18),
+                ],
+              ),
+            ),
           ),
         ],
       ),
     );
   }
+}
+
+/// Shows a scrollable dialog of all fonts, each previewed in its own family.
+Future<AppFont?> _showFontPicker(
+  BuildContext context,
+  String label,
+  AppFont current,
+) {
+  return showDialog<AppFont>(
+    context: context,
+    builder: (ctx) => SimpleDialog(
+      title: Text('$label font'),
+      children: [
+        SizedBox(
+          width: 320,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (final f in AppFont.values)
+                ListTile(
+                  title: Text(f.label, style: TextStyle(fontFamily: f.family)),
+                  trailing: f == current
+                      ? const Icon(Icons.check, size: 18)
+                      : null,
+                  onTap: () => Navigator.of(ctx).pop(f),
+                ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
 }
 
 /// A three-step setup progress strip using [AurisStepIndicator].
