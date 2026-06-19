@@ -126,11 +126,15 @@ class MessageBubble extends StatelessWidget {
 
     if (_isUser) {
       return [
-        Text(
-          message.content,
-          style: TextStyle(
-            color: theme.colorScheme.onPrimaryContainer,
-            fontFamily: settings.userFont.family,
+        MediaQuery.withClampedTextScaling(
+          minScaleFactor: settings.userFontScale,
+          maxScaleFactor: settings.userFontScale,
+          child: Text(
+            message.content,
+            style: TextStyle(
+              color: theme.colorScheme.onPrimaryContainer,
+              fontFamily: settings.userFont.family,
+            ),
           ),
         ),
       ];
@@ -181,11 +185,14 @@ class MessageBubble extends StatelessWidget {
     final codeBg = scheme.surfaceContainerLowest;
     // selectable:false — selection is handled by the ancestor SelectionArea,
     // and mixing the two breaks copy of Markdown content.
-    return MarkdownBody(
-      data: data,
-      selectable: false,
-      sizedImageBuilder: _markdownImage,
-      styleSheet: base.copyWith(
+    return MediaQuery.withClampedTextScaling(
+      minScaleFactor: settings.modelFontScale,
+      maxScaleFactor: settings.modelFontScale,
+      child: MarkdownBody(
+        data: data,
+        selectable: false,
+        sizedImageBuilder: _markdownImage,
+        styleSheet: base.copyWith(
         p: base.p?.copyWith(color: scheme.onSurface),
         code: base.code?.copyWith(
           fontFamily: 'monospace',
@@ -206,6 +213,7 @@ class MessageBubble extends StatelessWidget {
           border: Border(
             left: BorderSide(color: scheme.primary, width: 4),
           ),
+        ),
         ),
       ),
     );

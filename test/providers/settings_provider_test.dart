@@ -114,6 +114,29 @@ void main() {
     expect(prefs.getInt('font_model'), AppFont.inter.index);
   });
 
+  test('font scales default to 1.0, persist and clamp', () async {
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    final settings = SettingsProvider(FakeSecureStorageService(), prefs);
+    await waitUntil(() => !settings.loading);
+
+    expect(settings.userFontScale, 1.0);
+    expect(settings.modelFontScale, 1.0);
+
+    await settings.setUserFontScale(1.3);
+    await settings.setModelFontScale(1.15);
+    expect(settings.userFontScale, 1.3);
+    expect(settings.modelFontScale, 1.15);
+    expect(prefs.getDouble('font_scale_user'), 1.3);
+    expect(prefs.getDouble('font_scale_model'), 1.15);
+
+    // Out-of-range values are clamped to the allowed bounds.
+    await settings.setUserFontScale(99);
+    expect(settings.userFontScale, SettingsProvider.maxFontScale);
+    await settings.setUserFontScale(0.1);
+    expect(settings.userFontScale, SettingsProvider.minFontScale);
+  });
+
   test('notifies listeners on change', () async {
     final settings = await buildLoadedSettings(apiKey: null);
     var notified = 0;

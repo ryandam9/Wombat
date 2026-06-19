@@ -62,12 +62,14 @@ void main() {
     await _pump(tester, settings);
     expect(tester.takeException(), isNull);
 
-    // The masonry renders every section card at once (no nav/detail split),
-    // so the Fonts card and its rows are present without any interaction.
-    // SectionPanel renders titles upper-cased.
+    // Every section card renders at once (no nav/detail split), including the
+    // new Font size card. SectionPanel renders titles upper-cased.
     expect(find.text('SETUP'), findsOneWidget);
     expect(find.text('FONTS'), findsOneWidget);
+    expect(find.text('FONT SIZE'), findsOneWidget);
     expect(find.text('HEADING'), findsOneWidget);
     expect(find.text('Roboto Condensed'), findsWidgets);
+    // Default font-size selection shows on the size dropdowns.
+    expect(find.text('Default'), findsWidgets);
   });
 }

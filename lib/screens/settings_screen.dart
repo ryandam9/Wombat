@@ -108,6 +108,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         _panel('API Key', _apiKey(settings)),
                         const SizedBox(height: 16),
                         _panel('Downloads', _downloads(settings)),
+                        const SizedBox(height: 16),
+                        _panel('Default Model', _defaultModel(settings)),
                       ],
                     ),
                   ),
@@ -117,11 +119,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        _panel('Default Model', _defaultModel(settings)),
+                        _panel('Fonts', _fonts(settings)),
+                        const SizedBox(height: 16),
+                        _panel('Font size', _fontSize(settings)),
                         const SizedBox(height: 16),
                         _panel('Appearance', _appearance(settings)),
-                        const SizedBox(height: 16),
-                        _panel('Fonts', _fonts(settings)),
                       ],
                     ),
                   ),
@@ -147,24 +149,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
         (title: 'API Key', icon: Icons.key, content: _apiKey(settings)),
         (
-          title: 'Default Model',
-          icon: Icons.smart_toy_outlined,
-          content: _defaultModel(settings),
-        ),
-        (
-          title: 'Appearance',
-          icon: Icons.palette_outlined,
-          content: _appearance(settings),
-        ),
-        (
           title: 'Downloads',
           icon: Icons.download_outlined,
           content: _downloads(settings),
         ),
         (
+          title: 'Default Model',
+          icon: Icons.smart_toy_outlined,
+          content: _defaultModel(settings),
+        ),
+        (
           title: 'Fonts',
           icon: Icons.font_download_outlined,
           content: _fonts(settings),
+        ),
+        (
+          title: 'Font size',
+          icon: Icons.format_size,
+          content: _fontSize(settings),
+        ),
+        (
+          title: 'Appearance',
+          icon: Icons.palette_outlined,
+          content: _appearance(settings),
         ),
       ];
 
@@ -368,6 +375,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  Widget _fontSize(SettingsProvider settings) {
+    final read = context.read<SettingsProvider>();
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _SizeRow(
+          label: 'Your text',
+          value: settings.userFontScale,
+          onChanged: read.setUserFontScale,
+        ),
+        _SizeRow(
+          label: 'Model output',
+          value: settings.modelFontScale,
+          onChanged: read.setModelFontScale,
+        ),
+        const SizedBox(height: 6),
+        Text(
+          'Scales the text size of your prompts and the model’s replies.',
+          style: theme.textTheme.bodySmall
+              ?.copyWith(color: theme.colorScheme.outline),
+        ),
+      ],
+    );
+  }
 }
 
 /// A labelled font picker using a standard, compact dropdown menu.
@@ -410,6 +442,61 @@ class _FontRow extends StatelessWidget {
                   value: f,
                   child: Text(f.label, style: TextStyle(fontFamily: f.family)),
                 ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// A named text-size option mapped to a scale multiplier.
+typedef _ScaleOption = ({String label, double scale});
+
+const List<_ScaleOption> _fontScales = [
+  (label: 'Small', scale: 0.85),
+  (label: 'Default', scale: 1.0),
+  (label: 'Large', scale: 1.15),
+  (label: 'Larger', scale: 1.3),
+  (label: 'Largest', scale: 1.6),
+];
+
+/// A labelled text-size picker (compact dropdown of named sizes).
+class _SizeRow extends StatelessWidget {
+  const _SizeRow({
+    required this.label,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final String label;
+  final double value;
+  final ValueChanged<double> onChanged;
+
+  /// Snap the stored scale to the nearest preset so the dropdown always has a
+  /// matching value even if an old/clamped value drifts slightly.
+  double get _nearest => _fontScales
+      .map((o) => o.scale)
+      .reduce((a, b) => (a - value).abs() <= (b - value).abs() ? a : b);
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(label.toUpperCase(), style: theme.textTheme.labelMedium),
+          ),
+          DropdownButton<double>(
+            value: _nearest,
+            onChanged: (v) {
+              if (v != null) onChanged(v);
+            },
+            items: [
+              for (final o in _fontScales)
+                DropdownMenuItem(value: o.scale, child: Text(o.label)),
             ],
           ),
         ],

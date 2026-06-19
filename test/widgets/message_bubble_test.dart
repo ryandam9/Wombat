@@ -91,6 +91,21 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('applies the user font scale to user message text',
+      (tester) async {
+    await _settings.setUserFontScale(1.3);
+    addTearDown(() => _settings.setUserFontScale(1.0));
+
+    await tester.pumpWidget(_wrap(
+      ChatMessage(id: '1', role: MessageRole.user, content: 'Scaled hi'),
+    ));
+
+    final textWidget = tester.widget<Text>(find.text('Scaled hi'));
+    final scaler = textWidget.textScaler ??
+        MediaQuery.of(tester.element(find.text('Scaled hi'))).textScaler;
+    expect(scaler.scale(10), closeTo(13, 0.01));
+  });
+
   testWidgets('renders a blockquote without a layout error', (tester) async {
     await tester.pumpWidget(_wrap(
       ChatMessage(
