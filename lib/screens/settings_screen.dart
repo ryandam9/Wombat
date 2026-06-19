@@ -19,7 +19,7 @@ class SettingsScreen extends StatefulWidget {
 typedef _Section = ({String title, IconData icon, Widget content});
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  static const double _wideBreakpoint = 720;
+  static const double _wideBreakpoint = 880;
 
   late final TextEditingController _keyController;
   bool _obscure = true;
@@ -83,32 +83,50 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  /// Wide/desktop: a full-width, centred masonry of compact cards. The Setup
-  /// strip spans the top; the remaining sections pack into balanced columns so
-  /// tall cards (API Key, Fonts) sit beside short ones with no wasted gaps.
+  /// Wide/desktop: a centred two-column layout. The Setup strip spans the top.
+  /// The left column is wider and holds the sections that need room for long
+  /// values (API Key, Downloads); the right column holds the compact controls.
   Widget _wide(SettingsProvider settings) {
-    final width = MediaQuery.of(context).size.width;
-    // Two columns on a normal desktop window, three when there's ample room.
-    final columns = width >= 1180 ? 3 : 2;
-    final cards = <_Card>[
-      (weight: 3, child: _panel('API Key', _apiKey(settings))),
-      (weight: 1, child: _panel('Default Model', _defaultModel(settings))),
-      (weight: 1.5, child: _panel('Appearance', _appearance(settings))),
-      (weight: 2, child: _panel('Downloads', _downloads(settings))),
-      (weight: 2.5, child: _panel('Fonts', _fonts(settings))),
-    ];
-
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 1100),
+          constraints: const BoxConstraints(maxWidth: 1180),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               _panel('Setup', _SetupProgress(hasApiKey: settings.hasApiKey)),
               const SizedBox(height: 16),
-              _Masonry(columns: columns, spacing: 16, items: cards),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    flex: 3,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _panel('API Key', _apiKey(settings)),
+                        const SizedBox(height: 16),
+                        _panel('Downloads', _downloads(settings)),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    flex: 2,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _panel('Default Model', _defaultModel(settings)),
+                        const SizedBox(height: 16),
+                        _panel('Appearance', _appearance(settings)),
+                        const SizedBox(height: 16),
+                        _panel('Fonts', _fonts(settings)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ],
           ),
         ),
@@ -218,6 +236,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           label: 'Model',
           value: settings.defaultModel,
           highlight: true,
+          wrap: true,
         ),
         const SizedBox(height: 12),
         FilledButton.tonalIcon(
@@ -284,6 +303,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         LabelValueRow(
           label: 'Folder',
           value: settings.downloadDir ?? 'Ask each time (Save as…)',
+          wrap: true,
         ),
         const SizedBox(height: 6),
         Text(
@@ -350,56 +370,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
 }
 
-/// One masonry item: a card plus a relative height weight used to balance it
-/// across columns (taller content → larger weight).
-typedef _Card = ({double weight, Widget child});
-
-/// A dependency-free masonry: greedily assigns each card to the currently
-/// shortest column (by accumulated weight) so columns stay balanced and no
-/// card is stretched to match a taller neighbour.
-class _Masonry extends StatelessWidget {
-  const _Masonry({
-    required this.items,
-    required this.columns,
-    required this.spacing,
-  });
-
-  final List<_Card> items;
-  final int columns;
-  final double spacing;
-
-  @override
-  Widget build(BuildContext context) {
-    final buckets = List.generate(columns, (_) => <Widget>[]);
-    final heights = List<double>.filled(columns, 0);
-    for (final item in items) {
-      var shortest = 0;
-      for (var i = 1; i < columns; i++) {
-        if (heights[i] < heights[shortest]) shortest = i;
-      }
-      if (buckets[shortest].isNotEmpty) {
-        buckets[shortest].add(SizedBox(height: spacing));
-      }
-      buckets[shortest].add(item.child);
-      heights[shortest] += item.weight;
-    }
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        for (var i = 0; i < columns; i++) ...[
-          if (i > 0) SizedBox(width: spacing),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: buckets[i],
-            ),
-          ),
-        ],
-      ],
-    );
-  }
-}
-
 /// A labelled font picker using a standard, compact dropdown menu.
 class _FontRow extends StatelessWidget {
   const _FontRow({
@@ -411,6 +381,10 @@ class _FontRow extends StatelessWidget {
   final String label;
   final AppFont value;
   final ValueChanged<AppFont> onChanged;
+
+  /// Fonts listed alphabetically by display name.
+  static final List<AppFont> _sortedFonts = AppFont.values.toList()
+    ..sort((a, b) => a.label.toLowerCase().compareTo(b.label.toLowerCase()));
 
   @override
   Widget build(BuildContext context) {
@@ -424,11 +398,14 @@ class _FontRow extends StatelessWidget {
           ),
           DropdownButton<AppFont>(
             value: value,
+            // Cap the menu so it shows ~5 entries then scrolls, instead of
+            // stretching down the whole screen.
+            menuMaxHeight: 5 * kMinInteractiveDimension,
             onChanged: (f) {
               if (f != null) onChanged(f);
             },
             items: [
-              for (final f in AppFont.values)
+              for (final f in _sortedFonts)
                 DropdownMenuItem(
                   value: f,
                   child: Text(f.label, style: TextStyle(fontFamily: f.family)),

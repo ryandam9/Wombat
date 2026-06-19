@@ -93,6 +93,10 @@ class StatCard extends StatelessWidget {
 }
 
 /// A label on the left, value (or trailing widget) on the right.
+///
+/// When [wrap] is true the value is shown on its own line below the label and
+/// is allowed to wrap across multiple lines — useful for long values such as
+/// file paths or model ids that should stay fully visible.
 class LabelValueRow extends StatelessWidget {
   const LabelValueRow({
     super.key,
@@ -100,25 +104,45 @@ class LabelValueRow extends StatelessWidget {
     this.value,
     this.trailing,
     this.highlight = false,
+    this.wrap = false,
   }) : assert(value != null || trailing != null);
 
   final String label;
   final String? value;
   final Widget? trailing;
   final bool highlight;
+  final bool wrap;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final labelStyle = theme.textTheme.labelMedium
+        ?.copyWith(color: theme.colorScheme.outline);
+    final valueStyle = theme.textTheme.bodyMedium?.copyWith(
+      color: highlight ? theme.colorScheme.primary : null,
+      fontWeight: highlight ? FontWeight.w600 : null,
+    );
+
+    if (wrap && value != null) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(label.toUpperCase(), style: labelStyle),
+            const SizedBox(height: 4),
+            // Full value, wrapping across lines (no truncation).
+            Text(value!, style: valueStyle),
+          ],
+        ),
+      );
+    }
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
         children: [
-          Text(
-            label.toUpperCase(),
-            style: theme.textTheme.labelMedium
-                ?.copyWith(color: theme.colorScheme.outline),
-          ),
+          Text(label.toUpperCase(), style: labelStyle),
           const Spacer(),
           if (trailing != null)
             trailing!
@@ -128,10 +152,7 @@ class LabelValueRow extends StatelessWidget {
                 value!,
                 textAlign: TextAlign.right,
                 overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: highlight ? theme.colorScheme.primary : null,
-                  fontWeight: highlight ? FontWeight.w600 : null,
-                ),
+                style: valueStyle,
               ),
             ),
         ],
