@@ -164,7 +164,7 @@ class _ModelTile extends StatelessWidget {
     final ctx = model.contextLength ?? 0;
 
     return InkWell(
-      onTap: () => Navigator.of(context).pop(model.id),
+      onTap: () => Navigator.of(context).pop(model),
       child: AurisContainer(
         padding: const EdgeInsets.all(14),
         child: Column(

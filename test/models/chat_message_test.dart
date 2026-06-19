@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:route/models/attachment.dart';
 import 'package:route/models/chat_message.dart';
 
 void main() {
@@ -58,6 +59,32 @@ void main() {
       expect(restored.content, '');
       // Falls back to "now" for an unparseable date rather than throwing.
       expect(restored.createdAt, isA<DateTime>());
+    });
+
+    test('round-trips attachments through JSON', () {
+      final msg = ChatMessage(
+        id: '1',
+        role: MessageRole.user,
+        content: 'look',
+        attachments: [
+          MessageAttachment.fromBytes(
+            kind: AttachmentKind.image,
+            mimeType: 'image/png',
+            bytes: [1, 2, 3],
+          ),
+        ],
+      );
+      final restored = ChatMessage.fromJson(msg.toJson());
+      expect(restored.attachments, hasLength(1));
+      expect(restored.attachments.single.kind, AttachmentKind.image);
+      expect(restored.attachments.single.base64Data,
+          msg.attachments.single.base64Data);
+    });
+
+    test('defaults attachments to empty', () {
+      final msg = ChatMessage(id: '1', role: MessageRole.user, content: 'hi');
+      expect(msg.attachments, isEmpty);
+      expect(msg.toJson().containsKey('attachments'), isFalse);
     });
 
     test('defaults isStreaming to false and createdAt to now', () {

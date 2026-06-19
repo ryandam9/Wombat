@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 
+import '../models/attachment.dart';
 import '../models/chat_message.dart';
 import '../models/conversation.dart';
 import '../services/conversation_store.dart';
@@ -82,10 +83,13 @@ class ChatProvider extends ChangeNotifier {
     await _persist();
   }
 
-  void setModelForCurrent(String modelId) {
+  void setModelForCurrent(String modelId, {bool? supportsImageOutput}) {
     final convo = _current;
     if (convo == null) return;
     convo.modelId = modelId;
+    if (supportsImageOutput != null) {
+      convo.supportsImageOutput = supportsImageOutput;
+    }
     notifyListeners();
     _persist();
   }
@@ -97,11 +101,14 @@ class ChatProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Appends a user message and streams the assistant's reply into the
-  /// current conversation.
-  Future<void> sendMessage(String text) async {
+  /// Appends a user message (optionally with [attachments]) and streams the
+  /// assistant's reply into the current conversation.
+  Future<void> sendMessage(
+    String text, {
+    List<MessageAttachment> attachments = const [],
+  }) async {
     final content = text.trim();
-    if (content.isEmpty || _isResponding) return;
+    if ((content.isEmpty && attachments.isEmpty) || _isResponding) return;
 
     final apiKey = _settings.apiKey;
     if (apiKey == null || apiKey.isEmpty) {
@@ -116,11 +123,12 @@ class ChatProvider extends ChangeNotifier {
       id: _uuid.v4(),
       role: MessageRole.user,
       content: content,
+      attachments: List<MessageAttachment>.from(attachments),
     ));
 
     if (convo.title == 'New chat') {
-      convo.title =
-          content.length > 40 ? '${content.substring(0, 40)}…' : content;
+      final seed = content.isNotEmpty ? content : '[attachment]';
+      convo.title = seed.length > 40 ? '${seed.substring(0, 40)}…' : seed;
     }
 
     final assistantMsg = ChatMessage(
@@ -148,7 +156,16 @@ class ChatProvider extends ChangeNotifier {
           apiKey: apiKey,
           model: convo.modelId,
           messages: history,
+          imageOutput: convo.supportsImageOutput,
           onUsage: (usage) => _usage.record(convo.modelId, usage),
+          onImage: (image) {
+            assistantMsg.attachments.add(image);
+            notifyListeners();
+          },
+          onAudio: (audio) {
+            assistantMsg.attachments.add(audio);
+            notifyListeners();
+          },
         )
         .listen(
       (delta) {

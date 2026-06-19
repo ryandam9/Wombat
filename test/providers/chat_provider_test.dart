@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:route/models/attachment.dart';
 import 'package:route/models/chat_message.dart';
 import 'package:route/models/usage.dart';
 import 'package:route/providers/chat_provider.dart';
@@ -157,6 +158,51 @@ void main() {
       final chat = await buildChat();
       await chat.sendMessage('   ');
       expect(chat.current, isNull);
+    });
+
+    test('sends an attachment-only message (no text)', () async {
+      final chat = await buildChat();
+      await chat.sendMessage('', attachments: [
+        const MessageAttachment(
+          kind: AttachmentKind.image,
+          mimeType: 'image/png',
+          base64Data: 'AAA',
+        ),
+      ]);
+
+      final user = chat.current!.messages.first;
+      expect(user.attachments, hasLength(1));
+      expect(user.attachments.single.kind, AttachmentKind.image);
+      expect(chat.current!.title, '[attachment]');
+    });
+
+    test('appends generated images to the assistant message', () async {
+      final service = FakeOpenRouterService(chunks: ['here'])
+        ..outputImages = [
+          const MessageAttachment(
+            kind: AttachmentKind.image,
+            mimeType: 'image/png',
+            base64Data: 'IMG',
+          ),
+        ];
+      final chat = await buildChat(service: service);
+
+      await chat.sendMessage('draw a cat');
+
+      final assistant = chat.current!.messages.last;
+      expect(assistant.attachments, hasLength(1));
+      expect(assistant.attachments.single.base64Data, 'IMG');
+    });
+
+    test('passes the image-output flag from the conversation', () async {
+      final service = FakeOpenRouterService(chunks: ['ok']);
+      final chat = await buildChat(service: service);
+      chat.newConversation();
+      chat.setModelForCurrent('img/model', supportsImageOutput: true);
+
+      await chat.sendMessage('generate');
+
+      expect(service.lastImageOutput, isTrue);
     });
 
     test('records an error when the service throws', () async {

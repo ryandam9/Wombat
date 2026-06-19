@@ -47,6 +47,7 @@ A typical flow:
 | Area | Details |
 |------|---------|
 | 💬 **Streaming chat** | Token-by-token replies over Server-Sent Events; stop a response mid-stream. |
+| 🖼️ **Multimodal** | Attach **images, audio (incl. in-app recording) and PDFs** as input; render **generated images** and **audio replies** as output — subject to the selected model's capabilities. See [below](#multimodal-payloads). |
 | 🧠 **Model picker** | Live catalogue from OpenRouter with search, a **free-only** filter, and sort by name / context length / price. Each model shows its context window and prompt pricing. |
 | 🗂️ **Conversations** | Multiple chats with titles auto-derived from the first message; persisted on-device as JSON and reorderable by recency. |
 | 📊 **Usage tracking** | Per-session input/output tokens, USD cost, request count, a per-model breakdown, and account credit balance. See [below](#usage--cost-tracking). |
@@ -132,7 +133,7 @@ flutter test          # run the full suite
 flutter analyze       # static analysis / lints
 ```
 
-The project has a comprehensive suite (71 tests across 14 files) covering:
+The project has a comprehensive suite (85 tests across 15 files) covering:
 
 - **Models** — JSON round-trips and edge cases for messages, conversations,
   models, and usage.
@@ -214,14 +215,35 @@ Token usage and cost are read from the `usage` object OpenRouter includes in the
 final streamed chunk. Requests send the recommended `HTTP-Referer` and `X-Title`
 attribution headers.
 
+### Multimodal payloads
+
+When a message has attachments, its `content` becomes an array of typed parts:
+
+| Attachment | Part sent to OpenRouter |
+|------------|-------------------------|
+| Image | `{type:"image_url", image_url:{url:"data:…;base64,…"}}` |
+| Audio | `{type:"input_audio", input_audio:{data, format:"wav"/"mp3"}}` |
+| PDF | `{type:"file", file:{filename, file_data:"data:…;base64,…"}}` |
+
+For models that can return images, the request adds `"modalities":["image","text"]`
+and the app reads generated images from the `images` array (and audio from the
+`audio` object) in the streamed response. Attachments are stored as base64 inside
+the conversation, and audio input is limited to WAV/MP3 (OpenRouter's constraint).
+
 ## Platform notes
 
-- **Linux desktop** uses `libsecret` for secure storage. Install the dev
-  headers before building:
+- **Linux desktop** needs a few native dev libraries before building:
   ```bash
-  sudo apt-get install libsecret-1-dev libjsoncpp-dev
+  # secure storage (flutter_secure_storage) + audio playback (audioplayers)
+  sudo apt-get install libsecret-1-dev libjsoncpp-dev \
+      libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
+      gstreamer1.0-plugins-good
   ```
-- **Android** uses the Android Keystore for secure storage — no extra setup.
+  File/image/PDF picking uses `file_selector` (GTK, already required by Flutter
+  on Linux); in-app audio recording uses the `record` package's Linux backend.
+- **Android** uses the Android Keystore for secure storage. The app declares the
+  `RECORD_AUDIO` permission for in-app voice recording (requested at runtime);
+  attachments use the system file picker — no extra setup.
 
 ## Troubleshooting
 
@@ -230,7 +252,8 @@ attribution headers.
 | *"Add your OpenRouter API key in Settings first."* | Save a valid key in Settings (from openrouter.ai/keys). |
 | Models won't load | Check the key is valid and you have network access; tap **Retry** in the picker. |
 | Account balance shows "BALANCE UNAVAILABLE" | The credits endpoint may need a privileged key — session token/cost tracking still works. |
-| Linux build fails on `libsecret` | Install `libsecret-1-dev` and `libjsoncpp-dev` (see above). |
+| Linux build fails on `libsecret` / GStreamer | Install the dev packages in [Platform notes](#platform-notes). |
+| Audio won't record/play | Grant the microphone permission; on Linux ensure the GStreamer plugins are installed. |
 
 ---
 

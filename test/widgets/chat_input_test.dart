@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
+import 'package:route/models/attachment.dart';
 import 'package:route/models/chat_message.dart';
 import 'package:route/models/usage.dart';
 import 'package:route/providers/chat_provider.dart';
@@ -109,7 +110,10 @@ class _NeverEndingService extends FakeOpenRouterService {
     required String apiKey,
     required String model,
     required List<ChatMessage> messages,
+    bool imageOutput = false,
     void Function(TokenUsage usage)? onUsage,
+    void Function(MessageAttachment image)? onImage,
+    void Function(MessageAttachment audio)? onAudio,
   }) async* {
     yield 'partial';
     await Completer<void>().future;

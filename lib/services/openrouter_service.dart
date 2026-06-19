@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import '../models/attachment.dart';
 import '../models/chat_message.dart';
 import '../models/openrouter_model.dart';
 import '../models/usage.dart';
@@ -88,7 +89,10 @@ class OpenRouterService {
     required String apiKey,
     required String model,
     required List<ChatMessage> messages,
+    bool imageOutput = false,
     void Function(TokenUsage usage)? onUsage,
+    void Function(MessageAttachment image)? onImage,
+    void Function(MessageAttachment audio)? onAudio,
   }) async* {
     final uri = Uri.parse('$_baseUrl/chat/completions');
     final request = http.Request('POST', uri)
@@ -96,10 +100,15 @@ class OpenRouterService {
       ..body = jsonEncode({
         'model': model,
         'stream': true,
-        'messages': messages
-            .map((m) => {'role': m.role.wireName, 'content': m.content})
-            .toList(),
+        if (imageOutput) 'modalities': ['image', 'text'],
+        'messages':
+            messages.map((m) => {'role': m.role.wireName, 'content': _content(m)}).toList(),
       });
+
+    // Generated images can be repeated across the delta and the final message;
+    // track what we've emitted so callers see each once.
+    final seenImages = <String>{};
+    var emittedAudio = false;
 
     final http.StreamedResponse streamed;
     try {
@@ -134,16 +143,76 @@ class OpenRouterService {
         }
         final choices = json['choices'] as List<dynamic>?;
         if (choices == null || choices.isEmpty) continue;
-        final delta = (choices.first as Map<String, dynamic>)['delta']
-            as Map<String, dynamic>?;
+        final choice = choices.first as Map<String, dynamic>;
+        final delta = choice['delta'] as Map<String, dynamic>?;
+        final message = choice['message'] as Map<String, dynamic>?;
+
         final content = delta?['content'] as String?;
         if (content != null && content.isNotEmpty) {
           yield content;
+        }
+
+        // Generated images live in an `images` array on the delta or message.
+        final images = (delta?['images'] ?? message?['images']) as List<dynamic>?;
+        if (images != null && onImage != null) {
+          for (final img in images) {
+            final url = (img as Map<String, dynamic>?)?['image_url']?['url']
+                as String?;
+            if (url != null && seenImages.add(url)) {
+              onImage(MessageAttachment.fromDataUrl(url,
+                  kind: AttachmentKind.image));
+            }
+          }
+        }
+
+        // Output audio arrives as a base64 `audio` object.
+        final audio = (delta?['audio'] ?? message?['audio']);
+        if (audio is Map<String, dynamic> && onAudio != null && !emittedAudio) {
+          final audioData = audio['data'] as String?;
+          if (audioData != null && audioData.isNotEmpty) {
+            emittedAudio = true;
+            final format = (audio['format'] as String?) ?? 'wav';
+            onAudio(MessageAttachment(
+              kind: AttachmentKind.audio,
+              mimeType: format == 'mp3' ? 'audio/mpeg' : 'audio/$format',
+              base64Data: audioData,
+            ));
+          }
         }
       } catch (_) {
         // Skip malformed frames rather than killing the whole stream.
       }
     }
+  }
+
+  /// Builds the OpenAI-compatible `content` for a message: a plain string for
+  /// text-only, or an array of typed parts when the user attached media.
+  Object _content(ChatMessage m) {
+    if (m.role != MessageRole.user || m.attachments.isEmpty) return m.content;
+    final parts = <Map<String, dynamic>>[];
+    if (m.content.trim().isNotEmpty) {
+      parts.add({'type': 'text', 'text': m.content});
+    }
+    for (final a in m.attachments) {
+      switch (a.kind) {
+        case AttachmentKind.image:
+          parts.add({
+            'type': 'image_url',
+            'image_url': {'url': a.dataUrl},
+          });
+        case AttachmentKind.audio:
+          parts.add({
+            'type': 'input_audio',
+            'input_audio': {'data': a.base64Data, 'format': a.audioFormat},
+          });
+        case AttachmentKind.file:
+          parts.add({
+            'type': 'file',
+            'file': {'filename': a.name ?? 'document', 'file_data': a.dataUrl},
+          });
+      }
+    }
+    return parts;
   }
 
   /// Attempts to pull a human-readable message out of an API error body.

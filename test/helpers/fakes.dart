@@ -1,3 +1,4 @@
+import 'package:route/models/attachment.dart';
 import 'package:route/models/chat_message.dart';
 import 'package:route/models/usage.dart';
 import 'package:route/services/conversation_store.dart';
@@ -51,10 +52,12 @@ class FakeOpenRouterService extends OpenRouterService {
   List<String> chunks;
   Object? errorToThrow;
   TokenUsage? usage;
+  List<MessageAttachment> outputImages = const [];
   CreditBalance? credits;
   Object? creditsError;
   String? lastModel;
   String? lastApiKey;
+  bool? lastImageOutput;
   List<ChatMessage>? lastMessages;
 
   @override
@@ -62,14 +65,21 @@ class FakeOpenRouterService extends OpenRouterService {
     required String apiKey,
     required String model,
     required List<ChatMessage> messages,
+    bool imageOutput = false,
     void Function(TokenUsage usage)? onUsage,
+    void Function(MessageAttachment image)? onImage,
+    void Function(MessageAttachment audio)? onAudio,
   }) async* {
     lastApiKey = apiKey;
     lastModel = model;
+    lastImageOutput = imageOutput;
     lastMessages = List<ChatMessage>.from(messages);
     if (errorToThrow != null) throw errorToThrow!;
     for (final chunk in chunks) {
       yield chunk;
+    }
+    for (final image in outputImages) {
+      onImage?.call(image);
     }
     if (usage != null) onUsage?.call(usage!);
   }

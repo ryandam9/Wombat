@@ -2,6 +2,7 @@ import 'package:auris/auris_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../models/openrouter_model.dart';
 import '../providers/settings_provider.dart';
 import 'model_picker_screen.dart';
 
@@ -132,14 +133,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 const SizedBox(height: 12),
                 FilledButton.tonalIcon(
                   onPressed: () async {
-                    final selected = await Navigator.of(context).push<String>(
+                    final selected =
+                        await Navigator.of(context).push<OpenRouterModel>(
                       MaterialPageRoute(
                           builder: (_) => const ModelPickerScreen()),
                     );
                     if (selected != null && context.mounted) {
                       context
                           .read<SettingsProvider>()
-                          .setDefaultModel(selected);
+                          .setDefaultModel(selected.id);
                     }
                   },
                   icon: const Icon(Icons.smart_toy_outlined),

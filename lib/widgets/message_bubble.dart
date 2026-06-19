@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 
 import '../models/chat_message.dart';
+import 'attachment_view.dart';
 
 /// Renders a single chat message inside a chamfered [AurisContainer].
 /// Assistant replies are rendered as Markdown; user messages as plain
@@ -54,19 +55,37 @@ class MessageBubble extends StatelessWidget {
   }
 
   Widget _content(BuildContext context) {
-    final theme = Theme.of(context);
-
-    if (message.isStreaming && message.content.isEmpty) {
+    if (message.isStreaming &&
+        message.content.isEmpty &&
+        message.attachments.isEmpty) {
       return const _TypingIndicator();
     }
 
+    final children = <Widget>[];
+    if (message.content.isNotEmpty) children.add(_text(context));
+    for (final attachment in message.attachments) {
+      children.add(Padding(
+        padding: EdgeInsets.only(top: children.isEmpty ? 0 : 8),
+        child: AttachmentView(attachment: attachment),
+      ));
+    }
+    if (children.isEmpty) return const SizedBox.shrink();
+    if (children.length == 1) return children.first;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: children,
+    );
+  }
+
+  Widget _text(BuildContext context) {
+    final theme = Theme.of(context);
     if (_isUser) {
       return SelectableText(
         message.content,
         style: TextStyle(color: theme.colorScheme.onPrimaryContainer),
       );
     }
-
     return MarkdownBody(
       data: message.content,
       selectable: true,

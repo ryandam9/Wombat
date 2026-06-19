@@ -46,6 +46,23 @@ void main() {
       expect(noName.name, 'c/d');
     });
 
+    test('parses input/output modalities and capability flags', () {
+      final model = OpenRouterModel.fromJson({
+        'id': 'g/gemini-image',
+        'name': 'Gemini Image',
+        'architecture': {
+          'input_modalities': ['text', 'image'],
+          'output_modalities': ['text', 'image'],
+        },
+      });
+      expect(model.supportsImageInput, isTrue);
+      expect(model.supportsImageOutput, isTrue);
+
+      final textOnly = OpenRouterModel.fromJson({'id': 'a/b', 'name': 'B'});
+      expect(textOnly.supportsImageOutput, isFalse);
+      expect(textOnly.outputModalities, ['text']);
+    });
+
     test('vendor is "other" when id has no slash', () {
       final model = OpenRouterModel.fromJson({'id': 'solo', 'name': 'Solo'});
       expect(model.vendor, 'other');

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../models/openrouter_model.dart';
 import '../providers/chat_provider.dart';
 import '../screens/model_picker_screen.dart';
 
@@ -25,11 +26,14 @@ class ModelSelector extends StatelessWidget {
         ),
       ),
       onPressed: () async {
-        final selected = await Navigator.of(context).push<String>(
+        final selected = await Navigator.of(context).push<OpenRouterModel>(
           MaterialPageRoute(builder: (_) => const ModelPickerScreen()),
         );
         if (selected != null && context.mounted) {
-          context.read<ChatProvider>().setModelForCurrent(selected);
+          context.read<ChatProvider>().setModelForCurrent(
+                selected.id,
+                supportsImageOutput: selected.supportsImageOutput,
+              );
         }
       },
     );

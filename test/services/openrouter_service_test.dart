@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:route/models/attachment.dart';
 import 'package:route/models/chat_message.dart';
 import 'package:route/models/usage.dart';
 import 'package:route/services/openrouter_service.dart';
@@ -129,6 +130,103 @@ void main() {
             .having((e) => e.statusCode, 'statusCode', 429)
             .having((e) => e.message, 'message', 'rate limited')),
       );
+    });
+
+    test('builds multimodal content parts and requests image output',
+        () async {
+      Map<String, dynamic>? sentBody;
+      final client = MockClient.streaming((request, bodyStream) async {
+        sentBody = jsonDecode(await bodyStream.bytesToString())
+            as Map<String, dynamic>;
+        return sse(['data: [DONE]']);
+      });
+
+      await OpenRouterService(client: client).streamChat(
+        apiKey: 'k',
+        model: 'm',
+        imageOutput: true,
+        messages: [
+          ChatMessage(
+            id: '1',
+            role: MessageRole.user,
+            content: 'describe this',
+            attachments: [
+              const MessageAttachment(
+                kind: AttachmentKind.image,
+                mimeType: 'image/png',
+                base64Data: 'AAA',
+              ),
+              const MessageAttachment(
+                kind: AttachmentKind.audio,
+                mimeType: 'audio/wav',
+                base64Data: 'BBB',
+              ),
+              const MessageAttachment(
+                kind: AttachmentKind.file,
+                mimeType: 'application/pdf',
+                base64Data: 'CCC',
+                name: 'doc.pdf',
+              ),
+            ],
+          ),
+        ],
+      ).toList();
+
+      expect(sentBody!['modalities'], ['image', 'text']);
+      final parts = sentBody!['messages'][0]['content'] as List<dynamic>;
+      expect(parts[0], {'type': 'text', 'text': 'describe this'});
+      expect(parts[1]['type'], 'image_url');
+      expect(parts[1]['image_url']['url'], 'data:image/png;base64,AAA');
+      expect(parts[2]['type'], 'input_audio');
+      expect(parts[2]['input_audio'], {'data': 'BBB', 'format': 'wav'});
+      expect(parts[3]['type'], 'file');
+      expect(parts[3]['file']['filename'], 'doc.pdf');
+    });
+
+    test('sends a plain string for text-only messages', () async {
+      Map<String, dynamic>? sentBody;
+      final client = MockClient.streaming((request, bodyStream) async {
+        sentBody = jsonDecode(await bodyStream.bytesToString())
+            as Map<String, dynamic>;
+        return sse(['data: [DONE]']);
+      });
+
+      await OpenRouterService(client: client).streamChat(
+        apiKey: 'k',
+        model: 'm',
+        messages: [
+          ChatMessage(id: '1', role: MessageRole.user, content: 'hi'),
+        ],
+      ).toList();
+
+      expect(sentBody!['messages'][0]['content'], 'hi');
+      expect(sentBody!.containsKey('modalities'), isFalse);
+    });
+
+    test('emits generated images via onImage (deduped)', () async {
+      final client = MockClient.streaming((request, bodyStream) async {
+        return sse([
+          'data: {"choices":[{"delta":{"images":[{"type":"image_url",'
+              '"image_url":{"url":"data:image/png;base64,IMG"}}]}}]}',
+          // Same image repeated in the final message — should not duplicate.
+          'data: {"choices":[{"message":{"images":[{"type":"image_url",'
+              '"image_url":{"url":"data:image/png;base64,IMG"}}]}}]}',
+          'data: [DONE]',
+        ]);
+      });
+
+      final images = <MessageAttachment>[];
+      await OpenRouterService(client: client).streamChat(
+        apiKey: 'k',
+        model: 'm',
+        messages: [],
+        onImage: images.add,
+      ).toList();
+
+      expect(images, hasLength(1));
+      expect(images.single.kind, AttachmentKind.image);
+      expect(images.single.mimeType, 'image/png');
+      expect(images.single.base64Data, 'IMG');
     });
 
     test('reports usage from the final chunk via onUsage', () async {

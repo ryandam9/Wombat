@@ -6,6 +6,7 @@ class Conversation {
     required this.id,
     required this.title,
     required this.modelId,
+    this.supportsImageOutput = false,
     List<ChatMessage>? messages,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -16,6 +17,11 @@ class Conversation {
   final String id;
   String title;
   String modelId;
+
+  /// Whether the selected model can return generated images, so the request
+  /// should ask for the `image` output modality.
+  bool supportsImageOutput;
+
   final List<ChatMessage> messages;
   final DateTime createdAt;
   DateTime updatedAt;
@@ -24,6 +30,7 @@ class Conversation {
         'id': id,
         'title': title,
         'modelId': modelId,
+        'supportsImageOutput': supportsImageOutput,
         'createdAt': createdAt.toIso8601String(),
         'updatedAt': updatedAt.toIso8601String(),
         'messages': messages.map((m) => m.toJson()).toList(),
@@ -33,6 +40,7 @@ class Conversation {
         id: json['id'] as String,
         title: json['title'] as String? ?? 'New chat',
         modelId: json['modelId'] as String? ?? '',
+        supportsImageOutput: json['supportsImageOutput'] as bool? ?? false,
         createdAt: DateTime.tryParse(json['createdAt'] as String? ?? ''),
         updatedAt: DateTime.tryParse(json['updatedAt'] as String? ?? ''),
         messages: (json['messages'] as List<dynamic>? ?? [])

@@ -3,6 +3,7 @@ import 'package:auris/auris_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:route/models/attachment.dart';
 import 'package:route/models/chat_message.dart';
 import 'package:route/widgets/message_bubble.dart';
 
@@ -59,5 +60,28 @@ void main() {
       ChatMessage(id: '1', role: MessageRole.assistant, content: ''),
     ));
     expect(find.text('Copy'), findsNothing);
+  });
+
+  testWidgets('renders an image attachment inline', (tester) async {
+    // 1x1 transparent PNG.
+    const pngBase64 =
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk'
+        '+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+    await tester.pumpWidget(_wrap(
+      ChatMessage(
+        id: '1',
+        role: MessageRole.assistant,
+        content: 'here is an image',
+        attachments: [
+          MessageAttachment.fromDataUrl(
+            'data:image/png;base64,$pngBase64',
+            kind: AttachmentKind.image,
+          ),
+        ],
+      ),
+    ));
+
+    expect(find.text('here is an image'), findsOneWidget);
+    expect(find.byType(Image), findsOneWidget);
   });
 }
