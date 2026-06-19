@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:provider/provider.dart';
 import 'package:route/models/openrouter_model.dart';
 import 'package:route/models/usage.dart';
-import 'package:route/providers/settings_provider.dart';
 import 'package:route/providers/usage_provider.dart';
 import 'package:route/screens/compare_screen.dart';
-import 'package:route/services/openrouter_service.dart';
 import 'package:route/widgets/message_bubble.dart';
 
 import '../helpers/fakes.dart';
@@ -14,12 +12,10 @@ import '../helpers/fakes.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  late SettingsProvider settings;
+  late ProviderContainer container;
   late FakeOpenRouterService service;
-  late UsageProvider usage;
 
   setUp(() async {
-    settings = await buildLoadedSettings();
     service = FakeOpenRouterService()
       ..chunks = ['Hello ', 'world']
       ..usage = const TokenUsage(promptTokens: 3, completionTokens: 2, cost: 0.01)
@@ -27,7 +23,8 @@ void main() {
         OpenRouterModel(id: 'a/alpha', name: 'Alpha'),
         OpenRouterModel(id: 'b/beta', name: 'Beta'),
       ];
-    usage = UsageProvider(service: service, settings: settings);
+    container = await createContainer(service: service);
+    addTearDown(container.dispose);
   });
 
   Future<void> pump(WidgetTester tester) async {
@@ -37,12 +34,8 @@ void main() {
     tester.view.physicalSize = const Size(900, 900);
     addTearDown(tester.view.reset);
     await tester.pumpWidget(
-      MultiProvider(
-        providers: [
-          ChangeNotifierProvider<SettingsProvider>.value(value: settings),
-          ChangeNotifierProvider<UsageProvider>.value(value: usage),
-          Provider<OpenRouterService>.value(value: service),
-        ],
+      UncontrolledProviderScope(
+        container: container,
         child: const MaterialApp(home: CompareScreen()),
       ),
     );
@@ -82,6 +75,6 @@ void main() {
     // Both models produced a rendered reply column.
     expect(find.byType(MessageBubble), findsNWidgets(2));
     // Usage from both runs was recorded (2 × $0.01).
-    expect(usage.cost, closeTo(0.02, 1e-9));
+    expect(container.read(usageProvider).cost, closeTo(0.02, 1e-9));
   });
 }

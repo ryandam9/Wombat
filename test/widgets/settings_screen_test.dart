@@ -1,20 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:provider/provider.dart';
-import 'package:route/providers/settings_provider.dart';
 import 'package:route/screens/settings_screen.dart';
 import 'package:route/theme/app_theme.dart';
 
 import '../helpers/fakes.dart';
 
-Future<void> _pump(WidgetTester tester, SettingsProvider settings) async {
+Future<void> _pump(WidgetTester tester, ProviderContainer container) async {
   await tester.pumpWidget(
-    MaterialApp(
-      theme: AppTheme.dark,
-      home: ChangeNotifierProvider<SettingsProvider>.value(
-        value: settings,
-        child: const SettingsScreen(),
-      ),
+    UncontrolledProviderScope(
+      container: container,
+      child: MaterialApp(theme: AppTheme.dark, home: const SettingsScreen()),
     ),
   );
   await tester.pump();
@@ -23,9 +19,10 @@ Future<void> _pump(WidgetTester tester, SettingsProvider settings) async {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  late SettingsProvider settings;
+  late ProviderContainer container;
   setUp(() async {
-    settings = await buildLoadedSettings();
+    container = await createContainer();
+    addTearDown(container.dispose);
   });
 
   testWidgets('narrow layout stacks every panel without layout errors',
@@ -35,7 +32,7 @@ void main() {
     tester.view.physicalSize = const Size(500, 3000);
     addTearDown(tester.view.reset);
 
-    await _pump(tester, settings);
+    await _pump(tester, container);
 
     // The font-picker Row previously threw a RenderFlex unbounded-width error.
     expect(tester.takeException(), isNull);
@@ -59,7 +56,7 @@ void main() {
     tester.view.physicalSize = const Size(1200, 1600);
     addTearDown(tester.view.reset);
 
-    await _pump(tester, settings);
+    await _pump(tester, container);
     expect(tester.takeException(), isNull);
 
     // Every section card renders at once (no nav/detail split), including the

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:provider/provider.dart';
 import 'package:route/models/attachment.dart';
 import 'package:route/models/chat_message.dart';
 import 'package:route/providers/settings_provider.dart';
@@ -11,24 +11,23 @@ import 'package:route/widgets/message_bubble.dart';
 
 import '../helpers/fakes.dart';
 
-late SettingsProvider _settings;
+late ProviderContainer _container;
 
-// The bubble reads fonts from SettingsProvider, so provide it.
-Widget _wrap(ChatMessage message) => MaterialApp(
-      theme: AppTheme.dark,
-      home: Scaffold(
-        body: ChangeNotifierProvider<SettingsProvider>.value(
-          value: _settings,
-          child: MessageBubble(message: message),
-        ),
+// The bubble reads fonts from settings, so provide a configured container.
+Widget _wrap(ChatMessage message) => UncontrolledProviderScope(
+      container: _container,
+      child: MaterialApp(
+        theme: AppTheme.dark,
+        home: Scaffold(body: MessageBubble(message: message)),
       ),
     );
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  setUpAll(() async {
-    _settings = await buildLoadedSettings();
+  setUp(() async {
+    _container = await createContainer();
+    addTearDown(_container.dispose);
   });
 
   testWidgets('renders a user message with a YOU badge', (tester) async {
@@ -93,8 +92,7 @@ void main() {
 
   testWidgets('applies the user font scale to user message text',
       (tester) async {
-    await _settings.setUserFontScale(1.3);
-    addTearDown(() => _settings.setUserFontScale(1.0));
+    await _container.read(settingsProvider.notifier).setUserFontScale(1.3);
 
     await tester.pumpWidget(_wrap(
       ChatMessage(id: '1', role: MessageRole.user, content: 'Scaled hi'),

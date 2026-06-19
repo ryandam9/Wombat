@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/app_font.dart';
 import '../models/openrouter_model.dart';
@@ -8,17 +8,17 @@ import '../services/download_service.dart';
 import '../widgets/ui_kit.dart';
 import 'model_picker_screen.dart';
 
-class SettingsScreen extends StatefulWidget {
+class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
 
   @override
-  State<SettingsScreen> createState() => _SettingsScreenState();
+  ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
 }
 
 /// One settings section: a nav entry (icon + title) plus its detail content.
 typedef _Section = ({String title, IconData icon, Widget content});
 
-class _SettingsScreenState extends State<SettingsScreen> {
+class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   static const double _wideBreakpoint = 880;
 
   late final TextEditingController _keyController;
@@ -28,7 +28,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void initState() {
     super.initState();
     _keyController = TextEditingController(
-      text: context.read<SettingsProvider>().apiKey ?? '',
+      text: ref.read(settingsProvider).apiKey ?? '',
     );
   }
 
@@ -39,7 +39,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _save() async {
-    await context.read<SettingsProvider>().setApiKey(_keyController.text);
+    await ref.read(settingsProvider.notifier).setApiKey(_keyController.text);
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('API key saved')),
@@ -48,7 +48,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final settings = context.watch<SettingsProvider>();
+    final settings = ref.watch(settingsProvider);
     final theme = Theme.of(context);
     final wide = MediaQuery.of(context).size.width >= _wideBreakpoint;
 
@@ -86,7 +86,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   /// Wide/desktop: a centred two-column layout. The Setup strip spans the top.
   /// The left column is wider and holds the sections that need room for long
   /// values (API Key, Downloads); the right column holds the compact controls.
-  Widget _wide(SettingsProvider settings) {
+  Widget _wide(SettingsState settings) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Center(
@@ -141,7 +141,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   // ── Sections ──────────────────────────────────────────────────────────
 
-  List<_Section> _sections(BuildContext context, SettingsProvider settings) => [
+  List<_Section> _sections(BuildContext context, SettingsState settings) => [
         (
           title: 'Setup',
           icon: Icons.checklist_rtl,
@@ -175,7 +175,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
       ];
 
-  Widget _apiKey(SettingsProvider settings) {
+  Widget _apiKey(SettingsState settings) {
     final theme = Theme.of(context);
     final fromEnv = settings.apiKeyFromEnvironment;
     return Column(
@@ -239,7 +239,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             if (settings.hasApiKey)
               OutlinedButton.icon(
                 onPressed: () async {
-                  await context.read<SettingsProvider>().clearApiKey();
+                  await ref.read(settingsProvider.notifier).clearApiKey();
                   _keyController.clear();
                 },
                 icon: const Icon(Icons.delete_outline),
@@ -251,7 +251,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _defaultModel(SettingsProvider settings) {
+  Widget _defaultModel(SettingsState settings) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -268,7 +268,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               MaterialPageRoute(builder: (_) => const ModelPickerScreen()),
             );
             if (selected != null && mounted) {
-              context.read<SettingsProvider>().setDefaultModel(selected.id);
+              ref.read(settingsProvider.notifier).setDefaultModel(selected.id);
             }
           },
           icon: const Icon(Icons.smart_toy_outlined),
@@ -278,7 +278,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _appearance(SettingsProvider settings) {
+  Widget _appearance(SettingsState settings) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -304,12 +304,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
           selected: {settings.themeMode},
           showSelectedIcon: false,
           onSelectionChanged: (s) =>
-              context.read<SettingsProvider>().setThemeMode(s.first),
+              ref.read(settingsProvider.notifier).setThemeMode(s.first),
         ),
         SwitchListTile(
           value: settings.animateModelIndicator,
           onChanged: (v) =>
-              context.read<SettingsProvider>().setAnimateModelIndicator(v),
+              ref.read(settingsProvider.notifier).setAnimateModelIndicator(v),
           title: const Text('Show activity indicator while replying'),
           contentPadding: EdgeInsets.zero,
           dense: true,
@@ -317,7 +317,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         SwitchListTile(
           value: settings.continuousModelBorder,
           onChanged: (v) =>
-              context.read<SettingsProvider>().setContinuousModelBorder(v),
+              ref.read(settingsProvider.notifier).setContinuousModelBorder(v),
           title: const Text('Continuously animate the model border'),
           subtitle: const Text(
             'Off: the border animates once when you pick a model.',
@@ -329,7 +329,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _downloads(SettingsProvider settings) {
+  Widget _downloads(SettingsState settings) {
     final theme = Theme.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -355,7 +355,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               onPressed: () async {
                 final dir = await const DownloadService().chooseDirectory();
                 if (dir != null && mounted) {
-                  context.read<SettingsProvider>().setDownloadDir(dir);
+                  ref.read(settingsProvider.notifier).setDownloadDir(dir);
                 }
               },
               icon: const Icon(Icons.folder_open),
@@ -364,7 +364,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             if (settings.downloadDir != null)
               OutlinedButton.icon(
                 onPressed: () =>
-                    context.read<SettingsProvider>().setDownloadDir(null),
+                    ref.read(settingsProvider.notifier).setDownloadDir(null),
                 icon: const Icon(Icons.clear),
                 label: const Text('Clear'),
               ),
@@ -374,8 +374,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _fonts(SettingsProvider settings) {
-    final read = context.read<SettingsProvider>();
+  Widget _fonts(SettingsState settings) {
+    final read = ref.read(settingsProvider.notifier);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -409,8 +409,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _fontSize(SettingsProvider settings) {
-    final read = context.read<SettingsProvider>();
+  Widget _fontSize(SettingsState settings) {
+    final read = ref.read(settingsProvider.notifier);
     final theme = Theme.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,

@@ -1,14 +1,15 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:route/models/attachment.dart';
 import 'package:route/models/chat_message.dart';
+import 'package:route/models/conversation.dart';
 import 'package:route/models/openrouter_model.dart';
 import 'package:route/models/usage.dart';
+import 'package:route/providers/app_providers.dart';
+import 'package:route/providers/settings_provider.dart';
 import 'package:route/services/conversation_store.dart';
 import 'package:route/services/openrouter_service.dart';
 import 'package:route/services/secure_storage_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
-import 'package:route/models/conversation.dart';
-import 'package:route/providers/settings_provider.dart';
 
 /// In-memory [SecureStorageService] for tests; never touches a platform store.
 class FakeSecureStorageService extends SecureStorageService {
@@ -100,21 +101,41 @@ class FakeOpenRouterService extends OpenRouterService {
   }
 }
 
-/// Builds a fully-loaded [SettingsProvider] backed by fakes/mock prefs.
+/// Builds a Riverpod [ProviderContainer] wired to in-memory fakes, ready for
+/// provider and widget tests.
 ///
 /// [environment] is empty by default so tests don't accidentally pick up an
-/// `OPENROUTER_API_KEY` set on the host machine.
-Future<SettingsProvider> buildLoadedSettings({
+/// `OPENROUTER_API_KEY` set on the host machine. Pass [service]/[store] to
+/// stub network and persistence (required by chat tests). When [waitForSettings]
+/// is true the call returns only once settings have finished loading.
+///
+/// Callers should `addTearDown(container.dispose)`.
+Future<ProviderContainer> createContainer({
   String? apiKey = 'test-key',
-  String defaultModel = 'test/model',
+  Map<String, Object> prefs = const {'default_model': 'test/model'},
   Map<String, String> environment = const {},
+  OpenRouterService? service,
+  ConversationStore? store,
+  SecureStorageService? secureStorage,
+  bool waitForSettings = true,
 }) async {
-  SharedPreferences.setMockInitialValues({'default_model': defaultModel});
-  final prefs = await SharedPreferences.getInstance();
-  final secure = FakeSecureStorageService(initial: apiKey);
-  final settings = SettingsProvider(secure, prefs, environment: environment);
-  await _waitUntil(() => !settings.loading);
-  return settings;
+  SharedPreferences.setMockInitialValues(prefs);
+  final sp = await SharedPreferences.getInstance();
+  final container = ProviderContainer(
+    overrides: [
+      sharedPreferencesProvider.overrideWithValue(sp),
+      secureStorageProvider.overrideWithValue(
+        secureStorage ?? FakeSecureStorageService(initial: apiKey),
+      ),
+      environmentProvider.overrideWithValue(environment),
+      if (service != null) openRouterServiceProvider.overrideWithValue(service),
+      if (store != null) conversationStoreProvider.overrideWithValue(store),
+    ],
+  );
+  if (waitForSettings) {
+    await waitUntil(() => !container.read(settingsProvider).loading);
+  }
+  return container;
 }
 
 /// Pumps microtasks until [condition] is true (or a sane attempt limit).

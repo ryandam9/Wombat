@@ -11,20 +11,18 @@ import '../helpers/fakes.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  Future<ChatProvider> buildChat({
+  Future<ChatNotifier> buildChat({
     FakeOpenRouterService? service,
     FakeConversationStore? store,
     String? apiKey = 'test-key',
-    UsageProvider? usage,
   }) async {
-    final settings = await buildLoadedSettings(apiKey: apiKey);
-    final svc = service ?? FakeOpenRouterService();
-    final chat = ChatProvider(
-      service: svc,
+    final container = await createContainer(
+      service: service ?? FakeOpenRouterService(),
       store: store ?? FakeConversationStore(),
-      settings: settings,
-      usage: usage ?? UsageProvider(service: svc, settings: settings),
+      apiKey: apiKey,
     );
+    addTearDown(container.dispose);
+    final chat = container.read(chatProvider.notifier);
     await waitUntil(() => !chat.loading);
     return chat;
   }
@@ -117,24 +115,23 @@ void main() {
     });
 
     test('records reported usage against the active model', () async {
-      final settings = await buildLoadedSettings();
       final service = FakeOpenRouterService(chunks: ['ok'])
         ..usage = const TokenUsage(
           promptTokens: 10,
           completionTokens: 5,
           cost: 0.002,
         );
-      final usage = UsageProvider(service: service, settings: settings);
-      final chat = ChatProvider(
+      final container = await createContainer(
         service: service,
         store: FakeConversationStore(),
-        settings: settings,
-        usage: usage,
       );
+      addTearDown(container.dispose);
+      final chat = container.read(chatProvider.notifier);
       await waitUntil(() => !chat.loading);
 
       await chat.sendMessage('hi');
 
+      final usage = container.read(usageProvider);
       expect(usage.promptTokens, 10);
       expect(usage.completionTokens, 5);
       expect(usage.cost, 0.002);

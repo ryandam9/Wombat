@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:provider/provider.dart';
 import 'package:route/providers/chat_provider.dart';
-import 'package:route/providers/settings_provider.dart';
-import 'package:route/providers/usage_provider.dart';
 import 'package:route/screens/home_screen.dart';
 import 'package:route/theme/app_theme.dart';
 
@@ -13,31 +11,18 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   Future<Widget> buildApp(WidgetTester tester) async {
-    late SettingsProvider settings;
-    late ChatProvider chat;
-    late UsageProvider usage;
+    late ProviderContainer container;
     await tester.runAsync(() async {
-      settings = await buildLoadedSettings();
-      final svc = FakeOpenRouterService();
-      usage = UsageProvider(service: svc, settings: settings);
-      chat = ChatProvider(
-        service: svc,
+      container = await createContainer(
+        service: FakeOpenRouterService(),
         store: FakeConversationStore(),
-        settings: settings,
-        usage: usage,
       );
-      await waitUntil(() => !chat.loading);
+      await waitUntil(() => !container.read(chatProvider.notifier).loading);
     });
-    return MaterialApp(
-      theme: AppTheme.dark,
-      home: MultiProvider(
-        providers: [
-          ChangeNotifierProvider<SettingsProvider>.value(value: settings),
-          ChangeNotifierProvider<UsageProvider>.value(value: usage),
-          ChangeNotifierProvider<ChatProvider>.value(value: chat),
-        ],
-        child: const HomeScreen(),
-      ),
+    addTearDown(container.dispose);
+    return UncontrolledProviderScope(
+      container: container,
+      child: MaterialApp(theme: AppTheme.dark, home: const HomeScreen()),
     );
   }
 

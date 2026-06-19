@@ -1,20 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:provider/provider.dart';
 
 import '../providers/usage_provider.dart';
 import '../widgets/ui_kit.dart';
 
 /// Shows OpenRouter usage accumulated during the current app session, plus the
 /// account credit balance.
-class UsageScreen extends StatefulWidget {
+class UsageScreen extends ConsumerStatefulWidget {
   const UsageScreen({super.key});
 
   @override
-  State<UsageScreen> createState() => _UsageScreenState();
+  ConsumerState<UsageScreen> createState() => _UsageScreenState();
 }
 
-class _UsageScreenState extends State<UsageScreen> {
+class _UsageScreenState extends ConsumerState<UsageScreen> {
   static final _int = NumberFormat.decimalPattern();
 
   @override
@@ -22,7 +22,7 @@ class _UsageScreenState extends State<UsageScreen> {
     super.initState();
     // Attempt to load the account balance when the screen opens.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<UsageProvider>().refreshCredits();
+      ref.read(usageProvider.notifier).refreshCredits();
     });
   }
 
@@ -30,7 +30,7 @@ class _UsageScreenState extends State<UsageScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final usage = context.watch<UsageProvider>();
+    final usage = ref.watch(usageProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -41,7 +41,7 @@ class _UsageScreenState extends State<UsageScreen> {
             icon: const Icon(Icons.restart_alt),
             onPressed: usage.isEmpty
                 ? null
-                : () => context.read<UsageProvider>().reset(),
+                : () => ref.read(usageProvider.notifier).reset(),
           ),
         ],
       ),
@@ -94,14 +94,14 @@ class _UsageScreenState extends State<UsageScreen> {
   }
 }
 
-class _AccountPanel extends StatelessWidget {
+class _AccountPanel extends ConsumerWidget {
   const _AccountPanel({required this.money});
 
   final String Function(double, {int dp}) money;
 
   @override
-  Widget build(BuildContext context) {
-    final usage = context.watch<UsageProvider>();
+  Widget build(BuildContext context, WidgetRef ref) {
+    final usage = ref.watch(usageProvider);
     final credits = usage.credits;
 
     return SectionPanel(
@@ -140,7 +140,7 @@ class _AccountPanel extends StatelessWidget {
             child: FilledButton.tonalIcon(
               onPressed: usage.creditsLoading
                   ? null
-                  : () => context.read<UsageProvider>().refreshCredits(),
+                  : () => ref.read(usageProvider.notifier).refreshCredits(),
               icon: const Icon(Icons.refresh),
               label: const Text('Refresh'),
             ),
@@ -158,7 +158,7 @@ class _ByModelPanel extends StatelessWidget {
     required this.intFmt,
   });
 
-  final UsageProvider usage;
+  final UsageState usage;
   final String Function(double, {int dp}) money;
   final NumberFormat intFmt;
 

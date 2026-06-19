@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/openrouter_model.dart';
 import '../providers/chat_provider.dart';
@@ -15,14 +15,14 @@ import '../screens/model_picker_screen.dart';
 /// By default the border sweeps once whenever a new model is selected and then
 /// settles, so it isn't distracting. When [SettingsProvider.continuousModelBorder]
 /// is on, the border spins continuously instead.
-class ModelSelector extends StatefulWidget {
+class ModelSelector extends ConsumerStatefulWidget {
   const ModelSelector({super.key});
 
   @override
-  State<ModelSelector> createState() => _ModelSelectorState();
+  ConsumerState<ModelSelector> createState() => _ModelSelectorState();
 }
 
-class _ModelSelectorState extends State<ModelSelector>
+class _ModelSelectorState extends ConsumerState<ModelSelector>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller = AnimationController(
     vsync: this,
@@ -62,7 +62,7 @@ class _ModelSelectorState extends State<ModelSelector>
       MaterialPageRoute(builder: (_) => const ModelPickerScreen()),
     );
     if (selected != null && mounted) {
-      context.read<ChatProvider>().setModelForCurrent(
+      ref.read(chatProvider.notifier).setModelForCurrent(
             selected.id,
             supportsImageOutput: selected.supportsImageOutput,
           );
@@ -71,10 +71,9 @@ class _ModelSelectorState extends State<ModelSelector>
 
   @override
   Widget build(BuildContext context) {
-    final chat = context.watch<ChatProvider>();
-    final modelId = chat.current?.modelId ?? '—';
-    final continuous = context
-        .select<SettingsProvider, bool>((s) => s.continuousModelBorder);
+    final modelId = ref.watch(chatProvider).current?.modelId ?? '—';
+    final continuous =
+        ref.watch(settingsProvider.select((s) => s.continuousModelBorder));
     _syncAnimation(modelId, continuous);
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;

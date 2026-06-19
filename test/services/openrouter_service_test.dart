@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -8,6 +9,13 @@ import 'package:route/models/chat_message.dart';
 import 'package:route/models/usage.dart';
 import 'package:route/services/debug_log.dart';
 import 'package:route/services/openrouter_service.dart';
+
+/// Returns a [DebugLog] notifier mounted in a disposable container.
+DebugLog makeLog() {
+  final container = ProviderContainer();
+  addTearDown(container.dispose);
+  return container.read(debugLogProvider.notifier);
+}
 
 void main() {
   group('OpenRouterService.fetchModels', () {
@@ -111,7 +119,7 @@ void main() {
           'data: [DONE]',
         ]);
       });
-      final debug = DebugLog();
+      final debug = makeLog();
 
       await OpenRouterService(client: client, debug: debug).streamChat(
         apiKey: 'k',
@@ -138,7 +146,7 @@ void main() {
           400,
         );
       });
-      final debug = DebugLog();
+      final debug = makeLog();
 
       await expectLater(
         OpenRouterService(client: client, debug: debug)

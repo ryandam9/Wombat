@@ -1,3 +1,4 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:route/models/usage.dart';
 import 'package:route/providers/usage_provider.dart';
@@ -7,13 +8,18 @@ import '../helpers/fakes.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  Future<UsageProvider> build(FakeOpenRouterService service) async {
-    final settings = await buildLoadedSettings();
-    return UsageProvider(service: service, settings: settings);
+  Future<ProviderContainer> build(
+    FakeOpenRouterService service, {
+    String? apiKey = 'test-key',
+  }) async {
+    final container = await createContainer(service: service, apiKey: apiKey);
+    addTearDown(container.dispose);
+    return container;
   }
 
   test('record accumulates totals and per-model breakdown', () async {
-    final usage = await build(FakeOpenRouterService());
+    final c = await build(FakeOpenRouterService());
+    final usage = c.read(usageProvider.notifier);
 
     usage.record('a/one',
         const TokenUsage(promptTokens: 10, completionTokens: 5, cost: 0.001));
@@ -22,59 +28,62 @@ void main() {
     usage.record('b/two',
         const TokenUsage(promptTokens: 100, completionTokens: 50, cost: 0.02));
 
-    expect(usage.promptTokens, 112);
-    expect(usage.completionTokens, 56);
-    expect(usage.totalTokens, 168);
-    expect(usage.requests, 3);
-    expect(usage.cost, closeTo(0.0215, 1e-9));
-    expect(usage.isEmpty, isFalse);
+    final s = c.read(usageProvider);
+    expect(s.promptTokens, 112);
+    expect(s.completionTokens, 56);
+    expect(s.totalTokens, 168);
+    expect(s.requests, 3);
+    expect(s.cost, closeTo(0.0215, 1e-9));
+    expect(s.isEmpty, isFalse);
 
     // Sorted by cost descending: b/two first.
-    expect(usage.byModel.first.modelId, 'b/two');
-    expect(usage.byModel.firstWhere((m) => m.modelId == 'a/one').requests, 2);
+    expect(s.byModel.first.modelId, 'b/two');
+    expect(s.byModel.firstWhere((m) => m.modelId == 'a/one').requests, 2);
   });
 
   test('reset clears all totals', () async {
-    final usage = await build(FakeOpenRouterService());
+    final c = await build(FakeOpenRouterService());
+    final usage = c.read(usageProvider.notifier);
     usage.record('a/one', const TokenUsage(promptTokens: 1, cost: 0.1));
     usage.reset();
 
-    expect(usage.isEmpty, isTrue);
-    expect(usage.totalTokens, 0);
-    expect(usage.cost, 0);
-    expect(usage.byModel, isEmpty);
+    final s = c.read(usageProvider);
+    expect(s.isEmpty, isTrue);
+    expect(s.totalTokens, 0);
+    expect(s.cost, 0);
+    expect(s.byModel, isEmpty);
   });
 
   test('refreshCredits loads the balance on success', () async {
     final service = FakeOpenRouterService()
       ..credits = const CreditBalance(totalCredits: 10, totalUsage: 4);
-    final usage = await build(service);
+    final c = await build(service);
 
-    await usage.refreshCredits();
+    await c.read(usageProvider.notifier).refreshCredits();
 
-    expect(usage.credits?.remaining, 6);
-    expect(usage.creditsError, isNull);
-    expect(usage.creditsLoading, isFalse);
+    final s = c.read(usageProvider);
+    expect(s.credits?.remaining, 6);
+    expect(s.creditsError, isNull);
+    expect(s.creditsLoading, isFalse);
   });
 
   test('refreshCredits captures errors instead of throwing', () async {
     final service = FakeOpenRouterService()..creditsError = Exception('403');
-    final usage = await build(service);
+    final c = await build(service);
 
-    await usage.refreshCredits();
+    await c.read(usageProvider.notifier).refreshCredits();
 
-    expect(usage.credits, isNull);
-    expect(usage.creditsError, contains('403'));
-    expect(usage.creditsLoading, isFalse);
+    final s = c.read(usageProvider);
+    expect(s.credits, isNull);
+    expect(s.creditsError, contains('403'));
+    expect(s.creditsLoading, isFalse);
   });
 
   test('refreshCredits requires an API key', () async {
-    final settings = await buildLoadedSettings(apiKey: null);
-    final usage =
-        UsageProvider(service: FakeOpenRouterService(), settings: settings);
+    final c = await build(FakeOpenRouterService(), apiKey: null);
 
-    await usage.refreshCredits();
+    await c.read(usageProvider.notifier).refreshCredits();
 
-    expect(usage.creditsError, contains('API key'));
+    expect(c.read(usageProvider).creditsError, contains('API key'));
   });
 }

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:route/models/app_font.dart';
+import 'package:route/providers/app_providers.dart';
 import 'package:route/providers/settings_provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../helpers/fakes.dart';
 
@@ -10,217 +10,231 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   test('loads persisted api key, model and theme', () async {
-    SharedPreferences.setMockInitialValues({
-      'default_model': 'anthropic/claude',
-      'theme_mode': ThemeMode.dark.index,
-    });
-    final prefs = await SharedPreferences.getInstance();
-    final settings = SettingsProvider(
-      FakeSecureStorageService(initial: 'stored-key'),
-      prefs,
+    final c = await createContainer(
+      apiKey: 'stored-key',
+      prefs: {
+        'default_model': 'anthropic/claude',
+        'theme_mode': ThemeMode.dark.index,
+      },
     );
+    addTearDown(c.dispose);
 
-    await waitUntil(() => !settings.loading);
-
-    expect(settings.apiKey, 'stored-key');
-    expect(settings.hasApiKey, isTrue);
-    expect(settings.defaultModel, 'anthropic/claude');
-    expect(settings.themeMode, ThemeMode.dark);
+    final s = c.read(settingsProvider);
+    expect(s.apiKey, 'stored-key');
+    expect(s.hasApiKey, isTrue);
+    expect(s.defaultModel, 'anthropic/claude');
+    expect(s.themeMode, ThemeMode.dark);
   });
 
   test('uses defaults when nothing is persisted', () async {
-    final settings = await buildLoadedSettings(apiKey: null);
-    expect(settings.hasApiKey, isFalse);
-    expect(settings.themeMode, ThemeMode.system);
+    final c = await createContainer(apiKey: null, prefs: const {});
+    addTearDown(c.dispose);
+    final s = c.read(settingsProvider);
+    expect(s.hasApiKey, isFalse);
+    expect(s.themeMode, ThemeMode.system);
   });
 
   test('setApiKey stores and clears the key', () async {
-    final settings = await buildLoadedSettings(apiKey: null);
+    final c = await createContainer(apiKey: null);
+    addTearDown(c.dispose);
+    final n = c.read(settingsProvider.notifier);
 
-    await settings.setApiKey('  new-key  ');
-    expect(settings.apiKey, 'new-key'); // trimmed
-    expect(settings.hasApiKey, isTrue);
+    await n.setApiKey('  new-key  ');
+    expect(c.read(settingsProvider).apiKey, 'new-key'); // trimmed
+    expect(c.read(settingsProvider).hasApiKey, isTrue);
 
-    await settings.setApiKey('');
-    expect(settings.hasApiKey, isFalse);
+    await n.setApiKey('');
+    expect(c.read(settingsProvider).hasApiKey, isFalse);
   });
 
   test('clearApiKey removes the key', () async {
-    final settings = await buildLoadedSettings(apiKey: 'k');
-    await settings.clearApiKey();
-    expect(settings.apiKey, isNull);
-    expect(settings.hasApiKey, isFalse);
+    final c = await createContainer(apiKey: 'k');
+    addTearDown(c.dispose);
+    await c.read(settingsProvider.notifier).clearApiKey();
+    expect(c.read(settingsProvider).apiKey, isNull);
+    expect(c.read(settingsProvider).hasApiKey, isFalse);
   });
 
   test('seeds the API key from the environment when none is stored', () async {
-    final settings = await buildLoadedSettings(
+    final c = await createContainer(
       apiKey: null,
       environment: const {'OPENROUTER_API_KEY': '  env-key  '},
     );
-    expect(settings.apiKey, 'env-key'); // trimmed
-    expect(settings.hasApiKey, isTrue);
-    expect(settings.apiKeyFromEnvironment, isTrue);
-    expect(settings.apiKeyEnvVarName, 'OPENROUTER_API_KEY');
+    addTearDown(c.dispose);
+    final s = c.read(settingsProvider);
+    expect(s.apiKey, 'env-key'); // trimmed
+    expect(s.hasApiKey, isTrue);
+    expect(s.apiKeyFromEnvironment, isTrue);
+    expect(s.apiKeyEnvVarName, 'OPENROUTER_API_KEY');
   });
 
   test('a stored API key takes precedence over the environment', () async {
-    final settings = await buildLoadedSettings(
+    final c = await createContainer(
       apiKey: 'stored-key',
       environment: const {'OPENROUTER_API_KEY': 'env-key'},
     );
-    expect(settings.apiKey, 'stored-key');
-    expect(settings.apiKeyFromEnvironment, isFalse);
+    addTearDown(c.dispose);
+    final s = c.read(settingsProvider);
+    expect(s.apiKey, 'stored-key');
+    expect(s.apiKeyFromEnvironment, isFalse);
   });
 
   test('saving overrides the environment key; clearing reverts to it',
       () async {
-    final settings = await buildLoadedSettings(
+    final c = await createContainer(
       apiKey: null,
       environment: const {'OPENROUTER_API_KEY': 'env-key'},
     );
-    expect(settings.apiKeyFromEnvironment, isTrue);
+    addTearDown(c.dispose);
+    final n = c.read(settingsProvider.notifier);
+    expect(c.read(settingsProvider).apiKeyFromEnvironment, isTrue);
 
-    await settings.setApiKey('manual-key');
-    expect(settings.apiKey, 'manual-key');
-    expect(settings.apiKeyFromEnvironment, isFalse);
+    await n.setApiKey('manual-key');
+    expect(c.read(settingsProvider).apiKey, 'manual-key');
+    expect(c.read(settingsProvider).apiKeyFromEnvironment, isFalse);
 
-    await settings.clearApiKey();
-    expect(settings.apiKey, 'env-key');
-    expect(settings.apiKeyFromEnvironment, isTrue);
+    await n.clearApiKey();
+    expect(c.read(settingsProvider).apiKey, 'env-key');
+    expect(c.read(settingsProvider).apiKeyFromEnvironment, isTrue);
   });
 
   test('setDefaultModel and setThemeMode persist to prefs', () async {
-    SharedPreferences.setMockInitialValues({});
-    final prefs = await SharedPreferences.getInstance();
-    final settings =
-        SettingsProvider(FakeSecureStorageService(), prefs);
-    await waitUntil(() => !settings.loading);
+    final c = await createContainer(prefs: const {});
+    addTearDown(c.dispose);
+    final n = c.read(settingsProvider.notifier);
 
-    await settings.setDefaultModel('google/gemini');
-    await settings.setThemeMode(ThemeMode.light);
+    await n.setDefaultModel('google/gemini');
+    await n.setThemeMode(ThemeMode.light);
 
-    expect(settings.defaultModel, 'google/gemini');
-    expect(settings.themeMode, ThemeMode.light);
+    final s = c.read(settingsProvider);
+    expect(s.defaultModel, 'google/gemini');
+    expect(s.themeMode, ThemeMode.light);
+    final prefs = c.read(sharedPreferencesProvider);
     expect(prefs.getString('default_model'), 'google/gemini');
     expect(prefs.getInt('theme_mode'), ThemeMode.light.index);
   });
 
   test('setDownloadDir persists and clears', () async {
-    SharedPreferences.setMockInitialValues({});
-    final prefs = await SharedPreferences.getInstance();
-    final settings = SettingsProvider(FakeSecureStorageService(), prefs);
-    await waitUntil(() => !settings.loading);
+    final c = await createContainer(prefs: const {});
+    addTearDown(c.dispose);
+    final n = c.read(settingsProvider.notifier);
+    final prefs = c.read(sharedPreferencesProvider);
 
-    expect(settings.downloadDir, isNull);
+    expect(c.read(settingsProvider).downloadDir, isNull);
 
-    await settings.setDownloadDir('/home/me/Downloads');
-    expect(settings.downloadDir, '/home/me/Downloads');
+    await n.setDownloadDir('/home/me/Downloads');
+    expect(c.read(settingsProvider).downloadDir, '/home/me/Downloads');
     expect(prefs.getString('download_dir'), '/home/me/Downloads');
 
-    await settings.setDownloadDir(null);
-    expect(settings.downloadDir, isNull);
+    await n.setDownloadDir(null);
+    expect(c.read(settingsProvider).downloadDir, isNull);
     expect(prefs.getString('download_dir'), isNull);
   });
 
   test('animateModelIndicator defaults to false and persists', () async {
-    SharedPreferences.setMockInitialValues({});
-    final prefs = await SharedPreferences.getInstance();
-    final settings = SettingsProvider(FakeSecureStorageService(), prefs);
-    await waitUntil(() => !settings.loading);
+    final c = await createContainer(prefs: const {});
+    addTearDown(c.dispose);
+    final n = c.read(settingsProvider.notifier);
 
-    expect(settings.animateModelIndicator, isFalse);
-    await settings.setAnimateModelIndicator(true);
-    expect(settings.animateModelIndicator, isTrue);
-    expect(prefs.getBool('animate_model_indicator'), isTrue);
+    expect(c.read(settingsProvider).animateModelIndicator, isFalse);
+    await n.setAnimateModelIndicator(true);
+    expect(c.read(settingsProvider).animateModelIndicator, isTrue);
+    expect(c.read(sharedPreferencesProvider).getBool('animate_model_indicator'),
+        isTrue);
   });
 
   test('monoFont defaults to JetBrains Mono and persists', () async {
-    SharedPreferences.setMockInitialValues({});
-    final prefs = await SharedPreferences.getInstance();
-    final settings = SettingsProvider(FakeSecureStorageService(), prefs);
-    await waitUntil(() => !settings.loading);
+    final c = await createContainer(prefs: const {});
+    addTearDown(c.dispose);
+    final n = c.read(settingsProvider.notifier);
 
-    expect(settings.monoFont, AppFont.jetBrainsMono);
-    expect(settings.monoFont.isMonospace, isTrue);
-    await settings.setMonoFont(AppFont.firaCode);
-    expect(settings.monoFont, AppFont.firaCode);
-    expect(prefs.getInt('font_mono'), AppFont.firaCode.index);
+    expect(c.read(settingsProvider).monoFont, AppFont.jetBrainsMono);
+    expect(c.read(settingsProvider).monoFont.isMonospace, isTrue);
+    await n.setMonoFont(AppFont.firaCode);
+    expect(c.read(settingsProvider).monoFont, AppFont.firaCode);
+    expect(c.read(sharedPreferencesProvider).getInt('font_mono'),
+        AppFont.firaCode.index);
   });
 
   test('continuousModelBorder defaults to false and persists', () async {
-    SharedPreferences.setMockInitialValues({});
-    final prefs = await SharedPreferences.getInstance();
-    final settings = SettingsProvider(FakeSecureStorageService(), prefs);
-    await waitUntil(() => !settings.loading);
+    final c = await createContainer(prefs: const {});
+    addTearDown(c.dispose);
+    final n = c.read(settingsProvider.notifier);
 
-    expect(settings.continuousModelBorder, isFalse);
-    await settings.setContinuousModelBorder(true);
-    expect(settings.continuousModelBorder, isTrue);
-    expect(prefs.getBool('continuous_model_border'), isTrue);
+    expect(c.read(settingsProvider).continuousModelBorder, isFalse);
+    await n.setContinuousModelBorder(true);
+    expect(c.read(settingsProvider).continuousModelBorder, isTrue);
+    expect(c.read(sharedPreferencesProvider).getBool('continuous_model_border'),
+        isTrue);
   });
 
   test('font settings default sensibly and persist', () async {
-    SharedPreferences.setMockInitialValues({});
-    final prefs = await SharedPreferences.getInstance();
-    final settings = SettingsProvider(FakeSecureStorageService(), prefs);
-    await waitUntil(() => !settings.loading);
+    final c = await createContainer(prefs: const {});
+    addTearDown(c.dispose);
+    final n = c.read(settingsProvider.notifier);
 
     // All fonts default to Roboto Condensed (the app's default font).
-    expect(settings.headingFont, AppFont.robotoCondensed);
-    expect(settings.userFont, AppFont.robotoCondensed);
-    expect(settings.modelFont, AppFont.robotoCondensed);
-    expect(settings.settingsFont, AppFont.robotoCondensed);
+    final s = c.read(settingsProvider);
+    expect(s.headingFont, AppFont.robotoCondensed);
+    expect(s.userFont, AppFont.robotoCondensed);
+    expect(s.modelFont, AppFont.robotoCondensed);
+    expect(s.settingsFont, AppFont.robotoCondensed);
 
-    await settings.setModelFont(AppFont.inter);
-    expect(settings.modelFont, AppFont.inter);
-    expect(prefs.getInt('font_model'), AppFont.inter.index);
+    await n.setModelFont(AppFont.inter);
+    expect(c.read(settingsProvider).modelFont, AppFont.inter);
+    expect(c.read(sharedPreferencesProvider).getInt('font_model'),
+        AppFont.inter.index);
   });
 
   test('font scales default to 1.0, persist and clamp', () async {
-    SharedPreferences.setMockInitialValues({});
-    final prefs = await SharedPreferences.getInstance();
-    final settings = SettingsProvider(FakeSecureStorageService(), prefs);
-    await waitUntil(() => !settings.loading);
+    final c = await createContainer(prefs: const {});
+    addTearDown(c.dispose);
+    final n = c.read(settingsProvider.notifier);
+    final prefs = c.read(sharedPreferencesProvider);
 
-    expect(settings.userFontScale, 1.0);
-    expect(settings.modelFontScale, 1.0);
+    expect(c.read(settingsProvider).userFontScale, 1.0);
+    expect(c.read(settingsProvider).modelFontScale, 1.0);
 
-    await settings.setUserFontScale(1.3);
-    await settings.setModelFontScale(1.15);
-    expect(settings.userFontScale, 1.3);
-    expect(settings.modelFontScale, 1.15);
+    await n.setUserFontScale(1.3);
+    await n.setModelFontScale(1.15);
+    expect(c.read(settingsProvider).userFontScale, 1.3);
+    expect(c.read(settingsProvider).modelFontScale, 1.15);
     expect(prefs.getDouble('font_scale_user'), 1.3);
     expect(prefs.getDouble('font_scale_model'), 1.15);
 
     // Out-of-range values are clamped to the allowed bounds.
-    await settings.setUserFontScale(99);
-    expect(settings.userFontScale, SettingsProvider.maxFontScale);
-    await settings.setUserFontScale(0.1);
-    expect(settings.userFontScale, SettingsProvider.minFontScale);
+    await n.setUserFontScale(99);
+    expect(c.read(settingsProvider).userFontScale,
+        SettingsNotifier.maxFontScale);
+    await n.setUserFontScale(0.1);
+    expect(c.read(settingsProvider).userFontScale,
+        SettingsNotifier.minFontScale);
   });
 
   test('favorite models persist and toggle', () async {
-    SharedPreferences.setMockInitialValues({});
-    final prefs = await SharedPreferences.getInstance();
-    final settings = SettingsProvider(FakeSecureStorageService(), prefs);
-    await waitUntil(() => !settings.loading);
+    final c = await createContainer(prefs: const {});
+    addTearDown(c.dispose);
+    final n = c.read(settingsProvider.notifier);
+    final prefs = c.read(sharedPreferencesProvider);
 
-    expect(settings.favoriteModels, isEmpty);
+    expect(c.read(settingsProvider).favoriteModels, isEmpty);
 
-    await settings.toggleFavoriteModel('openai/gpt-4o');
-    expect(settings.isFavoriteModel('openai/gpt-4o'), isTrue);
+    await n.toggleFavoriteModel('openai/gpt-4o');
+    expect(c.read(settingsProvider).isFavoriteModel('openai/gpt-4o'), isTrue);
     expect(prefs.getStringList('favorite_models'), contains('openai/gpt-4o'));
 
-    await settings.toggleFavoriteModel('openai/gpt-4o');
-    expect(settings.isFavoriteModel('openai/gpt-4o'), isFalse);
-    expect(prefs.getStringList('favorite_models'), isNot(contains('openai/gpt-4o')));
+    await n.toggleFavoriteModel('openai/gpt-4o');
+    expect(c.read(settingsProvider).isFavoriteModel('openai/gpt-4o'), isFalse);
+    expect(prefs.getStringList('favorite_models'),
+        isNot(contains('openai/gpt-4o')));
   });
 
   test('notifies listeners on change', () async {
-    final settings = await buildLoadedSettings(apiKey: null);
+    final c = await createContainer(apiKey: null);
+    addTearDown(c.dispose);
     var notified = 0;
-    settings.addListener(() => notified++);
-    await settings.setThemeMode(ThemeMode.dark);
+    c.listen(settingsProvider, (_, __) => notified++);
+    await c.read(settingsProvider.notifier).setThemeMode(ThemeMode.dark);
     expect(notified, greaterThan(0));
   });
 }

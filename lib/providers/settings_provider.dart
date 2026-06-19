@@ -1,44 +1,70 @@
-import 'dart:io' show Platform;
-
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/app_font.dart';
 import '../services/secure_storage_service.dart';
+import 'app_providers.dart';
+
+/// Riverpod provider for app settings.
+final settingsProvider =
+    NotifierProvider<SettingsNotifier, SettingsState>(SettingsNotifier.new);
+
+/// Immutable snapshot of user settings exposed to the UI.
+class SettingsState {
+  const SettingsState({
+    required this.loading,
+    required this.apiKey,
+    required this.apiKeyFromEnvironment,
+    required this.defaultModel,
+    required this.themeMode,
+    required this.downloadDir,
+    required this.animateModelIndicator,
+    required this.continuousModelBorder,
+    required this.headingFont,
+    required this.userFont,
+    required this.modelFont,
+    required this.settingsFont,
+    required this.monoFont,
+    required this.userFontScale,
+    required this.modelFontScale,
+    required this.favoriteModels,
+  });
+
+  final bool loading;
+  final String? apiKey;
+
+  /// Whether the active API key was seeded from [SettingsNotifier.apiKeyEnvVar]
+  /// rather than saved on the device. Such a key lives only for this session.
+  final bool apiKeyFromEnvironment;
+  final String defaultModel;
+  final ThemeMode themeMode;
+  final String? downloadDir;
+  final bool animateModelIndicator;
+  final bool continuousModelBorder;
+  final AppFont headingFont;
+  final AppFont userFont;
+  final AppFont modelFont;
+  final AppFont settingsFont;
+  final AppFont monoFont;
+  final double userFontScale;
+  final double modelFontScale;
+  final Set<String> favoriteModels;
+
+  bool get hasApiKey => apiKey != null && apiKey!.isNotEmpty;
+
+  /// Name of the environment variable consulted for the API key.
+  String get apiKeyEnvVarName => SettingsNotifier.apiKeyEnvVar;
+
+  bool isFavoriteModel(String id) => favoriteModels.contains(id);
+}
 
 /// Holds user settings: the API key, the default model for new chats, and the
 /// app theme mode. The API key lives in secure storage; the rest in prefs.
-class SettingsProvider extends ChangeNotifier {
-  SettingsProvider(
-    this._secureStorage,
-    this._prefs, {
-    Map<String, String>? environment,
-  }) : _environment = environment ?? _desktopEnvironment() {
-    _load();
-  }
-
-  final SecureStorageService _secureStorage;
-  final SharedPreferences _prefs;
-
-  /// Process environment variables, consulted on desktop to seed the API key.
-  final Map<String, String> _environment;
-
-  /// Environment variable read at startup (desktop) to seed the API key when
-  /// none is stored on the device.
-  static const apiKeyEnvVar = 'OPENROUTER_API_KEY';
-
-  /// Environment variables are only meaningful on desktop platforms; on mobile
-  /// there's nothing useful to read.
-  static Map<String, String> _desktopEnvironment() {
-    try {
-      if (Platform.isLinux || Platform.isMacOS || Platform.isWindows) {
-        return Platform.environment;
-      }
-    } catch (_) {
-      // Platform may be unavailable (e.g. web); fall through.
-    }
-    return const {};
-  }
+class SettingsNotifier extends Notifier<SettingsState> {
+  late final SecureStorageService _secureStorage;
+  late final SharedPreferences _prefs;
+  late final Map<String, String> _environment;
 
   static const _kDefaultModel = 'default_model';
   static const _kThemeMode = 'theme_mode';
@@ -54,11 +80,16 @@ class SettingsProvider extends ChangeNotifier {
   static const _kModelFontScale = 'font_scale_model';
   static const _kFavoriteModels = 'favorite_models';
 
+  /// Environment variable read at startup (desktop) to seed the API key when
+  /// none is stored on the device.
+  static const apiKeyEnvVar = 'OPENROUTER_API_KEY';
+
   /// Allowed text-size multipliers for chat messages.
   static const double minFontScale = 0.85;
   static const double maxFontScale = 1.6;
 
   String? _apiKey;
+  bool _apiKeyFromEnv = false;
   String _defaultModel = 'openai/gpt-4o-mini';
   ThemeMode _themeMode = ThemeMode.system;
   String? _downloadDir;
@@ -76,53 +107,38 @@ class SettingsProvider extends ChangeNotifier {
   double _modelFontScale = 1.0;
   Set<String> _favoriteModels = {};
   bool _loading = true;
-  bool _apiKeyFromEnv = false;
 
-  bool get loading => _loading;
-  String? get apiKey => _apiKey;
-  bool get hasApiKey => _apiKey != null && _apiKey!.isNotEmpty;
+  @override
+  SettingsState build() {
+    _secureStorage = ref.read(secureStorageProvider);
+    _prefs = ref.read(sharedPreferencesProvider);
+    _environment = ref.read(environmentProvider);
+    _load();
+    return _snapshot();
+  }
 
-  /// Whether the active API key was seeded from [apiKeyEnvVar] rather than saved
-  /// on the device. Such a key lives only for this session — it's re-read from
-  /// the environment on each launch and is never written to secure storage.
-  bool get apiKeyFromEnvironment => _apiKeyFromEnv;
+  SettingsState _snapshot() => SettingsState(
+        loading: _loading,
+        apiKey: _apiKey,
+        apiKeyFromEnvironment: _apiKeyFromEnv,
+        defaultModel: _defaultModel,
+        themeMode: _themeMode,
+        downloadDir: _downloadDir,
+        animateModelIndicator: _animateModelIndicator,
+        continuousModelBorder: _continuousModelBorder,
+        headingFont: _headingFont,
+        userFont: _userFont,
+        modelFont: _modelFont,
+        settingsFont: _settingsFont,
+        monoFont: _monoFont,
+        userFontScale: _userFontScale,
+        modelFontScale: _modelFontScale,
+        favoriteModels: _favoriteModels,
+      );
 
-  /// Name of the environment variable consulted for the API key.
-  String get apiKeyEnvVarName => apiKeyEnvVar;
-  String get defaultModel => _defaultModel;
-  ThemeMode get themeMode => _themeMode;
+  void _emit() => state = _snapshot();
 
-  /// Whether the model indicator in the chat header pulses while streaming.
-  /// Off by default so it doesn't blink distractingly.
-  bool get animateModelIndicator => _animateModelIndicator;
-
-  /// Whether the gradient border around the selected model spins continuously.
-  /// Off by default: the border animates once when a model is selected, then
-  /// settles, so it doesn't distract while reading.
-  bool get continuousModelBorder => _continuousModelBorder;
-
-  /// Fonts for headings, user text, model output, and the settings screen.
-  AppFont get headingFont => _headingFont;
-  AppFont get userFont => _userFont;
-  AppFont get modelFont => _modelFont;
-  AppFont get settingsFont => _settingsFont;
-
-  /// Monospace font for code/JSON in the debug panel.
-  AppFont get monoFont => _monoFont;
-
-  /// Text-size multipliers for your prompts and the model's replies. Lets
-  /// people who want larger (or smaller) chat text adjust it independently.
-  double get userFontScale => _userFontScale;
-  double get modelFontScale => _modelFontScale;
-
-  /// Model ids the user has bookmarked. Bookmarked models surface first in the
-  /// model picker.
-  Set<String> get favoriteModels => _favoriteModels;
-  bool isFavoriteModel(String id) => _favoriteModels.contains(id);
-
-  /// Default directory new downloads are written to (desktop). When null, a
-  /// Save-As dialog is shown instead.
-  String? get downloadDir => _downloadDir;
+  bool get _hasApiKey => _apiKey != null && _apiKey!.isNotEmpty;
 
   Future<void> _load() async {
     try {
@@ -131,13 +147,11 @@ class SettingsProvider extends ChangeNotifier {
       _apiKey = null;
     }
     // No key saved on the device? On desktop, fall back to the environment.
-    if (!hasApiKey) _applyEnvFallback();
+    if (!_hasApiKey) _applyEnvFallback();
     _defaultModel = _prefs.getString(_kDefaultModel) ?? _defaultModel;
     _downloadDir = _prefs.getString(_kDownloadDir);
-    _animateModelIndicator =
-        _prefs.getBool(_kAnimateModelIndicator) ?? false;
-    _continuousModelBorder =
-        _prefs.getBool(_kContinuousModelBorder) ?? false;
+    _animateModelIndicator = _prefs.getBool(_kAnimateModelIndicator) ?? false;
+    _continuousModelBorder = _prefs.getBool(_kContinuousModelBorder) ?? false;
     const def = AppFont.robotoCondensed; // default app font
     _headingFont = AppFontX.fromIndex(_prefs.getInt(_kHeadingFont) ?? def.index);
     _userFont = AppFontX.fromIndex(_prefs.getInt(_kUserFont) ?? def.index);
@@ -157,7 +171,7 @@ class SettingsProvider extends ChangeNotifier {
       _themeMode = ThemeMode.values[themeIndex];
     }
     _loading = false;
-    notifyListeners();
+    _emit();
   }
 
   Future<void> setDownloadDir(String? dir) async {
@@ -167,7 +181,7 @@ class SettingsProvider extends ChangeNotifier {
     } else {
       await _prefs.remove(_kDownloadDir);
     }
-    notifyListeners();
+    _emit();
   }
 
   Future<void> setApiKey(String key) async {
@@ -185,7 +199,7 @@ class SettingsProvider extends ChangeNotifier {
       _apiKeyFromEnv = false;
       _applyEnvFallback();
     }
-    notifyListeners();
+    _emit();
   }
 
   Future<void> clearApiKey() async {
@@ -194,7 +208,7 @@ class SettingsProvider extends ChangeNotifier {
     _apiKeyFromEnv = false;
     // Reverting a stored key exposes the environment value again, if present.
     _applyEnvFallback();
-    notifyListeners();
+    _emit();
   }
 
   /// Seeds [_apiKey] from the environment when nothing is stored on the device.
@@ -209,61 +223,61 @@ class SettingsProvider extends ChangeNotifier {
   Future<void> setDefaultModel(String model) async {
     _defaultModel = model;
     await _prefs.setString(_kDefaultModel, model);
-    notifyListeners();
+    _emit();
   }
 
   Future<void> setAnimateModelIndicator(bool value) async {
     _animateModelIndicator = value;
     await _prefs.setBool(_kAnimateModelIndicator, value);
-    notifyListeners();
+    _emit();
   }
 
   Future<void> setContinuousModelBorder(bool value) async {
     _continuousModelBorder = value;
     await _prefs.setBool(_kContinuousModelBorder, value);
-    notifyListeners();
+    _emit();
   }
 
   Future<void> setHeadingFont(AppFont f) async {
     _headingFont = f;
     await _prefs.setInt(_kHeadingFont, f.index);
-    notifyListeners();
+    _emit();
   }
 
   Future<void> setUserFont(AppFont f) async {
     _userFont = f;
     await _prefs.setInt(_kUserFont, f.index);
-    notifyListeners();
+    _emit();
   }
 
   Future<void> setModelFont(AppFont f) async {
     _modelFont = f;
     await _prefs.setInt(_kModelFont, f.index);
-    notifyListeners();
+    _emit();
   }
 
   Future<void> setSettingsFont(AppFont f) async {
     _settingsFont = f;
     await _prefs.setInt(_kSettingsFont, f.index);
-    notifyListeners();
+    _emit();
   }
 
   Future<void> setMonoFont(AppFont f) async {
     _monoFont = f;
     await _prefs.setInt(_kMonoFont, f.index);
-    notifyListeners();
+    _emit();
   }
 
   Future<void> setUserFontScale(double scale) async {
     _userFontScale = _clampScale(scale);
     await _prefs.setDouble(_kUserFontScale, _userFontScale);
-    notifyListeners();
+    _emit();
   }
 
   Future<void> setModelFontScale(double scale) async {
     _modelFontScale = _clampScale(scale);
     await _prefs.setDouble(_kModelFontScale, _modelFontScale);
-    notifyListeners();
+    _emit();
   }
 
   double _clampScale(double v) => v.clamp(minFontScale, maxFontScale);
@@ -274,12 +288,12 @@ class SettingsProvider extends ChangeNotifier {
     if (!next.remove(id)) next.add(id);
     _favoriteModels = next;
     await _prefs.setStringList(_kFavoriteModels, next.toList());
-    notifyListeners();
+    _emit();
   }
 
   Future<void> setThemeMode(ThemeMode mode) async {
     _themeMode = mode;
     await _prefs.setInt(_kThemeMode, mode.index);
-    notifyListeners();
+    _emit();
   }
 }

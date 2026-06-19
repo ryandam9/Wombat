@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:provider/provider.dart';
 import 'package:route/models/openrouter_model.dart';
 import 'package:route/models/usage.dart';
 import 'package:route/providers/chat_provider.dart';
@@ -12,7 +12,6 @@ import 'package:route/screens/model_picker_screen.dart';
 import 'package:route/screens/settings_screen.dart';
 import 'package:route/screens/usage_screen.dart';
 import 'package:route/services/debug_log.dart';
-import 'package:route/services/openrouter_service.dart';
 import 'package:route/theme/app_theme.dart';
 
 import '../helpers/fakes.dart';
@@ -25,36 +24,23 @@ void main() {
   // 320 = compact/older phones, 360 = common Android, 412 = large phone.
   const phoneWidths = [320.0, 360.0, 412.0];
 
-  late SettingsProvider settings;
-  late ChatProvider chat;
-  late UsageProvider usage;
+  late ProviderContainer container;
 
-  Future<void> buildProviders(WidgetTester tester) async {
+  Future<void> setup(WidgetTester tester,
+      {FakeOpenRouterService? service}) async {
     await tester.runAsync(() async {
-      settings = await buildLoadedSettings();
-      final svc = FakeOpenRouterService();
-      usage = UsageProvider(service: svc, settings: settings);
-      chat = ChatProvider(
-        service: svc,
+      container = await createContainer(
+        service: service ?? FakeOpenRouterService(),
         store: FakeConversationStore(),
-        settings: settings,
-        usage: usage,
       );
-      await waitUntil(() => !chat.loading);
+      await waitUntil(() => !container.read(chatProvider.notifier).loading);
     });
+    addTearDown(container.dispose);
   }
 
-  Widget wrap(Widget home) => MaterialApp(
-        theme: AppTheme.dark,
-        home: MultiProvider(
-          providers: [
-            ChangeNotifierProvider<SettingsProvider>.value(value: settings),
-            ChangeNotifierProvider<UsageProvider>.value(value: usage),
-            ChangeNotifierProvider<DebugLog>.value(value: DebugLog()),
-            ChangeNotifierProvider<ChatProvider>.value(value: chat),
-          ],
-          child: home,
-        ),
+  Widget wrap(Widget home) => UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(theme: AppTheme.dark, home: home),
       );
 
   Future<void> pumpAt(WidgetTester tester, double width, Widget home) async {
@@ -67,18 +53,20 @@ void main() {
 
   testWidgets('home lays out at phone widths with a long model id and usage',
       (tester) async {
-    await buildProviders(tester);
+    await setup(tester);
     // Worst case for the header: a long model name, a visible cost, and the
     // streaming activity indicator enabled.
-    await settings.setAnimateModelIndicator(true);
+    await container.read(settingsProvider.notifier).setAnimateModelIndicator(true);
+    final chat = container.read(chatProvider.notifier);
     chat.newConversation();
     chat.setModelForCurrent(
       'some-vendor/really-long-model-name-4.5-instruct-preview',
     );
-    usage.record(
-      'some-vendor/really-long-model-name-4.5-instruct-preview',
-      const TokenUsage(promptTokens: 1234, completionTokens: 5678, cost: 1.2345),
-    );
+    container.read(usageProvider.notifier).record(
+          'some-vendor/really-long-model-name-4.5-instruct-preview',
+          const TokenUsage(
+              promptTokens: 1234, completionTokens: 5678, cost: 1.2345),
+        );
 
     for (final w in phoneWidths) {
       await pumpAt(tester, w, const HomeScreen());
@@ -88,11 +76,11 @@ void main() {
 
   testWidgets('settings and usage screens lay out at phone widths',
       (tester) async {
-    await buildProviders(tester);
-    usage.record(
-      'x/y',
-      const TokenUsage(promptTokens: 10, completionTokens: 20, cost: 0.5),
-    );
+    await setup(tester);
+    container.read(usageProvider.notifier).record(
+          'x/y',
+          const TokenUsage(promptTokens: 10, completionTokens: 20, cost: 0.5),
+        );
 
     for (final w in phoneWidths) {
       await pumpAt(tester, w, const SettingsScreen());
@@ -105,7 +93,6 @@ void main() {
   });
 
   testWidgets('model picker lays out at phone widths', (tester) async {
-    await buildProviders(tester);
     final service = FakeOpenRouterService()
       ..models = [
         OpenRouterModel(
@@ -124,24 +111,13 @@ void main() {
           completionPrice: 0,
         ),
       ];
-
-    final picker = MaterialApp(
-      theme: AppTheme.dark,
-      home: MultiProvider(
-        providers: [
-          ChangeNotifierProvider<SettingsProvider>.value(value: settings),
-          ChangeNotifierProvider<DebugLog>.value(value: DebugLog()),
-          Provider<OpenRouterService>.value(value: service),
-        ],
-        child: const ModelPickerScreen(),
-      ),
-    );
+    await setup(tester, service: service);
 
     for (final w in phoneWidths) {
       tester.view.devicePixelRatio = 1.0;
       tester.view.physicalSize = Size(w, 780);
       addTearDown(tester.view.reset);
-      await tester.pumpWidget(picker);
+      await tester.pumpWidget(wrap(const ModelPickerScreen()));
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull,
           reason: 'model picker overflow at $w');
@@ -149,8 +125,8 @@ void main() {
   });
 
   testWidgets('debug session detail lays out at phone widths', (tester) async {
-    await buildProviders(tester);
-    final log = DebugLog();
+    await setup(tester);
+    final log = container.read(debugLogProvider.notifier);
     final s = log.begin(
       title: 'A fairly long debug session title that might wrap on phones',
       model: 'some-vendor/really-long-model-name-4.5-instruct-preview',
@@ -160,20 +136,11 @@ void main() {
     log.chunk(s, '{"d":1}', content: 'Hello ');
     log.complete(s, httpStatus: 200, finishReason: 'stop');
 
-    // Providers sit above MaterialApp so the pushed detail route can read them.
-    final debug = MultiProvider(
-      providers: [
-        ChangeNotifierProvider<SettingsProvider>.value(value: settings),
-        ChangeNotifierProvider<DebugLog>.value(value: log),
-      ],
-      child: MaterialApp(theme: AppTheme.dark, home: const DebugScreen()),
-    );
-
     for (final w in phoneWidths) {
       tester.view.devicePixelRatio = 1.0;
       tester.view.physicalSize = Size(w, 780);
       addTearDown(tester.view.reset);
-      await tester.pumpWidget(debug);
+      await tester.pumpWidget(wrap(const DebugScreen()));
       await tester.pumpAndSettle();
       await tester.tap(find.textContaining('debug session title'));
       await tester.pumpAndSettle();

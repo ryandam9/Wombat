@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../models/openrouter_model.dart';
+import '../providers/app_providers.dart';
 import '../providers/settings_provider.dart';
 import '../services/openrouter_service.dart';
 import '../widgets/ui_kit.dart';
@@ -44,14 +45,14 @@ enum _Filter {
 
 /// Fetches the OpenRouter model catalogue and lets the user browse, compare
 /// and pick one. Pops with the selected [OpenRouterModel].
-class ModelPickerScreen extends StatefulWidget {
+class ModelPickerScreen extends ConsumerStatefulWidget {
   const ModelPickerScreen({super.key});
 
   @override
-  State<ModelPickerScreen> createState() => _ModelPickerScreenState();
+  ConsumerState<ModelPickerScreen> createState() => _ModelPickerScreenState();
 }
 
-class _ModelPickerScreenState extends State<ModelPickerScreen> {
+class _ModelPickerScreenState extends ConsumerState<ModelPickerScreen> {
   static const double _detailBreakpoint = 1000;
 
   late Future<List<OpenRouterModel>> _future;
@@ -70,13 +71,13 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
   }
 
   Future<List<OpenRouterModel>> _load() {
-    final apiKey = context.read<SettingsProvider>().apiKey ?? '';
+    final apiKey = ref.read(settingsProvider).apiKey ?? '';
     if (apiKey.isEmpty) {
       return Future.error(
         OpenRouterException('Add your API key in Settings to load models.'),
       );
     }
-    return context.read<OpenRouterService>().fetchModels(apiKey);
+    return ref.read(openRouterServiceProvider).fetchModels(apiKey);
   }
 
   void _reload() => setState(() {
@@ -164,8 +165,7 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final settings = context.watch<SettingsProvider>();
-    final favorites = settings.favoriteModels;
+    final favorites = ref.watch(settingsProvider.select((s) => s.favoriteModels));
     final showDetail =
         MediaQuery.of(context).size.width >= _detailBreakpoint;
 
@@ -198,7 +198,7 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
           final models = _visible(all, favorites);
           // Default the detail preview to the current default model, else first.
           _preview ??= () {
-            final def = settings.defaultModel;
+            final def = ref.read(settingsProvider).defaultModel;
             for (final m in all) {
               if (m.id == def) return m;
             }
@@ -235,8 +235,8 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
                               onTap: (m) => showDetail
                                   ? setState(() => _preview = m)
                                   : _select(m),
-                              onToggleFavorite: (m) => context
-                                  .read<SettingsProvider>()
+                              onToggleFavorite: (m) => ref
+                                  .read(settingsProvider.notifier)
                                   .toggleFavoriteModel(m.id),
                             ),
                     ),

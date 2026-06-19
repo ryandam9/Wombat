@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:provider/provider.dart';
 import 'package:route/models/openrouter_model.dart';
 import 'package:route/providers/settings_provider.dart';
 import 'package:route/screens/model_picker_screen.dart';
-import 'package:route/services/openrouter_service.dart';
 
 import '../helpers/fakes.dart';
 
@@ -27,11 +26,10 @@ OpenRouterModel _model(
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  late SettingsProvider settings;
+  late ProviderContainer container;
   late FakeOpenRouterService service;
 
   setUp(() async {
-    settings = await buildLoadedSettings(defaultModel: 'a/alpha');
     service = FakeOpenRouterService()
       ..models = [
         _model('a/alpha', 'Alpha', context: 200000, prompt: 0.000002,
@@ -41,6 +39,11 @@ void main() {
         _model('c/gamma', 'Gamma', context: 150000, prompt: 0,
             params: ['tools']),
       ];
+    container = await createContainer(
+      prefs: const {'default_model': 'a/alpha'},
+      service: service,
+    );
+    addTearDown(container.dispose);
   });
 
   Future<void> pump(WidgetTester tester, {Size size = const Size(1300, 1000)}) async {
@@ -48,11 +51,8 @@ void main() {
     tester.view.physicalSize = size;
     addTearDown(tester.view.reset);
     await tester.pumpWidget(
-      MultiProvider(
-        providers: [
-          ChangeNotifierProvider<SettingsProvider>.value(value: settings),
-          Provider<OpenRouterService>.value(value: service),
-        ],
+      UncontrolledProviderScope(
+        container: container,
         child: const MaterialApp(home: ModelPickerScreen()),
       ),
     );
@@ -125,11 +125,11 @@ void main() {
 
   testWidgets('bookmark toggles a favorite in settings', (tester) async {
     await pump(tester);
-    expect(settings.isFavoriteModel('b/beta'), isFalse);
+    expect(container.read(settingsProvider).isFavoriteModel('b/beta'), isFalse);
 
     await tester.tap(find.byIcon(Icons.bookmark_border).first);
     await tester.pumpAndSettle();
 
-    expect(settings.favoriteModels, isNotEmpty);
+    expect(container.read(settingsProvider).favoriteModels, isNotEmpty);
   });
 }

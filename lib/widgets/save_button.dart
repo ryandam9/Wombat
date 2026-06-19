@@ -1,14 +1,14 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/settings_provider.dart';
 import '../services/download_service.dart';
 
 /// A compact save control used on assistant text and attachments. Offers
 /// "Save" (default folder, or dialog/share) and "Save as…" (always prompts).
-class SaveButton extends StatelessWidget {
+class SaveButton extends ConsumerWidget {
   const SaveButton({
     super.key,
     required this.bytes,
@@ -27,9 +27,10 @@ class SaveButton extends StatelessWidget {
 
   static const _service = DownloadService();
 
-  Future<void> _save(BuildContext context, {required bool forceDialog}) async {
+  Future<void> _save(BuildContext context, WidgetRef ref,
+      {required bool forceDialog}) async {
     final messenger = ScaffoldMessenger.of(context);
-    final dir = context.read<SettingsProvider>().downloadDir;
+    final dir = ref.read(settingsProvider).downloadDir;
     final result = await _service.save(
       bytes: bytes(),
       baseName: baseName,
@@ -44,12 +45,13 @@ class SaveButton extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return PopupMenuButton<bool>(
       tooltip: 'Save',
       icon: Icon(Icons.download_outlined, size: compact ? 18 : 20),
       padding: EdgeInsets.zero,
-      onSelected: (forceDialog) => _save(context, forceDialog: forceDialog),
+      onSelected: (forceDialog) =>
+          _save(context, ref, forceDialog: forceDialog),
       itemBuilder: (_) => [
         const PopupMenuItem(value: false, child: Text('Save')),
         if (_service.isDesktop)

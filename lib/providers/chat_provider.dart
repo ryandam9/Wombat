@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
 import '../models/attachment.dart';
@@ -8,27 +8,36 @@ import '../models/chat_message.dart';
 import '../models/conversation.dart';
 import '../services/conversation_store.dart';
 import '../services/openrouter_service.dart';
+import 'app_providers.dart';
 import 'settings_provider.dart';
 import 'usage_provider.dart';
 
-/// Owns the list of conversations and drives sending/streaming of messages.
-class ChatProvider extends ChangeNotifier {
-  ChatProvider({
-    required OpenRouterService service,
-    required ConversationStore store,
-    required SettingsProvider settings,
-    required UsageProvider usage,
-  })  : _service = service,
-        _store = store,
-        _settings = settings,
-        _usage = usage {
-    _init();
-  }
+/// Riverpod provider for chat state.
+final chatProvider = NotifierProvider<ChatNotifier, ChatState>(ChatNotifier.new);
 
-  final OpenRouterService _service;
-  final ConversationStore _store;
-  final SettingsProvider _settings;
-  final UsageProvider _usage;
+/// Immutable snapshot of chat state exposed to the UI.
+class ChatState {
+  const ChatState({
+    required List<Conversation> conversations,
+    required this.current,
+    required this.loading,
+    required this.isResponding,
+    required this.error,
+  }) : _conversations = conversations;
+
+  final List<Conversation> _conversations;
+  final Conversation? current;
+  final bool loading;
+  final bool isResponding;
+  final String? error;
+
+  List<Conversation> get conversations => List.unmodifiable(_conversations);
+}
+
+/// Owns the list of conversations and drives sending/streaming of messages.
+class ChatNotifier extends Notifier<ChatState> {
+  late final OpenRouterService _service;
+  late final ConversationStore _store;
   final _uuid = const Uuid();
 
   List<Conversation> _conversations = [];
@@ -44,6 +53,30 @@ class ChatProvider extends ChangeNotifier {
   bool _streamDirty = false;
   static const _streamInterval = Duration(milliseconds: 60);
 
+  @override
+  ChatState build() {
+    _service = ref.read(openRouterServiceProvider);
+    _store = ref.read(conversationStoreProvider);
+    ref.onDispose(() {
+      _streamThrottle?.cancel();
+      _sub?.cancel();
+    });
+    _init();
+    return _snapshot();
+  }
+
+  ChatState _snapshot() => ChatState(
+        conversations: _conversations,
+        current: _current,
+        loading: _loading,
+        isResponding: _isResponding,
+        error: _error,
+      );
+
+  void _emit() => state = _snapshot();
+
+  // Convenience accessors mirroring the current state (handy for callers that
+  // hold the notifier directly, e.g. tests).
   List<Conversation> get conversations => List.unmodifiable(_conversations);
   Conversation? get current => _current;
   bool get loading => _loading;
@@ -55,7 +88,7 @@ class ChatProvider extends ChangeNotifier {
     _conversations.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
     if (_conversations.isNotEmpty) _current = _conversations.first;
     _loading = false;
-    notifyListeners();
+    _emit();
   }
 
   /// Notifies listeners at most once per [_streamInterval] during streaming.
@@ -64,7 +97,7 @@ class ChatProvider extends ChangeNotifier {
       _streamDirty = true;
       return;
     }
-    notifyListeners();
+    _emit();
     _streamThrottle = Timer(_streamInterval, () {
       _streamThrottle = null;
       if (_streamDirty) {
@@ -79,7 +112,7 @@ class ChatProvider extends ChangeNotifier {
     _streamThrottle?.cancel();
     _streamThrottle = null;
     _streamDirty = false;
-    notifyListeners();
+    _emit();
   }
 
   void selectConversation(String id) {
@@ -87,19 +120,19 @@ class ChatProvider extends ChangeNotifier {
     if (match.isEmpty) return;
     _current = match.first;
     _error = null;
-    notifyListeners();
+    _emit();
   }
 
   Conversation newConversation() {
     final convo = Conversation(
       id: _uuid.v4(),
       title: 'New chat',
-      modelId: _settings.defaultModel,
+      modelId: ref.read(settingsProvider).defaultModel,
     );
     _conversations.insert(0, convo);
     _current = convo;
     _error = null;
-    notifyListeners();
+    _emit();
     _persist();
     return convo;
   }
@@ -109,7 +142,7 @@ class ChatProvider extends ChangeNotifier {
     if (_current?.id == id) {
       _current = _conversations.isNotEmpty ? _conversations.first : null;
     }
-    notifyListeners();
+    _emit();
     await _persist();
   }
 
@@ -120,7 +153,7 @@ class ChatProvider extends ChangeNotifier {
     if (supportsImageOutput != null) {
       convo.supportsImageOutput = supportsImageOutput;
     }
-    notifyListeners();
+    _emit();
     _persist();
   }
 
@@ -128,7 +161,7 @@ class ChatProvider extends ChangeNotifier {
   void clearError() {
     if (_error == null) return;
     _error = null;
-    notifyListeners();
+    _emit();
   }
 
   /// Appends a user message (optionally with [attachments]) and streams the
@@ -140,10 +173,10 @@ class ChatProvider extends ChangeNotifier {
     final content = text.trim();
     if ((content.isEmpty && attachments.isEmpty) || _isResponding) return;
 
-    final apiKey = _settings.apiKey;
+    final apiKey = ref.read(settingsProvider).apiKey;
     if (apiKey == null || apiKey.isEmpty) {
       _error = 'Add your OpenRouter API key in Settings first.';
-      notifyListeners();
+      _emit();
       return;
     }
 
@@ -172,7 +205,7 @@ class ChatProvider extends ChangeNotifier {
     _isResponding = true;
     _error = null;
     _bumpToTop(convo);
-    notifyListeners();
+    _emit();
 
     // Build the request history: everything except the placeholder reply and
     // any prior failed messages.
@@ -187,14 +220,15 @@ class ChatProvider extends ChangeNotifier {
           model: convo.modelId,
           messages: history,
           imageOutput: convo.supportsImageOutput,
-          onUsage: (usage) => _usage.record(convo.modelId, usage),
+          onUsage: (usage) =>
+              ref.read(usageProvider.notifier).record(convo.modelId, usage),
           onImage: (image) {
             assistantMsg.attachments.add(image);
-            notifyListeners();
+            _emit();
           },
           onAudio: (audio) {
             assistantMsg.attachments.add(audio);
-            notifyListeners();
+            _emit();
           },
         )
         .listen(
@@ -253,11 +287,4 @@ class ChatProvider extends ChangeNotifier {
   }
 
   Future<void> _persist() => _store.save(_conversations);
-
-  @override
-  void dispose() {
-    _streamThrottle?.cancel();
-    _sub?.cancel();
-    super.dispose();
-  }
 }

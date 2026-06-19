@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:provider/provider.dart';
 
 import '../models/conversation.dart';
 import '../providers/chat_provider.dart';
@@ -9,7 +9,7 @@ import 'ui_kit.dart';
 
 /// Sidebar listing all saved conversations with controls to create, select
 /// and delete them.
-class ConversationList extends StatelessWidget {
+class ConversationList extends ConsumerWidget {
   const ConversationList({super.key, this.inDrawer = false, this.onCollapse});
 
   /// When shown inside a [Drawer], selecting a conversation should close it.
@@ -19,8 +19,8 @@ class ConversationList extends StatelessWidget {
   final VoidCallback? onCollapse;
 
   @override
-  Widget build(BuildContext context) {
-    final chat = context.watch<ChatProvider>();
+  Widget build(BuildContext context, WidgetRef ref) {
+    final chat = ref.watch(chatProvider);
     final theme = Theme.of(context);
 
     return SafeArea(
@@ -54,7 +54,7 @@ class ConversationList extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 12),
             child: FilledButton.tonalIcon(
               onPressed: () {
-                context.read<ChatProvider>().newConversation();
+                ref.read(chatProvider.notifier).newConversation();
                 if (inDrawer) Navigator.of(context).pop();
               },
               icon: const Icon(Icons.add),
@@ -97,8 +97,8 @@ class ConversationList extends StatelessWidget {
                         conversation: convo,
                         selected: convo.id == chat.current?.id,
                         onTap: () {
-                          context
-                              .read<ChatProvider>()
+                          ref
+                              .read(chatProvider.notifier)
                               .selectConversation(convo.id);
                           if (inDrawer) Navigator.of(context).pop();
                         },
@@ -112,7 +112,7 @@ class ConversationList extends StatelessWidget {
   }
 }
 
-class _ConversationTile extends StatelessWidget {
+class _ConversationTile extends ConsumerWidget {
   const _ConversationTile({
     required this.conversation,
     required this.selected,
@@ -124,7 +124,7 @@ class _ConversationTile extends StatelessWidget {
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     return ListTile(
       selected: selected,
@@ -145,13 +145,13 @@ class _ConversationTile extends StatelessWidget {
       trailing: IconButton(
         tooltip: 'Delete',
         icon: const Icon(Icons.delete_outline, size: 20),
-        onPressed: () => _confirmDelete(context),
+        onPressed: () => _confirmDelete(context, ref),
       ),
       onTap: onTap,
     );
   }
 
-  Future<void> _confirmDelete(BuildContext context) async {
+  Future<void> _confirmDelete(BuildContext context, WidgetRef ref) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -170,7 +170,7 @@ class _ConversationTile extends StatelessWidget {
       ),
     );
     if (confirmed == true && context.mounted) {
-      context.read<ChatProvider>().deleteConversation(conversation.id);
+      ref.read(chatProvider.notifier).deleteConversation(conversation.id);
     }
   }
 

@@ -3,8 +3,8 @@ import 'dart:io';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:provider/provider.dart';
 import 'package:record/record.dart';
 
 import '../models/attachment.dart';
@@ -14,14 +14,14 @@ import '../providers/chat_provider.dart';
 /// text field, attachment previews, and a send/stop button.
 ///
 /// Enter sends; Shift+Enter inserts a newline.
-class ChatInput extends StatefulWidget {
+class ChatInput extends ConsumerStatefulWidget {
   const ChatInput({super.key});
 
   @override
-  State<ChatInput> createState() => _ChatInputState();
+  ConsumerState<ChatInput> createState() => _ChatInputState();
 }
 
-class _ChatInputState extends State<ChatInput> {
+class _ChatInputState extends ConsumerState<ChatInput> {
   final TextEditingController _controller = TextEditingController();
   final FocusNode _focusNode = FocusNode();
   final AudioRecorder _recorder = AudioRecorder();
@@ -42,7 +42,7 @@ class _ChatInputState extends State<ChatInput> {
     final attachments = List<MessageAttachment>.from(_attachments);
     _controller.clear();
     setState(_attachments.clear);
-    context.read<ChatProvider>().sendMessage(text, attachments: attachments);
+    ref.read(chatProvider.notifier).sendMessage(text, attachments: attachments);
     _focusNode.requestFocus();
   }
 
@@ -147,7 +147,7 @@ class _ChatInputState extends State<ChatInput> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isResponding =
-        context.select<ChatProvider, bool>((c) => c.isResponding);
+        ref.watch(chatProvider.select((c) => c.isResponding));
 
     return SafeArea(
       top: false,
@@ -202,7 +202,7 @@ class _ChatInputState extends State<ChatInput> {
                         tooltip: 'Stop',
                         icon: const Icon(Icons.stop),
                         onPressed: () =>
-                            context.read<ChatProvider>().stopResponding(),
+                            ref.read(chatProvider.notifier).stopResponding(),
                       )
                     : IconButton.filled(
                         tooltip: 'Send',

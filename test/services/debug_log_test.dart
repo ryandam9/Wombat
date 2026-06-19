@@ -1,10 +1,20 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:route/models/usage.dart';
 import 'package:route/services/debug_log.dart';
 
+/// Returns a [DebugLog] notifier mounted in a disposable container.
+DebugLog makeLog({int capacity = 50}) {
+  final container = ProviderContainer(overrides: [
+    debugLogProvider.overrideWith(() => DebugLog(capacity: capacity)),
+  ]);
+  addTearDown(container.dispose);
+  return container.read(debugLogProvider.notifier);
+}
+
 void main() {
   test('begins a session with a started event and request body', () {
-    final log = DebugLog();
+    final log = makeLog();
     expect(log.isEmpty, isTrue);
 
     final s = log.begin(
@@ -23,7 +33,7 @@ void main() {
   });
 
   test('assembles streamed content and coalesces stream events', () {
-    final log = DebugLog();
+    final log = makeLog();
     final s = log.begin(title: 't')!;
     log.response(s, httpStatus: 200);
 
@@ -41,7 +51,7 @@ void main() {
   });
 
   test('captures reasoning deltas separately', () {
-    final log = DebugLog();
+    final log = makeLog();
     final s = log.begin(title: 't')!;
     log.chunk(s, '{}', reasoning: 'thinking…');
     expect(s.hasReasoning, isTrue);
@@ -50,7 +60,7 @@ void main() {
   });
 
   test('complete sets usage, status and finished events', () {
-    final log = DebugLog();
+    final log = makeLog();
     final s = log.begin(title: 't')!;
     log.setUsage(s,
         const TokenUsage(promptTokens: 5, completionTokens: 7, cost: 0.01));
@@ -64,7 +74,7 @@ void main() {
   });
 
   test('fail records an error event and status', () {
-    final log = DebugLog();
+    final log = makeLog();
     final s = log.begin(title: 't')!;
     log.fail(s, 'nope', httpStatus: 400);
 
@@ -75,7 +85,7 @@ void main() {
   });
 
   test('drops oldest sessions past capacity', () {
-    final log = DebugLog(capacity: 2);
+    final log = makeLog(capacity: 2);
     for (var i = 0; i < 4; i++) {
       log.begin(title: 's$i');
     }
@@ -85,7 +95,7 @@ void main() {
   });
 
   test('does not capture while disabled, and clear empties', () {
-    final log = DebugLog()..enabled = false;
+    final log = makeLog()..enabled = false;
     expect(log.begin(title: 'x'), isNull);
     expect(log.isEmpty, isTrue);
 
@@ -97,7 +107,7 @@ void main() {
   });
 
   test('pretty-prints JSON request bodies', () {
-    final log = DebugLog();
+    final log = makeLog();
     final s = log.begin(title: 't', requestBody: '{"a":1,"b":[2,3]}')!;
     expect(s.prettyRequest, contains('\n'));
     expect(s.prettyRequest, contains('"a": 1'));

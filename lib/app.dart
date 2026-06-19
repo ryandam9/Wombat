@@ -1,23 +1,25 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'models/app_font.dart';
 import 'providers/settings_provider.dart';
 import 'screens/home_screen.dart';
 import 'theme/app_theme.dart';
 
-class RouteApp extends StatelessWidget {
+class RouteApp extends ConsumerWidget {
   const RouteApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final settings = context.watch<SettingsProvider>();
+  Widget build(BuildContext context, WidgetRef ref) {
+    final themeMode = ref.watch(settingsProvider.select((s) => s.themeMode));
+    final headingFont =
+        ref.watch(settingsProvider.select((s) => s.headingFont));
     return MaterialApp(
       title: 'Route',
       debugShowCheckedModeBanner: false,
-      theme: _withHeadingFont(AppTheme.light, settings.headingFont),
-      darkTheme: _withHeadingFont(AppTheme.dark, settings.headingFont),
-      themeMode: settings.themeMode,
+      theme: _withHeadingFont(AppTheme.light, headingFont),
+      darkTheme: _withHeadingFont(AppTheme.dark, headingFont),
+      themeMode: themeMode,
       home: const HomeScreen(),
     );
   }

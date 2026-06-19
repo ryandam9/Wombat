@@ -4,8 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:provider/provider.dart';
 
 import '../models/app_font.dart';
 import '../models/chat_message.dart';
@@ -17,7 +17,7 @@ import 'ui_kit.dart';
 
 /// Renders a single chat message in a rounded bubble. Assistant replies are
 /// rendered as Markdown; user messages as plain selectable text.
-class MessageBubble extends StatelessWidget {
+class MessageBubble extends ConsumerWidget {
   const MessageBubble({super.key, required this.message});
 
   final ChatMessage message;
@@ -25,8 +25,9 @@ class MessageBubble extends StatelessWidget {
   bool get _isUser => message.role == MessageRole.user;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final settings = ref.watch(settingsProvider);
     final align = _isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start;
 
     return Padding(
@@ -69,7 +70,7 @@ class MessageBubble extends StatelessWidget {
                       : theme.colorScheme.outlineVariant,
                 ),
               ),
-              child: _content(context),
+              child: _content(context, settings),
             ),
           ),
           if (!_isUser && !message.isStreaming && message.content.isNotEmpty)
@@ -94,7 +95,7 @@ class MessageBubble extends StatelessWidget {
     );
   }
 
-  Widget _content(BuildContext context) {
+  Widget _content(BuildContext context, SettingsState settings) {
     if (message.isStreaming &&
         message.content.isEmpty &&
         message.attachments.isEmpty) {
@@ -102,7 +103,9 @@ class MessageBubble extends StatelessWidget {
     }
 
     final children = <Widget>[];
-    if (message.content.isNotEmpty) children.addAll(_textParts(context));
+    if (message.content.isNotEmpty) {
+      children.addAll(_textParts(context, settings));
+    }
     for (final attachment in message.attachments) {
       children.add(Padding(
         padding: EdgeInsets.only(top: children.isEmpty ? 0 : 8),
@@ -120,9 +123,8 @@ class MessageBubble extends StatelessWidget {
 
   /// The textual content of a message. For assistant replies that contain an
   /// SVG, the SVG is rendered inline and its code stripped from the Markdown.
-  List<Widget> _textParts(BuildContext context) {
+  List<Widget> _textParts(BuildContext context, SettingsState settings) {
     final theme = Theme.of(context);
-    final settings = context.watch<SettingsProvider>();
 
     if (_isUser) {
       return [
@@ -148,11 +150,11 @@ class MessageBubble extends StatelessWidget {
         if (markdown.isNotEmpty)
           Padding(
             padding: const EdgeInsets.only(top: 8),
-            child: _markdown(context, markdown),
+            child: _markdown(context, settings, markdown),
           ),
       ];
     }
-    return [_markdown(context, message.content)];
+    return [_markdown(context, settings, message.content)];
   }
 
   /// Removes fenced code blocks (and any bare occurrence) that contain the SVG,
@@ -166,9 +168,8 @@ class MessageBubble extends StatelessWidget {
     return out.replaceAll(svg, '');
   }
 
-  Widget _markdown(BuildContext context, String data) {
+  Widget _markdown(BuildContext context, SettingsState settings, String data) {
     final theme = Theme.of(context);
-    final settings = context.watch<SettingsProvider>();
     // Apply the model-output font to the whole Markdown stylesheet.
     final scheme = theme.colorScheme;
     final mdTheme = theme.copyWith(

@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/usage.dart';
 
@@ -111,9 +111,26 @@ class DebugSession {
   }
 }
 
+/// Immutable snapshot of the debug log exposed to the UI.
+class DebugState {
+  const DebugState({required this.sessions, required this.enabled});
+
+  /// Sessions in chronological order (oldest first).
+  final List<DebugSession> sessions;
+  final bool enabled;
+
+  bool get isEmpty => sessions.isEmpty;
+  int get length => sessions.length;
+}
+
+/// Riverpod provider for the debug log. The notifier ([DebugLog]) is also passed
+/// directly to [OpenRouterService] so it can record API exchanges.
+final debugLogProvider =
+    NotifierProvider<DebugLog, DebugState>(DebugLog.new);
+
 /// A capped, in-memory record of API exchanges grouped into [DebugSession]s,
 /// wired into [OpenRouterService] and surfaced by the debug panel.
-class DebugLog extends ChangeNotifier {
+class DebugLog extends Notifier<DebugState> {
   DebugLog({this.capacity = 50});
 
   final int capacity;
@@ -123,6 +140,15 @@ class DebugLog extends ChangeNotifier {
 
   Timer? _throttle;
   bool _dirty = false;
+
+  @override
+  DebugState build() {
+    ref.onDispose(() => _throttle?.cancel());
+    return _snapshot();
+  }
+
+  DebugState _snapshot() =>
+      DebugState(sessions: List.unmodifiable(_sessions), enabled: _enabled);
 
   bool get enabled => _enabled;
   bool get isEmpty => _sessions.isEmpty;
@@ -327,28 +353,20 @@ class DebugLog extends ChangeNotifier {
     });
   }
 
-  /// Notifies listeners, deferring to after the current frame when called
+  /// Publishes a new snapshot, deferring to after the current frame when called
   /// mid-build/layout/paint (e.g. begin() invoked from a widget's initState),
-  /// which would otherwise trip "setState() called during build".
+  /// which would otherwise trip "modified a provider while building".
   void _emit() {
     SchedulerBinding? binding;
     try {
       binding = SchedulerBinding.instance;
     } catch (_) {
-      binding = null; // no binding (pure unit test) — notify synchronously
+      binding = null; // no binding (pure unit test) — publish synchronously
     }
     if (binding == null || binding.schedulerPhase == SchedulerPhase.idle) {
-      notifyListeners();
+      state = _snapshot();
     } else {
-      binding.addPostFrameCallback((_) {
-        if (hasListeners) notifyListeners();
-      });
+      binding.addPostFrameCallback((_) => state = _snapshot());
     }
-  }
-
-  @override
-  void dispose() {
-    _throttle?.cancel();
-    super.dispose();
   }
 }

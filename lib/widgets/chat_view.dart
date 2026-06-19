@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/chat_provider.dart';
 import '../providers/settings_provider.dart';
@@ -13,7 +13,7 @@ import 'model_selector.dart';
 import 'ui_kit.dart';
 
 /// The main chat pane: header (model selector), message list and composer.
-class ChatView extends StatelessWidget {
+class ChatView extends ConsumerWidget {
   const ChatView({
     super.key,
     this.showMenuButton = false,
@@ -29,8 +29,8 @@ class ChatView extends StatelessWidget {
   final VoidCallback? onExpandSidebar;
 
   @override
-  Widget build(BuildContext context) {
-    final chat = context.watch<ChatProvider>();
+  Widget build(BuildContext context, WidgetRef ref) {
+    final chat = ref.watch(chatProvider);
     final convo = chat.current;
 
     return Column(
@@ -54,7 +54,7 @@ class ChatView extends StatelessWidget {
               title: 'Error',
               message: chat.error!,
               kind: BannerKind.error,
-              onDismiss: () => context.read<ChatProvider>().clearError(),
+              onDismiss: () => ref.read(chatProvider.notifier).clearError(),
             ),
           ),
         const ChatInput(),
@@ -63,18 +63,18 @@ class ChatView extends StatelessWidget {
   }
 }
 
-class _Header extends StatelessWidget {
+class _Header extends ConsumerWidget {
   const _Header({required this.showMenuButton, this.onExpandSidebar});
 
   final bool showMenuButton;
   final VoidCallback? onExpandSidebar;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final responding =
-        context.select<ChatProvider, bool>((c) => c.isResponding);
-    final animate = context
-        .select<SettingsProvider, bool>((s) => s.animateModelIndicator);
+        ref.watch(chatProvider.select((c) => c.isResponding));
+    final animate =
+        ref.watch(settingsProvider.select((s) => s.animateModelIndicator));
     return SafeArea(
       bottom: false,
       child: Padding(
@@ -108,7 +108,8 @@ class _Header extends StatelessWidget {
             IconButton(
               icon: const Icon(Icons.add_comment_outlined),
               tooltip: 'New chat',
-              onPressed: () => context.read<ChatProvider>().newConversation(),
+              onPressed: () =>
+                  ref.read(chatProvider.notifier).newConversation(),
             ),
             // On phones, fold the secondary actions into an overflow menu so the
             // header never overcrowds; show them inline on wide layouts.
@@ -141,12 +142,12 @@ class _Header extends StatelessWidget {
 
 /// Compact header menu for narrow layouts: gathers Usage, Debug and Settings
 /// behind a single button so the header fits on small phones.
-class _OverflowMenu extends StatelessWidget {
+class _OverflowMenu extends ConsumerWidget {
   const _OverflowMenu();
 
   @override
-  Widget build(BuildContext context) {
-    final usage = context.watch<UsageProvider>();
+  Widget build(BuildContext context, WidgetRef ref) {
+    final usage = ref.watch(usageProvider);
     final cost = usage.isEmpty ? null : '\$${usage.cost.toStringAsFixed(4)}';
 
     void push(Widget screen) => Navigator.of(context).push(
@@ -202,12 +203,12 @@ class _OverflowMenu extends StatelessWidget {
 
 /// Header action that opens the usage screen, showing the running session
 /// cost once any requests have been made.
-class _UsageButton extends StatelessWidget {
+class _UsageButton extends ConsumerWidget {
   const _UsageButton();
 
   @override
-  Widget build(BuildContext context) {
-    final usage = context.watch<UsageProvider>();
+  Widget build(BuildContext context, WidgetRef ref) {
+    final usage = ref.watch(usageProvider);
     void open() => Navigator.of(context).push(
           MaterialPageRoute<void>(builder: (_) => const UsageScreen()),
         );
@@ -227,14 +228,14 @@ class _UsageButton extends StatelessWidget {
   }
 }
 
-class _MessageList extends StatefulWidget {
+class _MessageList extends ConsumerStatefulWidget {
   const _MessageList({super.key});
 
   @override
-  State<_MessageList> createState() => _MessageListState();
+  ConsumerState<_MessageList> createState() => _MessageListState();
 }
 
-class _MessageListState extends State<_MessageList> {
+class _MessageListState extends ConsumerState<_MessageList> {
   final ScrollController _controller = ScrollController();
 
   @override
@@ -250,7 +251,7 @@ class _MessageListState extends State<_MessageList> {
 
   @override
   Widget build(BuildContext context) {
-    final convo = context.watch<ChatProvider>().current!;
+    final convo = ref.watch(chatProvider).current!;
     WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
 
     // SelectionArea lets the user drag-select and copy across messages.
@@ -267,15 +268,14 @@ class _MessageListState extends State<_MessageList> {
 }
 
 /// Welcome screen shown when there is no active conversation.
-class _EmptyState extends StatelessWidget {
+class _EmptyState extends ConsumerWidget {
   const _EmptyState();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    final chat = context.watch<ChatProvider>();
-    final settings = context.watch<SettingsProvider>();
-    final hasKey = settings.hasApiKey;
+    final chat = ref.watch(chatProvider);
+    final hasKey = ref.watch(settingsProvider.select((s) => s.hasApiKey));
 
     return Center(
       child: SingleChildScrollView(

@@ -2,8 +2,8 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:provider/provider.dart';
 
 import '../models/app_font.dart';
 import '../providers/settings_provider.dart';
@@ -12,12 +12,12 @@ import '../services/debug_log.dart';
 /// Debug panel. Lists API exchanges as sessions (one per prompt → response);
 /// tapping one opens a detailed view tying the model, prompt, timing, token
 /// usage and the assembled streamed reply together.
-class DebugScreen extends StatelessWidget {
+class DebugScreen extends ConsumerWidget {
   const DebugScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final log = context.watch<DebugLog>();
+  Widget build(BuildContext context, WidgetRef ref) {
+    final log = ref.watch(debugLogProvider);
     final sessions = log.sessions.reversed.toList(); // newest first
 
     return Scaffold(
@@ -29,14 +29,17 @@ class DebugScreen extends StatelessWidget {
               const Text('Capture'),
               Switch(
                 value: log.enabled,
-                onChanged: (v) => context.read<DebugLog>().enabled = v,
+                onChanged: (v) =>
+                    ref.read(debugLogProvider.notifier).enabled = v,
               ),
             ],
           ),
           IconButton(
             icon: const Icon(Icons.delete_outline),
             tooltip: 'Clear',
-            onPressed: log.isEmpty ? null : context.read<DebugLog>().clear,
+            onPressed: log.isEmpty
+                ? null
+                : ref.read(debugLogProvider.notifier).clear,
           ),
         ],
       ),
@@ -134,16 +137,17 @@ class _SessionCard extends StatelessWidget {
 
 /// Full detail for one session: stat header, a filterable event timeline, and
 /// the assembled response / request / raw frames.
-class _SessionDetailScreen extends StatefulWidget {
+class _SessionDetailScreen extends ConsumerStatefulWidget {
   const _SessionDetailScreen({required this.session});
 
   final DebugSession session;
 
   @override
-  State<_SessionDetailScreen> createState() => _SessionDetailScreenState();
+  ConsumerState<_SessionDetailScreen> createState() =>
+      _SessionDetailScreenState();
 }
 
-class _SessionDetailScreenState extends State<_SessionDetailScreen> {
+class _SessionDetailScreenState extends ConsumerState<_SessionDetailScreen> {
   DebugCategory? _filter; // null == All
 
   DebugSession get session => widget.session;
@@ -151,7 +155,7 @@ class _SessionDetailScreenState extends State<_SessionDetailScreen> {
   @override
   Widget build(BuildContext context) {
     // Rebuild as the session streams in.
-    context.watch<DebugLog>();
+    ref.watch(debugLogProvider);
     final wide = MediaQuery.of(context).size.width >= 900;
 
     final timeline = _Timeline(
@@ -535,7 +539,7 @@ class _Collapsible extends StatelessWidget {
   }
 }
 
-class _CodeBlock extends StatelessWidget {
+class _CodeBlock extends ConsumerWidget {
   const _CodeBlock({
     required this.text,
     this.mono = true,
@@ -550,11 +554,12 @@ class _CodeBlock extends StatelessWidget {
   final bool highlightJson;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     // Mono text (code/JSON/raw frames) uses the user-chosen mono font.
-    final monoFamily = context.watch<SettingsProvider>().monoFont.family;
+    final monoFamily =
+        ref.watch(settingsProvider.select((s) => s.monoFont)).family;
     final baseStyle = TextStyle(
       fontFamily: mono ? monoFamily : null,
       fontSize: 12.5,

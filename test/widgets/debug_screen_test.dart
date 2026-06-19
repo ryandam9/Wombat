@@ -1,27 +1,23 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:provider/provider.dart';
 import 'package:route/models/usage.dart';
-import 'package:route/providers/settings_provider.dart';
 import 'package:route/screens/debug_screen.dart';
 import 'package:route/services/debug_log.dart';
 import 'package:route/theme/app_theme.dart';
 
 import '../helpers/fakes.dart';
 
-late SettingsProvider _settings;
+late ProviderContainer _container;
 
 // Providers sit above MaterialApp so pushed detail routes can read them too.
-Widget _wrap(DebugLog log) => MultiProvider(
-      providers: [
-        ChangeNotifierProvider<DebugLog>.value(value: log),
-        ChangeNotifierProvider<SettingsProvider>.value(value: _settings),
-      ],
+Widget _wrap() => UncontrolledProviderScope(
+      container: _container,
       child: MaterialApp(theme: AppTheme.dark, home: const DebugScreen()),
     );
 
 DebugLog _logWithSession() {
-  final log = DebugLog();
+  final log = _container.read(debugLogProvider.notifier);
   final s = log.begin(
     title: 'Explain vector databases',
     model: 'ai21/jamba',
@@ -37,18 +33,22 @@ DebugLog _logWithSession() {
 }
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   setUp(() async {
-    _settings = await buildLoadedSettings();
+    _container = await createContainer();
+    addTearDown(_container.dispose);
   });
 
   testWidgets('shows an empty state when there is no activity',
       (tester) async {
-    await tester.pumpWidget(_wrap(DebugLog()));
+    await tester.pumpWidget(_wrap());
     expect(find.text('No sessions yet'), findsOneWidget);
   });
 
   testWidgets('lists a session with its prompt and model', (tester) async {
-    await tester.pumpWidget(_wrap(_logWithSession()));
+    _logWithSession();
+    await tester.pumpWidget(_wrap());
     await tester.pump();
 
     expect(find.text('Explain vector databases'), findsOneWidget);
@@ -61,7 +61,8 @@ void main() {
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
 
-    await tester.pumpWidget(_wrap(_logWithSession()));
+    _logWithSession();
+    await tester.pumpWidget(_wrap());
     await tester.pump();
 
     await tester.tap(find.text('Explain vector databases'));
@@ -82,7 +83,8 @@ void main() {
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
 
-    await tester.pumpWidget(_wrap(_logWithSession()));
+    _logWithSession();
+    await tester.pumpWidget(_wrap());
     await tester.pump();
 
     await tester.tap(find.text('Explain vector databases'));
@@ -104,8 +106,8 @@ void main() {
   });
 
   testWidgets('clear empties the log', (tester) async {
-    final log = _logWithSession();
-    await tester.pumpWidget(_wrap(log));
+    _logWithSession();
+    await tester.pumpWidget(_wrap());
 
     await tester.tap(find.byTooltip('Clear'));
     await tester.pump(const Duration(milliseconds: 200));
@@ -116,14 +118,13 @@ void main() {
   testWidgets('begin() during initState does not crash the build',
       (tester) async {
     // Reproduces the model-picker path: a screen starts a session in its
-    // initState while the DebugLog provider is being watched.
-    final log = DebugLog();
+    // initState while the debug log provider is being watched.
     await tester.pumpWidget(
-      ChangeNotifierProvider<DebugLog>.value(
-        value: log,
+      UncontrolledProviderScope(
+        container: _container,
         child: MaterialApp(
-          home: Builder(builder: (context) {
-            context.watch<DebugLog>(); // provider has a dependent
+          home: Consumer(builder: (context, ref, _) {
+            ref.watch(debugLogProvider); // provider has a dependent
             return const _BeginOnInit();
           }),
         ),
@@ -134,23 +135,23 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
 
     expect(tester.takeException(), isNull);
-    expect(log.length, 1);
+    expect(_container.read(debugLogProvider).length, 1);
   });
 }
 
 /// Test helper: starts a debug session from initState (like ModelPickerScreen).
-class _BeginOnInit extends StatefulWidget {
+class _BeginOnInit extends ConsumerStatefulWidget {
   const _BeginOnInit();
 
   @override
-  State<_BeginOnInit> createState() => _BeginOnInitState();
+  ConsumerState<_BeginOnInit> createState() => _BeginOnInitState();
 }
 
-class _BeginOnInitState extends State<_BeginOnInit> {
+class _BeginOnInitState extends ConsumerState<_BeginOnInit> {
   @override
   void initState() {
     super.initState();
-    context.read<DebugLog>().begin(title: 'from initState');
+    ref.read(debugLogProvider.notifier).begin(title: 'from initState');
   }
 
   @override

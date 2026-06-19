@@ -1,25 +1,25 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/chat_message.dart';
 import '../models/openrouter_model.dart';
 import '../models/usage.dart';
+import '../providers/app_providers.dart';
 import '../providers/settings_provider.dart';
 import '../providers/usage_provider.dart';
-import '../services/openrouter_service.dart';
 import '../widgets/message_bubble.dart';
 import '../widgets/ui_kit.dart';
 import 'model_picker_screen.dart';
 
 /// Runs one prompt against several models at once and shows the replies side
 /// by side for comparison.
-class CompareScreen extends StatefulWidget {
+class CompareScreen extends ConsumerStatefulWidget {
   const CompareScreen({super.key});
 
   @override
-  State<CompareScreen> createState() => _CompareScreenState();
+  ConsumerState<CompareScreen> createState() => _CompareScreenState();
 }
 
 /// One model's run: a (mutable) assistant message plus its status.
@@ -40,7 +40,7 @@ class _Run {
   static int _seq = 0;
 }
 
-class _CompareScreenState extends State<CompareScreen> {
+class _CompareScreenState extends ConsumerState<CompareScreen> {
   static const double _wideBreakpoint = 760;
   static const int _maxModels = 5;
 
@@ -100,8 +100,7 @@ class _CompareScreenState extends State<CompareScreen> {
 
   Future<void> _run() async {
     final text = _prompt.text.trim();
-    final settings = context.read<SettingsProvider>();
-    final apiKey = settings.apiKey;
+    final apiKey = ref.read(settingsProvider).apiKey;
     if (text.isEmpty || _models.isEmpty || _running) return;
     if (apiKey == null || apiKey.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -114,8 +113,8 @@ class _CompareScreenState extends State<CompareScreen> {
     for (final r in _runs) {
       r.sub?.cancel();
     }
-    final service = context.read<OpenRouterService>();
-    final usageProvider = context.read<UsageProvider>();
+    final service = ref.read(openRouterServiceProvider);
+    final usageNotifier = ref.read(usageProvider.notifier);
     final userMsg = ChatMessage(
       id: 'cmp-user-${DateTime.now().microsecondsSinceEpoch}',
       role: MessageRole.user,
@@ -137,7 +136,7 @@ class _CompareScreenState extends State<CompareScreen> {
             messages: [userMsg],
             onUsage: (u) {
               run.usage = u;
-              usageProvider.record(run.model.id, u);
+              usageNotifier.record(run.model.id, u);
             },
           )
           .listen(

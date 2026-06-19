@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:provider/provider.dart';
 import 'package:route/models/usage.dart';
 import 'package:route/providers/usage_provider.dart';
 import 'package:route/screens/usage_screen.dart';
@@ -14,25 +14,23 @@ void main() {
 
   testWidgets('renders session totals, balance and per-model breakdown',
       (tester) async {
-    late UsageProvider usage;
+    late ProviderContainer container;
     await tester.runAsync(() async {
-      final settings = await buildLoadedSettings();
       final service = FakeOpenRouterService()
         ..credits = const CreditBalance(totalCredits: 5, totalUsage: 2);
-      usage = UsageProvider(service: service, settings: settings);
-      usage.record(
-        'openai/gpt-4o',
-        const TokenUsage(promptTokens: 100, completionTokens: 40, cost: 0.01),
-      );
+      container = await createContainer(service: service);
+      container.read(usageProvider.notifier).record(
+            'openai/gpt-4o',
+            const TokenUsage(
+                promptTokens: 100, completionTokens: 40, cost: 0.01),
+          );
     });
+    addTearDown(container.dispose);
 
     await tester.pumpWidget(
-      MaterialApp(
-        theme: AppTheme.dark,
-        home: ChangeNotifierProvider<UsageProvider>.value(
-          value: usage,
-          child: const UsageScreen(),
-        ),
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(theme: AppTheme.dark, home: const UsageScreen()),
       ),
     );
     // Let the post-frame credit fetch resolve.
