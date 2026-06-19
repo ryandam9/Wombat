@@ -9,6 +9,7 @@ import 'package:provider/provider.dart';
 import '../models/app_font.dart';
 import '../models/chat_message.dart';
 import '../providers/settings_provider.dart';
+import '../services/download_service.dart';
 import 'attachment_view.dart';
 import 'save_button.dart';
 
@@ -54,18 +55,22 @@ class MessageBubble extends StatelessWidget {
             ),
           ),
           if (!_isUser && !message.isStreaming && message.content.isNotEmpty)
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _CopyButton(text: message.content),
-                SaveButton(
-                  compact: true,
-                  bytes: () => utf8.encode(message.content),
-                  baseName: 'route-reply',
-                  mimeType: 'text/markdown',
-                ),
-              ],
-            ),
+            Builder(builder: (context) {
+              // SVG replies save as a clean .svg (fences stripped), not .xml/.md.
+              final save = DownloadService.textForSave(message.content);
+              return Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _CopyButton(text: message.content),
+                  SaveButton(
+                    compact: true,
+                    bytes: () => utf8.encode(save.text),
+                    baseName: 'route-reply',
+                    mimeType: save.mimeType,
+                  ),
+                ],
+              );
+            }),
         ],
       ),
     );
