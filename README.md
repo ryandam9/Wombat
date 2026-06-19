@@ -234,18 +234,41 @@ the conversation, and audio input is limited to WAV/MP3 (OpenRouter's constraint
 
 ## Platform notes
 
-- **Linux desktop** needs a few native dev libraries before building:
-  ```bash
-  # secure storage (flutter_secure_storage) + audio playback (audioplayers)
-  sudo apt-get install libsecret-1-dev libjsoncpp-dev \
-      libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
-      gstreamer1.0-plugins-good
-  ```
-  File/image/PDF picking uses `file_selector` (GTK, already required by Flutter
-  on Linux); in-app audio recording uses the `record` package's Linux backend.
-- **Android** uses the Android Keystore for secure storage. The app declares the
-  `RECORD_AUDIO` permission for in-app voice recording (requested at runtime);
-  attachments use the system file picker — no extra setup.
+### Linux desktop — native dependencies
+
+Several plugins compile against system libraries, checked via `pkg-config` at
+build time. A missing one fails the build with a `CMake … FindPkgConfig … A
+required package was not found` error naming the plugin. Install them all up
+front (they surface one at a time otherwise):
+
+| Dependency | Needed by | pkg-config module(s) | Debian/Ubuntu | Fedora/RHEL |
+|------------|-----------|----------------------|---------------|-------------|
+| GTK 3 / GLib | Flutter Linux shell, audioplayers, file_selector | `gtk+-3.0`, `glib-2.0` | `libgtk-3-dev` | `gtk3-devel` |
+| libsecret | `flutter_secure_storage_linux` (API key) | `libsecret-1` | `libsecret-1-dev` `libjsoncpp-dev` | `libsecret-devel` `jsoncpp-devel` |
+| GStreamer (build) | `audioplayers_linux` (audio playback) | `gstreamer-1.0`, `gstreamer-app-1.0`, `gstreamer-audio-1.0` | `libgstreamer1.0-dev` `libgstreamer-plugins-base1.0-dev` | `gstreamer1-devel` `gstreamer1-plugins-base-devel` |
+| GStreamer (runtime) | decoding/playing audio at runtime | — | `gstreamer1.0-plugins-base` `gstreamer1.0-plugins-good` | `gstreamer1-plugins-good` |
+
+`file_selector_linux` and `record_linux` need no extra build packages.
+
+```bash
+# Debian/Ubuntu — install everything at once
+sudo apt-get update && sudo apt-get install -y \
+  libgtk-3-dev libsecret-1-dev libjsoncpp-dev \
+  libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
+  gstreamer1.0-plugins-base gstreamer1.0-plugins-good
+```
+
+After installing, clear the stale CMake cache before re-running:
+
+```bash
+flutter clean && flutter pub get && flutter run -d linux
+```
+
+### Android
+
+Secure storage uses the Android Keystore. The app declares the `RECORD_AUDIO`
+permission for in-app voice recording (requested at runtime); attachments use
+the system file picker — no extra setup.
 
 ## Troubleshooting
 
@@ -254,7 +277,8 @@ the conversation, and audio input is limited to WAV/MP3 (OpenRouter's constraint
 | *"Add your OpenRouter API key in Settings first."* | Save a valid key in Settings (from openrouter.ai/keys). |
 | Models won't load | Check the key is valid and you have network access; tap **Retry** in the picker. |
 | Account balance shows "BALANCE UNAVAILABLE" | The credits endpoint may need a privileged key — session token/cost tracking still works. |
-| Linux build fails on `libsecret` / GStreamer | Install the dev packages in [Platform notes](#platform-notes). |
+| **Linux build fails** with `CMake Error … FindPkgConfig … A required package was not found` pointing at `audioplayers_linux/linux/CMakeLists.txt` | GStreamer dev packages missing — install `libgstreamer1.0-dev` + `libgstreamer-plugins-base1.0-dev` (see table above), then `flutter clean` and rebuild. |
+| **Linux build fails** at `flutter_secure_storage_linux/linux/CMakeLists.txt` | `libsecret` dev package missing — install `libsecret-1-dev` (+ `libjsoncpp-dev`), then `flutter clean` and rebuild. |
 | Audio won't record/play | Grant the microphone permission; on Linux ensure the GStreamer plugins are installed. |
 
 ---
