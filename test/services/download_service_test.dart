@@ -29,6 +29,33 @@ void main() {
     });
   });
 
+  group('DownloadService.textForSave', () {
+    test('unwraps a fenced SVG and saves as svg', () {
+      const raw = '```xml\n<svg viewBox="0 0 1 1"><rect/></svg>\n```';
+      final r = DownloadService.textForSave(raw);
+      expect(r.mimeType, 'image/svg+xml');
+      expect(r.text, '<svg viewBox="0 0 1 1"><rect/></svg>');
+      expect(DownloadService.extensionForMime(r.mimeType), 'svg');
+    });
+
+    test('detects bare SVG without fences', () {
+      const raw = '<svg><circle/></svg>';
+      expect(DownloadService.textForSave(raw).mimeType, 'image/svg+xml');
+    });
+
+    test('keeps ordinary replies as markdown', () {
+      const raw = '# Title\n\nSome **text**.';
+      final r = DownloadService.textForSave(raw);
+      expect(r.mimeType, 'text/markdown');
+      expect(r.text, raw);
+    });
+
+    test('does not treat prose mentioning <svg> as an SVG file', () {
+      const raw = 'You can use the `<svg>` tag like this.';
+      expect(DownloadService.textForSave(raw).mimeType, 'text/markdown');
+    });
+  });
+
   group('DownloadService.buildFileName', () {
     test('combines a sanitized base with the inferred extension', () {
       expect(
