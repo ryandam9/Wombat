@@ -146,12 +146,15 @@ class _MessageListState extends State<_MessageList> {
     final convo = context.watch<ChatProvider>().current!;
     WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
 
-    return ListView.builder(
-      controller: _controller,
-      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
-      itemCount: convo.messages.length,
-      itemBuilder: (context, index) =>
-          MessageBubble(message: convo.messages[index]),
+    // SelectionArea lets the user drag-select and copy across messages.
+    return SelectionArea(
+      child: ListView.builder(
+        controller: _controller,
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+        itemCount: convo.messages.length,
+        itemBuilder: (context, index) =>
+            MessageBubble(message: convo.messages[index]),
+      ),
     );
   }
 }

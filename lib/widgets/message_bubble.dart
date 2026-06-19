@@ -99,7 +99,8 @@ class MessageBubble extends StatelessWidget {
     final theme = Theme.of(context);
     final settings = context.watch<SettingsProvider>();
     if (_isUser) {
-      return SelectableText(
+      // Plain Text; the surrounding SelectionArea makes it selectable.
+      return Text(
         message.content,
         style: TextStyle(
           color: theme.colorScheme.onPrimaryContainer,
@@ -111,9 +112,11 @@ class MessageBubble extends StatelessWidget {
     final mdTheme = theme.copyWith(
       textTheme: theme.textTheme.apply(fontFamily: settings.modelFont.family),
     );
+    // selectable:false — selection is handled by the ancestor SelectionArea,
+    // and mixing the two breaks copy of Markdown content.
     return MarkdownBody(
       data: message.content,
-      selectable: true,
+      selectable: false,
       styleSheet: MarkdownStyleSheet.fromTheme(mdTheme).copyWith(
         code: theme.textTheme.bodyMedium?.copyWith(
           fontFamily: 'monospace',
