@@ -7,6 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 /// list — not the entire Google Fonts catalogue.
 enum AppFont {
   system,
+  robotoCondensed,
   inter,
   openSans,
   lato,
@@ -32,6 +33,7 @@ extension AppFontX on AppFont {
   /// Human-readable label for the picker.
   String get label => switch (this) {
         AppFont.system => 'System (Roboto)',
+        AppFont.robotoCondensed => 'Roboto Condensed',
         AppFont.inter => 'Inter',
         AppFont.openSans => 'Open Sans',
         AppFont.lato => 'Lato',
@@ -77,6 +79,7 @@ extension AppFontX on AppFont {
 
   /// Bundled/system family name, for the non-Google options.
   String get _localFamily => switch (this) {
+        AppFont.robotoCondensed => 'RobotoCondensed',
         AppFont.rajdhani => 'Rajdhani',
         AppFont.exoTwo => 'ExoTwo',
         AppFont.techMono => 'ShareTechMono',
