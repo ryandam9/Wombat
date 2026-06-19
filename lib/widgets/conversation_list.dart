@@ -5,16 +5,18 @@ import 'package:provider/provider.dart';
 import '../models/conversation.dart';
 import '../providers/chat_provider.dart';
 import '../screens/compare_screen.dart';
-import '../screens/settings_screen.dart';
 import 'ui_kit.dart';
 
 /// Sidebar listing all saved conversations with controls to create, select
 /// and delete them.
 class ConversationList extends StatelessWidget {
-  const ConversationList({super.key, this.inDrawer = false});
+  const ConversationList({super.key, this.inDrawer = false, this.onCollapse});
 
   /// When shown inside a [Drawer], selecting a conversation should close it.
   final bool inDrawer;
+
+  /// When provided (wide layout), shows a button to collapse the sidebar.
+  final VoidCallback? onCollapse;
 
   @override
   Widget build(BuildContext context) {
@@ -39,15 +41,12 @@ class ConversationList extends StatelessWidget {
                     color: theme.colorScheme.outline,
                   ),
                 const Spacer(),
-                IconButton(
-                  tooltip: 'Settings',
-                  icon: const Icon(Icons.settings_outlined),
-                  onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => const SettingsScreen(),
-                    ),
+                if (onCollapse != null)
+                  IconButton(
+                    tooltip: 'Collapse sidebar',
+                    icon: const Icon(Icons.menu_open),
+                    onPressed: onCollapse,
                   ),
-                ),
               ],
             ),
           ),

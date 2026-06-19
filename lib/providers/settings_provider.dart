@@ -18,10 +18,12 @@ class SettingsProvider extends ChangeNotifier {
   static const _kThemeMode = 'theme_mode';
   static const _kDownloadDir = 'download_dir';
   static const _kAnimateModelIndicator = 'animate_model_indicator';
+  static const _kContinuousModelBorder = 'continuous_model_border';
   static const _kHeadingFont = 'font_heading';
   static const _kUserFont = 'font_user';
   static const _kModelFont = 'font_model';
   static const _kSettingsFont = 'font_settings';
+  static const _kMonoFont = 'font_mono';
   static const _kUserFontScale = 'font_scale_user';
   static const _kModelFontScale = 'font_scale_model';
   static const _kFavoriteModels = 'favorite_models';
@@ -35,11 +37,14 @@ class SettingsProvider extends ChangeNotifier {
   ThemeMode _themeMode = ThemeMode.system;
   String? _downloadDir;
   bool _animateModelIndicator = false;
+  bool _continuousModelBorder = false;
   // Roboto Condensed is the default app font (bundled asset).
   AppFont _headingFont = AppFont.robotoCondensed;
   AppFont _userFont = AppFont.robotoCondensed;
   AppFont _modelFont = AppFont.robotoCondensed;
   AppFont _settingsFont = AppFont.robotoCondensed;
+  // JetBrains Mono is the default for code/JSON (debug panel).
+  AppFont _monoFont = AppFont.jetBrainsMono;
   // Text-size multipliers for chat messages (1.0 == default size).
   double _userFontScale = 1.0;
   double _modelFontScale = 1.0;
@@ -56,11 +61,19 @@ class SettingsProvider extends ChangeNotifier {
   /// Off by default so it doesn't blink distractingly.
   bool get animateModelIndicator => _animateModelIndicator;
 
+  /// Whether the gradient border around the selected model spins continuously.
+  /// Off by default: the border animates once when a model is selected, then
+  /// settles, so it doesn't distract while reading.
+  bool get continuousModelBorder => _continuousModelBorder;
+
   /// Fonts for headings, user text, model output, and the settings screen.
   AppFont get headingFont => _headingFont;
   AppFont get userFont => _userFont;
   AppFont get modelFont => _modelFont;
   AppFont get settingsFont => _settingsFont;
+
+  /// Monospace font for code/JSON in the debug panel.
+  AppFont get monoFont => _monoFont;
 
   /// Text-size multipliers for your prompts and the model's replies. Lets
   /// people who want larger (or smaller) chat text adjust it independently.
@@ -86,12 +99,16 @@ class SettingsProvider extends ChangeNotifier {
     _downloadDir = _prefs.getString(_kDownloadDir);
     _animateModelIndicator =
         _prefs.getBool(_kAnimateModelIndicator) ?? false;
+    _continuousModelBorder =
+        _prefs.getBool(_kContinuousModelBorder) ?? false;
     const def = AppFont.robotoCondensed; // default app font
     _headingFont = AppFontX.fromIndex(_prefs.getInt(_kHeadingFont) ?? def.index);
     _userFont = AppFontX.fromIndex(_prefs.getInt(_kUserFont) ?? def.index);
     _modelFont = AppFontX.fromIndex(_prefs.getInt(_kModelFont) ?? def.index);
     _settingsFont =
         AppFontX.fromIndex(_prefs.getInt(_kSettingsFont) ?? def.index);
+    _monoFont = AppFontX.fromIndex(
+        _prefs.getInt(_kMonoFont) ?? AppFont.jetBrainsMono.index);
     _userFontScale = _clampScale(_prefs.getDouble(_kUserFontScale) ?? 1.0);
     _modelFontScale = _clampScale(_prefs.getDouble(_kModelFontScale) ?? 1.0);
     _favoriteModels =
@@ -144,6 +161,12 @@ class SettingsProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> setContinuousModelBorder(bool value) async {
+    _continuousModelBorder = value;
+    await _prefs.setBool(_kContinuousModelBorder, value);
+    notifyListeners();
+  }
+
   Future<void> setHeadingFont(AppFont f) async {
     _headingFont = f;
     await _prefs.setInt(_kHeadingFont, f.index);
@@ -165,6 +188,12 @@ class SettingsProvider extends ChangeNotifier {
   Future<void> setSettingsFont(AppFont f) async {
     _settingsFont = f;
     await _prefs.setInt(_kSettingsFont, f.index);
+    notifyListeners();
+  }
+
+  Future<void> setMonoFont(AppFont f) async {
+    _monoFont = f;
+    await _prefs.setInt(_kMonoFont, f.index);
     notifyListeners();
   }
 

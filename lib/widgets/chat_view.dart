@@ -5,6 +5,7 @@ import '../providers/chat_provider.dart';
 import '../providers/settings_provider.dart';
 import '../providers/usage_provider.dart';
 import '../screens/debug_screen.dart';
+import '../screens/settings_screen.dart';
 import '../screens/usage_screen.dart';
 import 'chat_input.dart';
 import 'message_bubble.dart';
@@ -13,11 +14,19 @@ import 'ui_kit.dart';
 
 /// The main chat pane: header (model selector), message list and composer.
 class ChatView extends StatelessWidget {
-  const ChatView({super.key, this.showMenuButton = false});
+  const ChatView({
+    super.key,
+    this.showMenuButton = false,
+    this.onExpandSidebar,
+  });
 
   /// Whether to show a hamburger button that opens the conversation drawer
   /// (used on narrow layouts).
   final bool showMenuButton;
+
+  /// When provided (wide layout with the sidebar collapsed), shows a button to
+  /// re-open the sidebar.
+  final VoidCallback? onExpandSidebar;
 
   @override
   Widget build(BuildContext context) {
@@ -26,7 +35,10 @@ class ChatView extends StatelessWidget {
 
     return Column(
       children: [
-        _Header(showMenuButton: showMenuButton),
+        _Header(
+          showMenuButton: showMenuButton,
+          onExpandSidebar: onExpandSidebar,
+        ),
         const Divider(height: 1),
         Expanded(
           child: chat.loading
@@ -52,9 +64,10 @@ class ChatView extends StatelessWidget {
 }
 
 class _Header extends StatelessWidget {
-  const _Header({required this.showMenuButton});
+  const _Header({required this.showMenuButton, this.onExpandSidebar});
 
   final bool showMenuButton;
+  final VoidCallback? onExpandSidebar;
 
   @override
   Widget build(BuildContext context) {
@@ -73,6 +86,12 @@ class _Header extends StatelessWidget {
                 icon: const Icon(Icons.menu),
                 tooltip: 'Conversations',
                 onPressed: () => Scaffold.of(context).openDrawer(),
+              )
+            else if (onExpandSidebar != null)
+              IconButton(
+                icon: const Icon(Icons.menu_open),
+                tooltip: 'Show sidebar',
+                onPressed: onExpandSidebar,
               ),
             const Expanded(child: ModelSelector()),
             if (responding && animate)
@@ -84,23 +103,99 @@ class _Header extends StatelessWidget {
                   child: CircularProgressIndicator(strokeWidth: 2),
                 ),
               ),
-            const SizedBox(width: 8),
-            const _UsageButton(),
-            IconButton(
-              icon: const Icon(Icons.bug_report_outlined),
-              tooltip: 'Debug sessions',
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(builder: (_) => const DebugScreen()),
-              ),
-            ),
+            const SizedBox(width: 4),
+            // New chat stays a one-tap action everywhere.
             IconButton(
               icon: const Icon(Icons.add_comment_outlined),
               tooltip: 'New chat',
               onPressed: () => context.read<ChatProvider>().newConversation(),
             ),
+            // On phones, fold the secondary actions into an overflow menu so the
+            // header never overcrowds; show them inline on wide layouts.
+            if (showMenuButton)
+              const _OverflowMenu()
+            else ...[
+              const _UsageButton(),
+              IconButton(
+                icon: const Icon(Icons.bug_report_outlined),
+                tooltip: 'Debug sessions',
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(builder: (_) => const DebugScreen()),
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.settings_outlined),
+                tooltip: 'Settings',
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                      builder: (_) => const SettingsScreen()),
+                ),
+              ),
+            ],
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Compact header menu for narrow layouts: gathers Usage, Debug and Settings
+/// behind a single button so the header fits on small phones.
+class _OverflowMenu extends StatelessWidget {
+  const _OverflowMenu();
+
+  @override
+  Widget build(BuildContext context) {
+    final usage = context.watch<UsageProvider>();
+    final cost = usage.isEmpty ? null : '\$${usage.cost.toStringAsFixed(4)}';
+
+    void push(Widget screen) => Navigator.of(context).push(
+          MaterialPageRoute<void>(builder: (_) => screen),
+        );
+
+    return PopupMenuButton<String>(
+      tooltip: 'More',
+      icon: const Icon(Icons.more_vert),
+      onSelected: (value) {
+        switch (value) {
+          case 'usage':
+            push(const UsageScreen());
+          case 'debug':
+            push(const DebugScreen());
+          case 'settings':
+            push(const SettingsScreen());
+        }
+      },
+      itemBuilder: (_) => [
+        PopupMenuItem(
+          value: 'usage',
+          child: ListTile(
+            leading: const Icon(Icons.insights_outlined),
+            title: const Text('Usage'),
+            trailing: cost == null ? null : Text(cost),
+            contentPadding: EdgeInsets.zero,
+            dense: true,
+          ),
+        ),
+        const PopupMenuItem(
+          value: 'debug',
+          child: ListTile(
+            leading: Icon(Icons.bug_report_outlined),
+            title: Text('Debug sessions'),
+            contentPadding: EdgeInsets.zero,
+            dense: true,
+          ),
+        ),
+        const PopupMenuItem(
+          value: 'settings',
+          child: ListTile(
+            leading: Icon(Icons.settings_outlined),
+            title: Text('Settings'),
+            contentPadding: EdgeInsets.zero,
+            dense: true,
+          ),
+        ),
+      ],
     );
   }
 }

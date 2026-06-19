@@ -97,6 +97,31 @@ void main() {
     expect(prefs.getBool('animate_model_indicator'), isTrue);
   });
 
+  test('monoFont defaults to JetBrains Mono and persists', () async {
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    final settings = SettingsProvider(FakeSecureStorageService(), prefs);
+    await waitUntil(() => !settings.loading);
+
+    expect(settings.monoFont, AppFont.jetBrainsMono);
+    expect(settings.monoFont.isMonospace, isTrue);
+    await settings.setMonoFont(AppFont.firaCode);
+    expect(settings.monoFont, AppFont.firaCode);
+    expect(prefs.getInt('font_mono'), AppFont.firaCode.index);
+  });
+
+  test('continuousModelBorder defaults to false and persists', () async {
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    final settings = SettingsProvider(FakeSecureStorageService(), prefs);
+    await waitUntil(() => !settings.loading);
+
+    expect(settings.continuousModelBorder, isFalse);
+    await settings.setContinuousModelBorder(true);
+    expect(settings.continuousModelBorder, isTrue);
+    expect(prefs.getBool('continuous_model_border'), isTrue);
+  });
+
   test('font settings default sensibly and persist', () async {
     SharedPreferences.setMockInitialValues({});
     final prefs = await SharedPreferences.getInstance();

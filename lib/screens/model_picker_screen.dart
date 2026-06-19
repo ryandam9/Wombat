@@ -290,23 +290,28 @@ class _Toolbar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-      child: Wrap(
-        spacing: 12,
-        runSpacing: 8,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        children: [
-          SizedBox(
-            width: 360,
-            child: TextField(
-              decoration: const InputDecoration(
-                prefixIcon: Icon(Icons.search),
-                hintText: 'Search models by name, provider or capability…',
-                border: OutlineInputBorder(),
-                isDense: true,
+      child: LayoutBuilder(builder: (context, constraints) {
+        // Cap the search box at 360 on roomy layouts, but never wider than the
+        // available width so it doesn't overflow on phones.
+        final searchWidth =
+            constraints.maxWidth < 360 ? constraints.maxWidth : 360.0;
+        return Wrap(
+          spacing: 12,
+          runSpacing: 8,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            SizedBox(
+              width: searchWidth,
+              child: TextField(
+                decoration: const InputDecoration(
+                  prefixIcon: Icon(Icons.search),
+                  hintText: 'Search models by name, provider or capability…',
+                  border: OutlineInputBorder(),
+                  isDense: true,
+                ),
+                onChanged: onQuery,
               ),
-              onChanged: onQuery,
             ),
-          ),
           SegmentedButton<_ViewMode>(
             segments: const [
               ButtonSegment(
@@ -324,35 +329,45 @@ class _Toolbar extends StatelessWidget {
             showSelectedIcon: false,
             onSelectionChanged: (s) => onView(s.first),
           ),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('Sort by', style: Theme.of(context).textTheme.labelMedium),
-              const SizedBox(width: 8),
-              DropdownButton<_Sort>(
-                value: sort,
-                onChanged: (v) {
-                  if (v != null) onSort(v);
-                },
-                items: const [
-                  DropdownMenuItem(value: _Sort.name, child: Text('Name')),
-                  DropdownMenuItem(
-                      value: _Sort.context, child: Text('Context')),
-                  DropdownMenuItem(value: _Sort.price, child: Text('Price')),
-                  DropdownMenuItem(
-                      value: _Sort.newest, child: Text('Release date')),
-                ],
-              ),
-              IconButton(
-                icon: Icon(
-                    ascending ? Icons.arrow_upward : Icons.arrow_downward),
-                tooltip: ascending ? 'Ascending' : 'Descending',
-                onPressed: onToggleDirection,
-              ),
-            ],
+          ConstrainedBox(
+            // Never wider than the line, so the sort controls don't overflow on
+            // phones; the dropdown flexes to fit.
+            constraints: BoxConstraints(maxWidth: searchWidth),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('Sort by', style: Theme.of(context).textTheme.labelMedium),
+                const SizedBox(width: 8),
+                Flexible(
+                  child: DropdownButton<_Sort>(
+                    isExpanded: true,
+                    value: sort,
+                    onChanged: (v) {
+                      if (v != null) onSort(v);
+                    },
+                    items: const [
+                      DropdownMenuItem(value: _Sort.name, child: Text('Name')),
+                      DropdownMenuItem(
+                          value: _Sort.context, child: Text('Context')),
+                      DropdownMenuItem(
+                          value: _Sort.price, child: Text('Price')),
+                      DropdownMenuItem(
+                          value: _Sort.newest, child: Text('Release date')),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  icon: Icon(
+                      ascending ? Icons.arrow_upward : Icons.arrow_downward),
+                  tooltip: ascending ? 'Ascending' : 'Descending',
+                  onPressed: onToggleDirection,
+                ),
+              ],
+            ),
           ),
-        ],
-      ),
+          ],
+        );
+      }),
     );
   }
 }
@@ -454,23 +469,29 @@ class _ModelCollection extends StatelessWidget {
         ),
       );
     }
-    return GridView.builder(
-      padding: const EdgeInsets.all(16),
-      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-        maxCrossAxisExtent: 300,
-        mainAxisExtent: 232,
-        crossAxisSpacing: 14,
-        mainAxisSpacing: 14,
-      ),
-      itemCount: models.length,
-      itemBuilder: (context, i) => _ModelCard(
-        model: models[i],
-        selected: models[i].id == selectedId,
-        favorite: favorites.contains(models[i].id),
-        onTap: () => onTap(models[i]),
-        onToggleFavorite: () => onToggleFavorite(models[i]),
-      ),
-    );
+    return LayoutBuilder(builder: (context, constraints) {
+      // Aim for ~300px-wide cards: a single column on phones, more as width
+      // grows. Using a fixed count (rather than max-extent) avoids two cramped
+      // columns on ~360px screens.
+      final columns = (constraints.maxWidth / 300).floor().clamp(1, 6);
+      return GridView.builder(
+        padding: const EdgeInsets.all(16),
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: columns,
+          mainAxisExtent: 232,
+          crossAxisSpacing: 14,
+          mainAxisSpacing: 14,
+        ),
+        itemCount: models.length,
+        itemBuilder: (context, i) => _ModelCard(
+          model: models[i],
+          selected: models[i].id == selectedId,
+          favorite: favorites.contains(models[i].id),
+          onTap: () => onTap(models[i]),
+          onToggleFavorite: () => onToggleFavorite(models[i]),
+        ),
+      );
+    });
   }
 }
 

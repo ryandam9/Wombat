@@ -25,6 +25,11 @@ enum AppFont {
   barlowCondensed,
   merriweather,
   jetBrainsMono,
+  robotoMono,
+  firaCode,
+  sourceCodePro,
+  ibmPlexMono,
+  spaceMono,
 }
 
 extension AppFontX on AppFont {
@@ -49,6 +54,11 @@ extension AppFontX on AppFont {
         AppFont.barlowCondensed => 'Barlow Condensed',
         AppFont.merriweather => 'Merriweather',
         AppFont.jetBrainsMono => 'JetBrains Mono',
+        AppFont.robotoMono => 'Roboto Mono',
+        AppFont.firaCode => 'Fira Code',
+        AppFont.sourceCodePro => 'Source Code Pro',
+        AppFont.ibmPlexMono => 'IBM Plex Mono',
+        AppFont.spaceMono => 'Space Mono',
       };
 
   /// The Google Fonts text style (via the generated, lookup-free methods),
@@ -71,8 +81,30 @@ extension AppFontX on AppFont {
         AppFont.barlowCondensed => GoogleFonts.barlowCondensed(),
         AppFont.merriweather => GoogleFonts.merriweather(),
         AppFont.jetBrainsMono => GoogleFonts.jetBrainsMono(),
+        AppFont.robotoMono => GoogleFonts.robotoMono(),
+        AppFont.firaCode => GoogleFonts.firaCode(),
+        AppFont.sourceCodePro => GoogleFonts.sourceCodePro(),
+        AppFont.ibmPlexMono => GoogleFonts.ibmPlexMono(),
+        AppFont.spaceMono => GoogleFonts.spaceMono(),
         _ => null,
       };
+
+  /// Whether this is a fixed-width font, suitable for code/JSON. Used to
+  /// populate the mono-font picker and to render the debug panel.
+  bool get isMonospace => switch (this) {
+        AppFont.jetBrainsMono ||
+        AppFont.robotoMono ||
+        AppFont.firaCode ||
+        AppFont.sourceCodePro ||
+        AppFont.ibmPlexMono ||
+        AppFont.spaceMono =>
+          true,
+        _ => false,
+      };
+
+  /// The monospace fonts offered in the mono-font picker.
+  static List<AppFont> get monoFonts =>
+      AppFont.values.where((f) => f.isMonospace).toList();
 
   /// Bundled/system family name, for the non-Google options.
   String get _localFamily => switch (this) {

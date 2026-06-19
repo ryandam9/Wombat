@@ -212,14 +212,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ?.copyWith(color: theme.colorScheme.outline),
         ),
         const SizedBox(height: 12),
-        Row(
+        Wrap(
+          spacing: 12,
+          runSpacing: 8,
           children: [
             FilledButton.icon(
               onPressed: _save,
               icon: const Icon(Icons.save_outlined),
               label: const Text('Save'),
             ),
-            const SizedBox(width: 12),
             if (settings.hasApiKey)
               OutlinedButton.icon(
                 onPressed: () async {
@@ -298,6 +299,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
           contentPadding: EdgeInsets.zero,
           dense: true,
         ),
+        SwitchListTile(
+          value: settings.continuousModelBorder,
+          onChanged: (v) =>
+              context.read<SettingsProvider>().setContinuousModelBorder(v),
+          title: const Text('Continuously animate the model border'),
+          subtitle: const Text(
+            'Off: the border animates once when you pick a model.',
+          ),
+          contentPadding: EdgeInsets.zero,
+          dense: true,
+        ),
       ],
     );
   }
@@ -320,7 +332,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ?.copyWith(color: theme.colorScheme.outline),
         ),
         const SizedBox(height: 12),
-        Row(
+        Wrap(
+          spacing: 12,
+          runSpacing: 8,
           children: [
             FilledButton.tonalIcon(
               onPressed: () async {
@@ -332,7 +346,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
               icon: const Icon(Icons.folder_open),
               label: const Text('Choose folder'),
             ),
-            const SizedBox(width: 12),
             if (settings.downloadDir != null)
               OutlinedButton.icon(
                 onPressed: () =>
@@ -371,6 +384,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
           value: settings.settingsFont,
           onChanged: read.setSettingsFont,
         ),
+        _FontRow(
+          label: 'Code / JSON',
+          value: settings.monoFont,
+          onChanged: read.setMonoFont,
+          monoOnly: true,
+        ),
       ],
     );
   }
@@ -408,14 +427,21 @@ class _FontRow extends StatelessWidget {
     required this.label,
     required this.value,
     required this.onChanged,
+    this.monoOnly = false,
   });
 
   final String label;
   final AppFont value;
   final ValueChanged<AppFont> onChanged;
 
+  /// When true, only monospace fonts are offered (for the code/JSON picker).
+  final bool monoOnly;
+
   /// Fonts listed alphabetically by display name.
   static final List<AppFont> _sortedFonts = AppFont.values.toList()
+    ..sort((a, b) => a.label.toLowerCase().compareTo(b.label.toLowerCase()));
+
+  static final List<AppFont> _sortedMonoFonts = AppFontX.monoFonts
     ..sort((a, b) => a.label.toLowerCase().compareTo(b.label.toLowerCase()));
 
   @override
@@ -437,7 +463,7 @@ class _FontRow extends StatelessWidget {
               if (f != null) onChanged(f);
             },
             items: [
-              for (final f in _sortedFonts)
+              for (final f in (monoOnly ? _sortedMonoFonts : _sortedFonts))
                 DropdownMenuItem(
                   value: f,
                   child: Text(f.label, style: TextStyle(fontFamily: f.family)),

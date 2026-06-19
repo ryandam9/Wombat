@@ -2,13 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:route/models/usage.dart';
+import 'package:route/providers/settings_provider.dart';
 import 'package:route/screens/debug_screen.dart';
 import 'package:route/services/debug_log.dart';
 import 'package:route/theme/app_theme.dart';
 
-// Provider sits above MaterialApp so pushed detail routes can read it too.
-Widget _wrap(DebugLog log) => ChangeNotifierProvider<DebugLog>.value(
-      value: log,
+import '../helpers/fakes.dart';
+
+late SettingsProvider _settings;
+
+// Providers sit above MaterialApp so pushed detail routes can read them too.
+Widget _wrap(DebugLog log) => MultiProvider(
+      providers: [
+        ChangeNotifierProvider<DebugLog>.value(value: log),
+        ChangeNotifierProvider<SettingsProvider>.value(value: _settings),
+      ],
       child: MaterialApp(theme: AppTheme.dark, home: const DebugScreen()),
     );
 
@@ -29,6 +37,10 @@ DebugLog _logWithSession() {
 }
 
 void main() {
+  setUp(() async {
+    _settings = await buildLoadedSettings();
+  });
+
   testWidgets('shows an empty state when there is no activity',
       (tester) async {
     await tester.pumpWidget(_wrap(DebugLog()));
@@ -62,6 +74,33 @@ void main() {
     expect(find.text('Event stream'), findsOneWidget);
     // Filter chips present.
     expect(find.widgetWithText(ChoiceChip, 'Response'), findsOneWidget);
+  });
+
+  testWidgets('request body is shown as formatted, highlighted JSON',
+      (tester) async {
+    tester.view.physicalSize = const Size(1200, 1000);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(_wrap(_logWithSession()));
+    await tester.pump();
+
+    await tester.tap(find.text('Explain vector databases'));
+    await tester.pumpAndSettle();
+
+    // Expand the collapsed request-body section.
+    await tester.tap(find.text('Request body'));
+    await tester.pumpAndSettle();
+
+    // The one-line request is pretty-printed and rendered as rich (coloured)
+    // spans rather than a single flat string.
+    final block = tester.widget<SelectableText>(
+      find.byType(SelectableText).last,
+    );
+    expect(block.textSpan, isNotNull);
+    expect(block.textSpan!.toPlainText(), contains('"model"'));
+    // Indented => pretty-printed across multiple lines.
+    expect(block.textSpan!.toPlainText(), contains('\n'));
   });
 
   testWidgets('clear empties the log', (tester) async {
