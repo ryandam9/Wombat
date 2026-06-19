@@ -1,52 +1,76 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
+import 'package:route/models/usage.dart';
 import 'package:route/screens/debug_screen.dart';
 import 'package:route/services/debug_log.dart';
 import 'package:route/theme/app_theme.dart';
 
-Widget _wrap(DebugLog log) => MaterialApp(
-      theme: AppTheme.dark,
-      home: ChangeNotifierProvider<DebugLog>.value(
-        value: log,
-        child: const DebugScreen(),
-      ),
+// Provider sits above MaterialApp so pushed detail routes can read it too.
+Widget _wrap(DebugLog log) => ChangeNotifierProvider<DebugLog>.value(
+      value: log,
+      child: MaterialApp(theme: AppTheme.dark, home: const DebugScreen()),
     );
+
+DebugLog _logWithSession() {
+  final log = DebugLog();
+  final s = log.begin(
+    title: 'Explain vector databases',
+    model: 'ai21/jamba',
+    requestBody: '{"model":"ai21/jamba","stream":true}',
+  );
+  log.response(s, httpStatus: 200);
+  log.chunk(s, '{"d":1}', content: 'Vector databases are ');
+  log.chunk(s, '{"d":2}', content: 'great.');
+  log.setUsage(
+      s, const TokenUsage(promptTokens: 10, completionTokens: 20, cost: 0.02));
+  log.complete(s, httpStatus: 200, finishReason: 'stop');
+  return log;
+}
 
 void main() {
   testWidgets('shows an empty state when there is no activity',
       (tester) async {
     await tester.pumpWidget(_wrap(DebugLog()));
-    expect(find.text('No activity yet'), findsOneWidget);
+    expect(find.text('No sessions yet'), findsOneWidget);
   });
 
-  testWidgets('lists entries newest-first and expands JSON detail',
-      (tester) async {
-    final log = DebugLog()
-      ..add(DebugKind.request, 'POST /chat/completions',
-          detail: '{"model":"m","stream":true}')
-      ..add(DebugKind.info, 'keep-alive', detail: 'OPENROUTER PROCESSING');
-
-    await tester.pumpWidget(_wrap(log));
+  testWidgets('lists a session with its prompt and model', (tester) async {
+    await tester.pumpWidget(_wrap(_logWithSession()));
     await tester.pump();
 
-    expect(find.text('POST /chat/completions'), findsOneWidget);
-    expect(find.text('keep-alive'), findsOneWidget);
+    expect(find.text('Explain vector databases'), findsOneWidget);
+    expect(find.textContaining('ai21/jamba'), findsWidgets);
+  });
 
-    // Expanding the request reveals the pretty-printed JSON body.
-    await tester.tap(find.text('POST /chat/completions'));
+  testWidgets('opens session detail with assembled response and timeline',
+      (tester) async {
+    tester.view.physicalSize = const Size(1200, 1000);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(_wrap(_logWithSession()));
+    await tester.pump();
+
+    await tester.tap(find.text('Explain vector databases'));
     await tester.pumpAndSettle();
-    expect(find.textContaining('"model": "m"'), findsOneWidget);
+
+    // Stat header + assembled response (not raw frames).
+    expect(find.text('Response (assembled)'), findsOneWidget);
+    // Appears in both the assembled response and the streaming timeline event.
+    expect(find.textContaining('Vector databases are great.'), findsWidgets);
+    expect(find.text('Event stream'), findsOneWidget);
+    // Filter chips present.
+    expect(find.widgetWithText(ChoiceChip, 'Response'), findsOneWidget);
   });
 
   testWidgets('clear empties the log', (tester) async {
-    final log = DebugLog()..add(DebugKind.info, 'x');
+    final log = _logWithSession();
     await tester.pumpWidget(_wrap(log));
 
     await tester.tap(find.byTooltip('Clear'));
-    // Pump past the log's notification throttle so no timer is left pending.
     await tester.pump(const Duration(milliseconds: 200));
 
-    expect(find.text('No activity yet'), findsOneWidget);
+    expect(find.text('No sessions yet'), findsOneWidget);
   });
 }

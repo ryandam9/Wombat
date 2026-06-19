@@ -88,7 +88,7 @@ class _Header extends StatelessWidget {
             const _UsageButton(),
             IconButton(
               icon: const Icon(Icons.bug_report_outlined),
-              tooltip: 'Debug',
+              tooltip: 'Debug sessions',
               onPressed: () => Navigator.of(context).push(
                 MaterialPageRoute<void>(builder: (_) => const DebugScreen()),
               ),

@@ -31,9 +31,6 @@ class OpenRouterService {
   final http.Client _client;
   final DebugLog? _debug;
 
-  void _log(DebugKind kind, String title, {String? detail}) =>
-      _debug?.add(kind, title, detail: detail);
-
   Map<String, String> _headers(String apiKey, {bool json = true}) => {
         'Authorization': 'Bearer $apiKey',
         if (json) 'Content-Type': 'application/json',
@@ -45,17 +42,18 @@ class OpenRouterService {
   /// Fetches the catalogue of available models, sorted by display name.
   Future<List<OpenRouterModel>> fetchModels(String apiKey) async {
     final uri = Uri.parse('$_baseUrl/models');
-    _log(DebugKind.request, 'GET /models');
+    final log = _debug;
+    final session = log?.begin(title: 'GET /models');
     final http.Response resp;
     try {
       resp = await _client.get(uri, headers: _headers(apiKey, json: false));
     } catch (e) {
-      _log(DebugKind.error, 'GET /models · network error', detail: '$e');
+      log?.fail(session, 'Network error: $e');
       throw OpenRouterException('Network error: $e');
     }
     if (resp.statusCode != 200) {
-      _log(DebugKind.error, 'GET /models · HTTP ${resp.statusCode}',
-          detail: resp.body);
+      log?.fail(session, _extractError(resp.body) ?? 'Failed to load models',
+          httpStatus: resp.statusCode);
       throw OpenRouterException(
         _extractError(resp.body) ?? 'Failed to load models',
         statusCode: resp.statusCode,
@@ -63,7 +61,7 @@ class OpenRouterService {
     }
     final data = jsonDecode(resp.body) as Map<String, dynamic>;
     final list = data['data'] as List<dynamic>? ?? [];
-    _log(DebugKind.response, 'GET /models · 200 · ${list.length} models');
+    log?.complete(session, httpStatus: 200, summary: '${list.length} models');
     return list
         .map((e) => OpenRouterModel.fromJson(e as Map<String, dynamic>))
         .toList()
@@ -76,23 +74,24 @@ class OpenRouterService {
   /// can receive a 403, which surfaces as an [OpenRouterException].
   Future<CreditBalance> fetchCredits(String apiKey) async {
     final uri = Uri.parse('$_baseUrl/credits');
-    _log(DebugKind.request, 'GET /credits');
+    final log = _debug;
+    final session = log?.begin(title: 'GET /credits');
     final http.Response resp;
     try {
       resp = await _client.get(uri, headers: _headers(apiKey, json: false));
     } catch (e) {
-      _log(DebugKind.error, 'GET /credits · network error', detail: '$e');
+      log?.fail(session, 'Network error: $e');
       throw OpenRouterException('Network error: $e');
     }
     if (resp.statusCode != 200) {
-      _log(DebugKind.error, 'GET /credits · HTTP ${resp.statusCode}',
-          detail: resp.body);
+      log?.fail(session, _extractError(resp.body) ?? 'Failed to load credits',
+          httpStatus: resp.statusCode);
       throw OpenRouterException(
         _extractError(resp.body) ?? 'Failed to load credits',
         statusCode: resp.statusCode,
       );
     }
-    _log(DebugKind.response, 'GET /credits · 200', detail: resp.body);
+    log?.complete(session, httpStatus: 200, responseBody: resp.body);
     final data = jsonDecode(resp.body) as Map<String, dynamic>;
     return CreditBalance.fromJson(data['data'] as Map<String, dynamic>? ?? {});
   }
@@ -122,35 +121,38 @@ class OpenRouterService {
             messages.map((m) => {'role': m.role.wireName, 'content': _content(m)}).toList(),
       });
 
-    _log(DebugKind.request, 'POST /chat/completions · $model',
-        detail: request.body);
+    final log = _debug;
+    final session = log?.begin(
+      title: _promptTitle(messages),
+      model: model,
+      requestBody: request.body,
+    );
 
     // Generated images can be repeated across the delta and the final message;
     // track what we've emitted so callers see each once.
     final seenImages = <String>{};
     var emittedAudio = false;
+    String? finishReason;
 
     final http.StreamedResponse streamed;
     try {
       streamed = await _client.send(request);
     } catch (e) {
-      _log(DebugKind.error, 'POST /chat/completions · network error',
-          detail: '$e');
+      log?.fail(session, 'Network error: $e');
       throw OpenRouterException('Network error: $e');
     }
 
     if (streamed.statusCode != 200) {
       final body = await streamed.stream.bytesToString();
-      _log(DebugKind.error,
-          'POST /chat/completions · HTTP ${streamed.statusCode}',
-          detail: body);
+      log?.fail(session, _extractError(body) ?? 'Request failed',
+          httpStatus: streamed.statusCode);
       throw OpenRouterException(
         _extractError(body) ?? 'Request failed',
         statusCode: streamed.statusCode,
       );
     }
 
-    _log(DebugKind.response, 'POST /chat/completions · 200 · streaming…');
+    log?.response(session, httpStatus: 200);
 
     final lines =
         streamed.stream.transform(utf8.decoder).transform(const LineSplitter());
@@ -158,31 +160,36 @@ class OpenRouterService {
     await for (final line in lines) {
       if (line.isEmpty) continue;
       // OpenRouter sends SSE comment keep-alives (": OPENROUTER PROCESSING")
-      // between events; surface them so users see progress while waiting.
+      // between events; record them so users see progress while waiting.
       if (!line.startsWith('data:')) {
-        _log(DebugKind.info, 'keep-alive', detail: line);
+        log?.note(session, line);
         continue;
       }
       final data = line.substring(5).trim();
       if (data.isEmpty) continue;
-      if (data == '[DONE]') {
-        _log(DebugKind.info, 'stream done ([DONE])');
-        break;
-      }
-      _log(DebugKind.stream, 'stream chunk', detail: data);
+      if (data == '[DONE]') break;
       try {
         final json = jsonDecode(data) as Map<String, dynamic>;
         final usage = json['usage'];
         if (usage is Map<String, dynamic>) {
-          onUsage?.call(TokenUsage.fromJson(usage));
+          final u = TokenUsage.fromJson(usage);
+          onUsage?.call(u);
+          log?.setUsage(session, u);
         }
         final choices = json['choices'] as List<dynamic>?;
-        if (choices == null || choices.isEmpty) continue;
-        final choice = choices.first as Map<String, dynamic>;
-        final delta = choice['delta'] as Map<String, dynamic>?;
-        final message = choice['message'] as Map<String, dynamic>?;
+        Map<String, dynamic>? delta;
+        Map<String, dynamic>? message;
+        if (choices != null && choices.isNotEmpty) {
+          final choice = choices.first as Map<String, dynamic>;
+          delta = choice['delta'] as Map<String, dynamic>?;
+          message = choice['message'] as Map<String, dynamic>?;
+          final fr = choice['finish_reason'] as String?;
+          if (fr != null) finishReason = fr;
+        }
 
         final content = delta?['content'] as String?;
+        final reasoning = delta?['reasoning'] as String?;
+        log?.chunk(session, data, content: content, reasoning: reasoning);
         if (content != null && content.isNotEmpty) {
           yield content;
         }
@@ -215,9 +222,23 @@ class OpenRouterService {
           }
         }
       } catch (_) {
-        // Skip malformed frames rather than killing the whole stream.
+        // Skip malformed frames rather than killing the whole stream, but
+        // still record the raw frame for debugging.
+        log?.chunk(session, data);
       }
     }
+    log?.complete(session, httpStatus: 200, finishReason: finishReason);
+  }
+
+  /// A short heading for a chat session: the latest user prompt, truncated.
+  String _promptTitle(List<ChatMessage> messages) {
+    for (final m in messages.reversed) {
+      if (m.role != MessageRole.user) continue;
+      final t = m.content.trim();
+      if (t.isNotEmpty) return t.length > 80 ? '${t.substring(0, 80)}…' : t;
+      if (m.attachments.isNotEmpty) return '[attachment]';
+    }
+    return 'Chat request';
   }
 
   /// Builds the OpenAI-compatible `content` for a message: a plain string for

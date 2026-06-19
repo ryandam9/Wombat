@@ -1,63 +1,105 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:route/models/usage.dart';
 import 'package:route/services/debug_log.dart';
 
 void main() {
-  test('records entries and reports emptiness', () {
+  test('begins a session with a started event and request body', () {
     final log = DebugLog();
     expect(log.isEmpty, isTrue);
 
-    log.add(DebugKind.request, 'POST /chat/completions');
+    final s = log.begin(
+      title: 'Explain vectors',
+      model: 'ai21/jamba',
+      requestBody: '{"model":"ai21/jamba"}',
+    );
+
     expect(log.isEmpty, isFalse);
-    expect(log.length, 1);
-    expect(log.entries.single.title, 'POST /chat/completions');
+    expect(s, isNotNull);
+    expect(s!.title, 'Explain vectors');
+    expect(s.model, 'ai21/jamba');
+    expect(s.status, SessionStatus.pending);
+    expect(s.events.map((e) => e.title),
+        containsAll(['Session started', 'Request sent']));
   });
 
-  test('drops oldest entries past capacity', () {
-    final log = DebugLog(capacity: 3);
-    for (var i = 0; i < 5; i++) {
-      log.add(DebugKind.stream, 'chunk $i');
+  test('assembles streamed content and coalesces stream events', () {
+    final log = DebugLog();
+    final s = log.begin(title: 't')!;
+    log.response(s, httpStatus: 200);
+
+    // Two deltas within the coalesce window collapse into one event.
+    log.chunk(s, '{"d":1}', content: 'Hello ');
+    log.chunk(s, '{"d":2}', content: 'world');
+
+    expect(s.content, 'Hello world');
+    expect(s.status, SessionStatus.streaming);
+    expect(s.chunkCount, 2);
+    expect(s.firstTokenAt, isNotNull);
+    final streamEvents = s.events.where((e) => e.title == 'Streaming').toList();
+    expect(streamEvents.length, 1);
+    expect(streamEvents.single.subtitle, 'Hello world');
+  });
+
+  test('captures reasoning deltas separately', () {
+    final log = DebugLog();
+    final s = log.begin(title: 't')!;
+    log.chunk(s, '{}', reasoning: 'thinking…');
+    expect(s.hasReasoning, isTrue);
+    expect(s.reasoning, 'thinking…');
+    expect(s.hasContent, isFalse);
+  });
+
+  test('complete sets usage, status and finished events', () {
+    final log = DebugLog();
+    final s = log.begin(title: 't')!;
+    log.setUsage(s,
+        const TokenUsage(promptTokens: 5, completionTokens: 7, cost: 0.01));
+    log.complete(s, httpStatus: 200, finishReason: 'stop');
+
+    expect(s.status, SessionStatus.done);
+    expect(s.completedAt, isNotNull);
+    expect(s.usage!.totalTokens, 12);
+    expect(s.events.map((e) => e.title),
+        containsAll(['Completed', 'Session finished']));
+  });
+
+  test('fail records an error event and status', () {
+    final log = DebugLog();
+    final s = log.begin(title: 't')!;
+    log.fail(s, 'nope', httpStatus: 400);
+
+    expect(s.status, SessionStatus.error);
+    expect(s.error, 'nope');
+    expect(s.httpStatus, 400);
+    expect(s.events.any((e) => e.category == DebugCategory.error), isTrue);
+  });
+
+  test('drops oldest sessions past capacity', () {
+    final log = DebugLog(capacity: 2);
+    for (var i = 0; i < 4; i++) {
+      log.begin(title: 's$i');
     }
-    expect(log.length, 3);
-    expect(log.entries.first.title, 'chunk 2'); // 0 and 1 dropped
-    expect(log.entries.last.title, 'chunk 4');
+    expect(log.length, 2);
+    expect(log.sessions.first.title, 's2');
+    expect(log.sessions.last.title, 's3');
   });
 
-  test('does not record while capture is disabled', () {
+  test('does not capture while disabled, and clear empties', () {
     final log = DebugLog()..enabled = false;
-    log.add(DebugKind.info, 'ignored');
+    expect(log.begin(title: 'x'), isNull);
     expect(log.isEmpty, isTrue);
-  });
 
-  test('clear empties the log', () {
-    final log = DebugLog()..add(DebugKind.info, 'x');
+    log.enabled = true;
+    log.begin(title: 'y');
+    expect(log.isEmpty, isFalse);
     log.clear();
     expect(log.isEmpty, isTrue);
   });
 
-  group('DebugEntry JSON detection', () {
-    DebugEntry entry(String? detail) => DebugEntry(
-          time: DateTime(2026),
-          kind: DebugKind.response,
-          title: 't',
-          detail: detail,
-        );
-
-    test('pretty-prints JSON detail', () {
-      final e = entry('{"a":1,"b":[2,3]}');
-      expect(e.isJson, isTrue);
-      expect(e.prettyDetail, contains('\n')); // indented across lines
-      expect(e.prettyDetail, contains('"a": 1'));
-    });
-
-    test('leaves non-JSON detail untouched', () {
-      final e = entry('OPENROUTER PROCESSING');
-      expect(e.isJson, isFalse);
-      expect(e.prettyDetail, 'OPENROUTER PROCESSING');
-    });
-
-    test('null detail is null', () {
-      expect(entry(null).prettyDetail, isNull);
-      expect(entry(null).isJson, isFalse);
-    });
+  test('pretty-prints JSON request bodies', () {
+    final log = DebugLog();
+    final s = log.begin(title: 't', requestBody: '{"a":1,"b":[2,3]}')!;
+    expect(s.prettyRequest, contains('\n'));
+    expect(s.prettyRequest, contains('"a": 1'));
   });
 }

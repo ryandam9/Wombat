@@ -100,30 +100,38 @@ void main() {
       expect(chunks, ['Hel', 'lo']);
     });
 
-    test('records request, frames and keep-alives in the debug log', () async {
+    test('records a session with assembled content in the debug log',
+        () async {
       final client = MockClient.streaming((request, bodyStream) async {
         return sse([
-          'data: {"choices":[{"delta":{"content":"Hi"}}]}',
+          'data: {"choices":[{"delta":{"content":"Hel"}}]}',
           ': OPENROUTER PROCESSING',
+          'data: {"choices":[{"delta":{"content":"lo"},"finish_reason":"stop"}]}',
+          'data: {"usage":{"prompt_tokens":2,"completion_tokens":3,"cost":0.01}}',
           'data: [DONE]',
         ]);
       });
       final debug = DebugLog();
 
-      await OpenRouterService(client: client, debug: debug)
-          .streamChat(apiKey: 'k', model: 'm', messages: []).toList();
+      await OpenRouterService(client: client, debug: debug).streamChat(
+        apiKey: 'k',
+        model: 'm',
+        messages: [
+          ChatMessage(id: '1', role: MessageRole.user, content: 'say hi'),
+        ],
+      ).toList();
 
-      final kinds = debug.entries.map((e) => e.kind).toList();
-      expect(kinds, contains(DebugKind.request));
-      expect(kinds, contains(DebugKind.response));
-      expect(kinds, contains(DebugKind.stream)); // the chunk
-      expect(kinds, contains(DebugKind.info)); // keep-alive + done
-      // The request entry carries the JSON body.
-      final req = debug.entries.firstWhere((e) => e.kind == DebugKind.request);
-      expect(req.isJson, isTrue);
+      expect(debug.length, 1);
+      final s = debug.sessions.single;
+      expect(s.title, 'say hi'); // links the prompt to the session
+      expect(s.model, 'm');
+      expect(s.content, 'Hello'); // assembled, not fragmented
+      expect(s.status, SessionStatus.done);
+      expect(s.usage!.totalTokens, 5);
+      expect(s.requestBody, isNotNull);
     });
 
-    test('logs an error entry on non-200', () async {
+    test('records an error session on non-200', () async {
       final client = MockClient.streaming((request, bodyStream) async {
         return http.StreamedResponse(
           Stream.value(utf8.encode('{"error":{"message":"nope"}}')),
@@ -137,7 +145,9 @@ void main() {
             .streamChat(apiKey: 'k', model: 'm', messages: []).toList(),
         throwsA(isA<OpenRouterException>()),
       );
-      expect(debug.entries.any((e) => e.kind == DebugKind.error), isTrue);
+      final s = debug.sessions.single;
+      expect(s.status, SessionStatus.error);
+      expect(s.httpStatus, 400);
     });
 
     test('skips malformed frames without aborting', () async {

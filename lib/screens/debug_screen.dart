@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
@@ -5,19 +7,20 @@ import 'package:provider/provider.dart';
 
 import '../services/debug_log.dart';
 
-/// A live debug panel showing API requests, responses and streaming frames
-/// with second-precision timestamps. JSON payloads are pretty-printed.
+/// Debug panel. Lists API exchanges as sessions (one per prompt → response);
+/// tapping one opens a detailed view tying the model, prompt, timing, token
+/// usage and the assembled streamed reply together.
 class DebugScreen extends StatelessWidget {
   const DebugScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     final log = context.watch<DebugLog>();
-    final entries = log.entries.reversed.toList(); // newest first
+    final sessions = log.sessions.reversed.toList(); // newest first
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Debug'),
+        title: const Text('Debug sessions'),
         actions: [
           Row(
             children: [
@@ -29,112 +32,95 @@ class DebugScreen extends StatelessWidget {
             ],
           ),
           IconButton(
-            icon: const Icon(Icons.copy_all),
-            tooltip: 'Copy all',
-            onPressed: log.isEmpty
-                ? null
-                : () {
-                    Clipboard.setData(ClipboardData(text: _asText(log)));
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Debug log copied')),
-                    );
-                  },
-          ),
-          IconButton(
             icon: const Icon(Icons.delete_outline),
             tooltip: 'Clear',
             onPressed: log.isEmpty ? null : context.read<DebugLog>().clear,
           ),
         ],
       ),
-      body: entries.isEmpty
+      body: sessions.isEmpty
           ? const _EmptyDebug()
           : ListView.separated(
               padding: const EdgeInsets.all(12),
-              itemCount: entries.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 6),
-              itemBuilder: (context, i) => _EntryTile(entry: entries[i]),
+              itemCount: sessions.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 8),
+              itemBuilder: (_, i) => _SessionCard(session: sessions[i]),
             ),
     );
   }
-
-  String _asText(DebugLog log) {
-    final fmt = DateFormat('HH:mm:ss.SSS');
-    return log.entries
-        .map((e) => '[${fmt.format(e.time)}] ${e.kind.name.toUpperCase()} '
-            '${e.title}${e.detail != null ? '\n${e.prettyDetail}' : ''}')
-        .join('\n\n');
-  }
 }
 
-class _EntryTile extends StatelessWidget {
-  const _EntryTile({required this.entry});
+class _SessionCard extends StatelessWidget {
+  const _SessionCard({required this.session});
 
-  final DebugEntry entry;
+  final DebugSession session;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final (color, icon) = _styleFor(entry.kind, scheme);
-    final time = DateFormat('HH:mm:ss.SSS').format(entry.time);
+    final usage = session.usage;
 
-    final titleRow = Row(
-      children: [
-        Icon(icon, size: 16, color: color),
-        const SizedBox(width: 8),
-        Text(time,
-            style: theme.textTheme.labelSmall?.copyWith(color: scheme.outline)),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Text(entry.title,
-              style: theme.textTheme.bodyMedium
-                  ?.copyWith(fontWeight: FontWeight.w600)),
+    return Material(
+      color: scheme.surfaceContainerHighest,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => _SessionDetailScreen(session: session),
+          ),
         ),
-      ],
-    );
-
-    final detail = entry.prettyDetail;
-    if (detail == null) {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: _boxDecoration(scheme, color),
-        child: titleRow,
-      );
-    }
-
-    return Container(
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(10),
-        border: Border(left: BorderSide(color: color, width: 3)),
-      ),
-      child: Material(
-        color: scheme.surfaceContainerHighest,
-        child: Theme(
-          // Strip the divider lines ExpansionTile draws by default.
-          data: theme.copyWith(dividerColor: Colors.transparent),
-          child: ExpansionTile(
-            tilePadding: const EdgeInsets.symmetric(horizontal: 12),
-            childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-            title: titleRow,
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: scheme.outlineVariant),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: scheme.surfaceContainerLowest,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: scheme.outlineVariant),
+              Row(
+                children: [
+                  _StatusDot(status: session.status),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      session.title,
+                      style: theme.textTheme.titleSmall
+                          ?.copyWith(fontWeight: FontWeight.w600),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
-                  child: SelectableText(
-                    detail,
-                    style: const TextStyle(
-                        fontFamily: 'monospace', fontSize: 12, height: 1.4),
+                  Text(DateFormat('HH:mm:ss').format(session.startedAt),
+                      style: theme.textTheme.labelSmall
+                          ?.copyWith(color: scheme.outline)),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 8,
+                runSpacing: 4,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  if (session.model != null)
+                    _MetaPill(icon: Icons.smart_toy_outlined, text: session.model!),
+                  _MetaPill(
+                    icon: Icons.timer_outlined,
+                    text: _fmtDuration(session.duration),
                   ),
-                ),
+                  if (usage != null)
+                    _MetaPill(
+                      icon: Icons.toll_outlined,
+                      text: '${usage.totalTokens} tok',
+                    ),
+                  if (usage != null)
+                    _MetaPill(
+                      icon: Icons.attach_money,
+                      text: usage.cost.toStringAsFixed(4),
+                    ),
+                ],
               ),
             ],
           ),
@@ -142,23 +128,472 @@ class _EntryTile extends StatelessWidget {
       ),
     );
   }
+}
 
-  BoxDecoration _boxDecoration(ColorScheme scheme, Color accent) =>
-      BoxDecoration(
-        color: scheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(10),
-        border: Border(left: BorderSide(color: accent, width: 3)),
-      );
+/// Full detail for one session: stat header, a filterable event timeline, and
+/// the assembled response / request / raw frames.
+class _SessionDetailScreen extends StatefulWidget {
+  const _SessionDetailScreen({required this.session});
 
-  (Color, IconData) _styleFor(DebugKind kind, ColorScheme scheme) =>
-      switch (kind) {
-        DebugKind.request => (scheme.primary, Icons.north_east),
-        DebugKind.response => (const Color(0xFF2E9E5B), Icons.south_west),
-        DebugKind.stream => (const Color(0xFF1E88E5), Icons.bolt),
-        DebugKind.usage => (const Color(0xFFE08A00), Icons.toll),
-        DebugKind.error => (scheme.error, Icons.error_outline),
-        DebugKind.info => (scheme.outline, Icons.info_outline),
-      };
+  final DebugSession session;
+
+  @override
+  State<_SessionDetailScreen> createState() => _SessionDetailScreenState();
+}
+
+class _SessionDetailScreenState extends State<_SessionDetailScreen> {
+  DebugCategory? _filter; // null == All
+
+  DebugSession get session => widget.session;
+
+  @override
+  Widget build(BuildContext context) {
+    // Rebuild as the session streams in.
+    context.watch<DebugLog>();
+    final wide = MediaQuery.of(context).size.width >= 900;
+
+    final timeline = _Timeline(
+      session: session,
+      filter: _filter,
+      onFilter: (f) => setState(() => _filter = f),
+    );
+    final detail = _ResponseDetail(session: session);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(session.title, overflow: TextOverflow.ellipsis),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.copy_all),
+            tooltip: 'Copy session',
+            onPressed: () {
+              Clipboard.setData(ClipboardData(text: _sessionAsText(session)));
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Session copied')),
+              );
+            },
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          _StatHeader(session: session),
+          const Divider(height: 1),
+          Expanded(
+            child: wide
+                ? Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Expanded(child: timeline),
+                      const VerticalDivider(width: 1),
+                      Expanded(child: detail),
+                    ],
+                  )
+                : ListView(
+                    children: [
+                      detail,
+                      const Divider(height: 1),
+                      SizedBox(height: 360, child: timeline),
+                    ],
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StatHeader extends StatelessWidget {
+  const _StatHeader({required this.session});
+
+  final DebugSession session;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final usage = session.usage;
+    final ttft = session.timeToFirstToken;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              _StatusDot(status: session.status),
+              const SizedBox(width: 8),
+              Text(_statusLabel(session.status),
+                  style: theme.textTheme.titleSmall),
+              const Spacer(),
+              Text(session.id,
+                  style: theme.textTheme.labelSmall
+                      ?.copyWith(color: scheme.outline)),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 20,
+            runSpacing: 10,
+            children: [
+              _Stat(label: 'Model', value: session.model ?? '—'),
+              _Stat(label: 'Duration', value: _fmtDuration(session.duration)),
+              if (ttft != null)
+                _Stat(label: 'First token', value: _fmtDuration(ttft)),
+              _Stat(
+                label: 'Tokens (in/out)',
+                value: usage == null
+                    ? '—'
+                    : '${usage.promptTokens} / ${usage.completionTokens}',
+              ),
+              _Stat(
+                label: 'Cost',
+                value: usage == null ? '—' : '\$${usage.cost.toStringAsFixed(4)}',
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Stat extends StatelessWidget {
+  const _Stat({required this.label, required this.value});
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(label.toUpperCase(),
+            style: theme.textTheme.labelSmall
+                ?.copyWith(color: theme.colorScheme.outline)),
+        Text(value,
+            style: theme.textTheme.titleSmall
+                ?.copyWith(fontWeight: FontWeight.w700)),
+      ],
+    );
+  }
+}
+
+class _Timeline extends StatelessWidget {
+  const _Timeline({
+    required this.session,
+    required this.filter,
+    required this.onFilter,
+  });
+
+  final DebugSession session;
+  final DebugCategory? filter;
+  final ValueChanged<DebugCategory?> onFilter;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final events = filter == null
+        ? session.events
+        : session.events.where((e) => e.category == filter).toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
+          child: Row(
+            children: [
+              Text('Event stream',
+                  style: theme.textTheme.titleSmall
+                      ?.copyWith(fontWeight: FontWeight.w700)),
+              const SizedBox(width: 8),
+              Text('${session.events.length} events',
+                  style: theme.textTheme.labelSmall
+                      ?.copyWith(color: theme.colorScheme.outline)),
+            ],
+          ),
+        ),
+        SizedBox(
+          height: 40,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            children: [
+              _filterChip(context, 'All', null),
+              _filterChip(context, 'Request', DebugCategory.request),
+              _filterChip(context, 'Response', DebugCategory.response),
+              _filterChip(context, 'System', DebugCategory.system),
+              _filterChip(context, 'Error', DebugCategory.error),
+            ],
+          ),
+        ),
+        const Divider(height: 1),
+        Expanded(
+          child: events.isEmpty
+              ? Center(
+                  child: Text('No events',
+                      style: TextStyle(color: theme.colorScheme.outline)),
+                )
+              : ListView.builder(
+                  padding: const EdgeInsets.all(12),
+                  itemCount: events.length,
+                  itemBuilder: (_, i) => _EventTile(event: events[i]),
+                ),
+        ),
+      ],
+    );
+  }
+
+  Widget _filterChip(BuildContext context, String label, DebugCategory? cat) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: ChoiceChip(
+        label: Text(label),
+        selected: filter == cat,
+        onSelected: (_) => onFilter(cat),
+      ),
+    );
+  }
+}
+
+class _EventTile extends StatelessWidget {
+  const _EventTile({required this.event});
+
+  final DebugEvent event;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final (color, icon) = _categoryStyle(event.category, scheme);
+    final time = DateFormat('HH:mm:ss.SSS').format(event.time);
+    final subtitle = event.subtitle;
+
+    final row = Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 15, color: color),
+          const SizedBox(width: 8),
+          SizedBox(
+            width: 78,
+            child: Text(time,
+                style: theme.textTheme.labelSmall
+                    ?.copyWith(color: scheme.outline)),
+          ),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(event.title,
+                    style: theme.textTheme.bodySmall
+                        ?.copyWith(fontWeight: FontWeight.w600)),
+                if (subtitle.isNotEmpty)
+                  Text(subtitle,
+                      style: theme.textTheme.bodySmall
+                          ?.copyWith(color: scheme.onSurfaceVariant),
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis),
+              ],
+            ),
+          ),
+          if (event.status != null) ...[
+            const SizedBox(width: 8),
+            Text(event.status!,
+                style: theme.textTheme.labelSmall?.copyWith(color: color)),
+          ],
+        ],
+      ),
+    );
+
+    if (event.detail == null) return row;
+    return Theme(
+      data: theme.copyWith(dividerColor: Colors.transparent),
+      child: ExpansionTile(
+        tilePadding: EdgeInsets.zero,
+        childrenPadding: const EdgeInsets.only(bottom: 10),
+        title: row,
+        children: [_CodeBlock(text: _pretty(event.detail!))],
+      ),
+    );
+  }
+}
+
+/// The right-hand detail: assembled response, request body, raw frames.
+class _ResponseDetail extends StatelessWidget {
+  const _ResponseDetail({required this.session});
+
+  final DebugSession session;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        if (session.error != null) ...[
+          const _SectionTitle('Error'),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: scheme.errorContainer,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: SelectableText(session.error!,
+                style: TextStyle(color: scheme.onErrorContainer)),
+          ),
+          const SizedBox(height: 16),
+        ],
+        const _SectionTitle('Response (assembled)'),
+        if (session.hasContent)
+          _CodeBlock(text: session.content, mono: false)
+        else if (session.responseBody != null)
+          _CodeBlock(text: session.prettyResponse!)
+        else if (session.summary != null)
+          Text(session.summary!, style: theme.textTheme.bodyMedium)
+        else
+          Text(
+            session.isLive ? 'Waiting for tokens…' : 'No content',
+            style: TextStyle(color: scheme.outline),
+          ),
+        if (session.hasReasoning) ...[
+          const SizedBox(height: 16),
+          const _SectionTitle('Reasoning'),
+          _CodeBlock(text: session.reasoning, mono: false),
+        ],
+        if (session.requestBody != null) ...[
+          const SizedBox(height: 16),
+          _Collapsible(
+            title: 'Request body',
+            child: _CodeBlock(text: session.prettyRequest!),
+          ),
+        ],
+        if (session.rawFrames.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          _Collapsible(
+            title: 'Raw frames (${session.rawFrames.length})',
+            child: _CodeBlock(text: session.rawFrames.join('\n')),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _SectionTitle extends StatelessWidget {
+  const _SectionTitle(this.text);
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Text(text,
+          style: Theme.of(context)
+              .textTheme
+              .titleSmall
+              ?.copyWith(fontWeight: FontWeight.w700)),
+    );
+  }
+}
+
+class _Collapsible extends StatelessWidget {
+  const _Collapsible({required this.title, required this.child});
+  final String title;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Theme(
+      data: theme.copyWith(dividerColor: Colors.transparent),
+      child: ExpansionTile(
+        tilePadding: EdgeInsets.zero,
+        childrenPadding: const EdgeInsets.only(bottom: 8),
+        title: Text(title,
+            style: theme.textTheme.titleSmall
+                ?.copyWith(fontWeight: FontWeight.w700)),
+        children: [child],
+      ),
+    );
+  }
+}
+
+class _CodeBlock extends StatelessWidget {
+  const _CodeBlock({required this.text, this.mono = true});
+  final String text;
+  final bool mono;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: scheme.outlineVariant),
+      ),
+      child: SelectableText(
+        text,
+        style: TextStyle(
+          fontFamily: mono ? 'monospace' : null,
+          fontSize: 12.5,
+          height: 1.4,
+        ),
+      ),
+    );
+  }
+}
+
+class _MetaPill extends StatelessWidget {
+  const _MetaPill({required this.icon, required this.text});
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 14, color: theme.colorScheme.outline),
+        const SizedBox(width: 4),
+        Text(text,
+            style: theme.textTheme.labelSmall
+                ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+      ],
+    );
+  }
+}
+
+class _StatusDot extends StatelessWidget {
+  const _StatusDot({required this.status});
+  final SessionStatus status;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final color = switch (status) {
+      SessionStatus.pending => scheme.outline,
+      SessionStatus.streaming => const Color(0xFF1E88E5),
+      SessionStatus.done => const Color(0xFF2E9E5B),
+      SessionStatus.error => scheme.error,
+    };
+    return Container(
+      width: 10,
+      height: 10,
+      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+    );
+  }
 }
 
 class _EmptyDebug extends StatelessWidget {
@@ -176,12 +611,12 @@ class _EmptyDebug extends StatelessWidget {
             Icon(Icons.bug_report_outlined,
                 size: 48, color: theme.colorScheme.outline),
             const SizedBox(height: 12),
-            Text('No activity yet',
-                style: theme.textTheme.titleMedium),
+            Text('No sessions yet', style: theme.textTheme.titleMedium),
             const SizedBox(height: 4),
             Text(
-              'Send a message or load models — API requests, responses and '
-              'streaming frames will show up here with timestamps.',
+              'Send a message or load models. Each API call is captured as a '
+              'session showing the model, prompt, timing, tokens and the '
+              'assembled response.',
               textAlign: TextAlign.center,
               style: theme.textTheme.bodySmall
                   ?.copyWith(color: theme.colorScheme.outline),
@@ -191,4 +626,57 @@ class _EmptyDebug extends StatelessWidget {
       ),
     );
   }
+}
+
+// ── Shared helpers ──────────────────────────────────────────────────────────
+
+(Color, IconData) _categoryStyle(DebugCategory cat, ColorScheme scheme) =>
+    switch (cat) {
+      DebugCategory.request => (scheme.primary, Icons.north_east),
+      DebugCategory.response => (const Color(0xFF1E88E5), Icons.south_west),
+      DebugCategory.system => (scheme.outline, Icons.info_outline),
+      DebugCategory.error => (scheme.error, Icons.error_outline),
+    };
+
+String _statusLabel(SessionStatus s) => switch (s) {
+      SessionStatus.pending => 'Pending',
+      SessionStatus.streaming => 'Streaming',
+      SessionStatus.done => 'Completed',
+      SessionStatus.error => 'Error',
+    };
+
+String _fmtDuration(Duration d) {
+  if (d.inMilliseconds < 1000) return '${d.inMilliseconds}ms';
+  final s = d.inMilliseconds / 1000;
+  return '${s.toStringAsFixed(s >= 10 ? 0 : 1)}s';
+}
+
+String _pretty(String s) {
+  final t = s.trimLeft();
+  if (!t.startsWith('{') && !t.startsWith('[')) return s;
+  try {
+    return const JsonEncoder.withIndent('  ').convert(jsonDecode(s));
+  } catch (_) {
+    return s;
+  }
+}
+
+String _sessionAsText(DebugSession s) {
+  final fmt = DateFormat('HH:mm:ss.SSS');
+  final buffer = StringBuffer()
+    ..writeln('Session ${s.id} — ${s.title}')
+    ..writeln('Model: ${s.model ?? '—'}')
+    ..writeln('Status: ${_statusLabel(s.status)}  Duration: ${_fmtDuration(s.duration)}');
+  if (s.usage != null) {
+    buffer.writeln(
+        'Tokens in/out: ${s.usage!.promptTokens}/${s.usage!.completionTokens}  '
+        'Cost: \$${s.usage!.cost.toStringAsFixed(4)}');
+  }
+  buffer.writeln('\nEvents:');
+  for (final e in s.events) {
+    buffer.writeln('[${fmt.format(e.time)}] ${e.title}'
+        '${e.subtitle.isNotEmpty ? ' — ${e.subtitle}' : ''}');
+  }
+  if (s.hasContent) buffer.writeln('\nResponse:\n${s.content}');
+  return buffer.toString();
 }
