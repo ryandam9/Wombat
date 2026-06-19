@@ -33,39 +33,32 @@ State management uses [`provider`](https://pub.dev/packages/provider).
 
 ## Getting started
 
-This repository contains the Dart source and configuration. The native
-platform folders (`android/`, `linux/`, etc.) are **not** committed — generate
-them locally with the Flutter CLI.
+This repository includes the **Android** and **Linux** platform folders. To
+target other platforms, generate their scaffolding with the Flutter CLI:
+
+```bash
+# Adds the requested platforms without touching lib/ or pubspec.yaml
+flutter create --platforms=windows,macos,ios,web .
+```
 
 ### 1. Install Flutter
 
 Follow https://docs.flutter.dev/get-started/install (Flutter 3.27+ / Dart 3.6+).
 
-### 2. Generate the platform scaffolding
-
-From the project root:
-
-```bash
-# Generates android/, linux/, etc. without touching lib/ or pubspec.yaml
-flutter create --platforms=android,linux .
-```
-
-Add `windows`, `macos`, or `ios` to the list if you want those targets too.
-
-### 3. Install dependencies
+### 2. Install dependencies
 
 ```bash
 flutter pub get
 ```
 
-### 4. Run
+### 3. Run
 
 ```bash
 flutter run -d linux     # desktop
 flutter run -d android   # connected device / emulator
 ```
 
-### 5. Add your API key
+### 4. Add your API key
 
 Open **Settings** (gear icon, top-left), paste your key from
 [openrouter.ai/keys](https://openrouter.ai/keys), and Save. Then start a new
