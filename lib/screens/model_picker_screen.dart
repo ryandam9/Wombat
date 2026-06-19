@@ -1,9 +1,12 @@
+import 'package:auris/auris_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../models/openrouter_model.dart';
 import '../providers/settings_provider.dart';
 import '../services/openrouter_service.dart';
+
+enum _Sort { name, context, price }
 
 /// Fetches the OpenRouter model catalogue and lets the user pick one.
 /// Pops with the selected model id (a [String]).
@@ -18,6 +21,7 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
   late Future<List<OpenRouterModel>> _future;
   String _query = '';
   bool _freeOnly = false;
+  _Sort _sort = _Sort.name;
 
   @override
   void initState() {
@@ -37,14 +41,24 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
 
   void _reload() => setState(() => _future = _load());
 
-  List<OpenRouterModel> _filter(List<OpenRouterModel> models) {
+  List<OpenRouterModel> _filterAndSort(List<OpenRouterModel> models) {
     final q = _query.toLowerCase();
-    return models.where((m) {
+    final list = models.where((m) {
       if (_freeOnly && !m.isFree) return false;
       if (q.isEmpty) return true;
       return m.id.toLowerCase().contains(q) ||
           m.name.toLowerCase().contains(q);
     }).toList();
+
+    switch (_sort) {
+      case _Sort.name:
+        list.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+      case _Sort.context:
+        list.sort((a, b) => (b.contextLength ?? 0).compareTo(a.contextLength ?? 0));
+      case _Sort.price:
+        list.sort((a, b) => (a.promptPrice ?? 0).compareTo(b.promptPrice ?? 0));
+    }
+    return list;
   }
 
   @override
@@ -74,15 +88,28 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
               onChanged: (v) => setState(() => _query = v),
             ),
           ),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              child: FilterChip(
-                label: const Text('Free only'),
-                selected: _freeOnly,
-                onSelected: (v) => setState(() => _freeOnly = v),
-              ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            child: Row(
+              children: [
+                AurisSwitch(
+                  value: _freeOnly,
+                  label: 'FREE ONLY',
+                  onChanged: (v) => setState(() => _freeOnly = v),
+                ),
+                const Spacer(),
+                AurisSelect<_Sort>(
+                  value: _sort,
+                  placeholder: 'SORT',
+                  width: 150,
+                  options: const [
+                    AurisSelectOption(value: _Sort.name, label: 'NAME'),
+                    AurisSelectOption(value: _Sort.context, label: 'CONTEXT'),
+                    AurisSelectOption(value: _Sort.price, label: 'PRICE'),
+                  ],
+                  onChanged: (v) => setState(() => _sort = v),
+                ),
+              ],
             ),
           ),
           Expanded(
@@ -98,15 +125,23 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
                     onRetry: _reload,
                   );
                 }
-                final models = _filter(snapshot.data ?? []);
+                final models = _filterAndSort(snapshot.data ?? []);
                 if (models.isEmpty) {
                   return const Center(child: Text('No matching models'));
                 }
-                return ListView.separated(
+                final maxContext = models
+                    .map((m) => m.contextLength ?? 0)
+                    .fold<int>(1, (a, b) => a > b ? a : b);
+                return ListView.builder(
+                  padding: const EdgeInsets.all(12),
                   itemCount: models.length,
-                  separatorBuilder: (_, __) => const Divider(height: 1),
-                  itemBuilder: (context, index) =>
-                      _ModelTile(model: models[index]),
+                  itemBuilder: (context, index) => Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: _ModelTile(
+                      model: models[index],
+                      maxContext: maxContext,
+                    ),
+                  ),
                 );
               },
             ),
@@ -118,49 +153,65 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
 }
 
 class _ModelTile extends StatelessWidget {
-  const _ModelTile({required this.model});
+  const _ModelTile({required this.model, required this.maxContext});
 
   final OpenRouterModel model;
+  final int maxContext;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return ListTile(
-      title: Text(model.name),
-      subtitle: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(model.id, style: theme.textTheme.bodySmall),
-          const SizedBox(height: 2),
-          Text(
-            _details(),
-            style: theme.textTheme.bodySmall
-                ?.copyWith(color: theme.colorScheme.outline),
-          ),
-        ],
-      ),
-      trailing: model.isFree
-          ? Chip(
-              label: const Text('Free'),
-              visualDensity: VisualDensity.compact,
-              backgroundColor: theme.colorScheme.tertiaryContainer,
-            )
-          : null,
-      onTap: () => Navigator.of(context).pop(model.id),
-    );
-  }
+    final ctx = model.contextLength ?? 0;
 
-  String _details() {
-    final parts = <String>[];
-    if (model.contextLength != null) {
-      parts.add('${_compact(model.contextLength!)} ctx');
-    }
-    if (!model.isFree && model.promptPrice != null) {
-      // Pricing from the API is per-token; show per-million for readability.
-      final perMillion = model.promptPrice! * 1000000;
-      parts.add('\$${perMillion.toStringAsFixed(2)}/M in');
-    }
-    return parts.join('  ·  ');
+    return InkWell(
+      onTap: () => Navigator.of(context).pop(model.id),
+      child: AurisContainer(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    model.name,
+                    style: theme.textTheme.titleSmall,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                if (model.isFree)
+                  const AurisBadge('FREE', variant: AurisBadgeVariant.success),
+              ],
+            ),
+            const SizedBox(height: 2),
+            Text(
+              model.id,
+              style: theme.textTheme.bodySmall
+                  ?.copyWith(color: theme.colorScheme.outline),
+            ),
+            if (ctx > 0) ...[
+              const SizedBox(height: 10),
+              AurisProgressBar(
+                value: (ctx / maxContext).clamp(0.0, 1.0),
+                label: 'CONTEXT',
+                valueLabel: _compact(ctx),
+                segments: 16,
+                height: 8,
+              ),
+            ],
+            if (!model.isFree && model.promptPrice != null) ...[
+              const SizedBox(height: 8),
+              AurisDataRow(
+                label: 'Prompt',
+                value: '\$${(model.promptPrice! * 1000000).toStringAsFixed(2)}/M',
+                height: 28,
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
   }
 
   String _compact(int n) {
@@ -184,9 +235,11 @@ class _ErrorView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.cloud_off, size: 48),
-            const SizedBox(height: 12),
-            Text(message, textAlign: TextAlign.center),
+            AurisNotification(
+              title: 'CATALOGUE UNAVAILABLE',
+              message: message,
+              variant: AurisNotificationVariant.error,
+            ),
             const SizedBox(height: 16),
             FilledButton.icon(
               onPressed: onRetry,

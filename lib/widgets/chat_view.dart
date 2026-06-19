@@ -1,7 +1,9 @@
+import 'package:auris/auris_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/chat_provider.dart';
+import '../providers/settings_provider.dart';
 import 'chat_input.dart';
 import 'message_bubble.dart';
 import 'model_selector.dart';
@@ -30,7 +32,16 @@ class ChatView extends StatelessWidget {
                   ? const _EmptyState()
                   : _MessageList(key: ValueKey(convo.id)),
         ),
-        if (chat.error != null) _ErrorBanner(message: chat.error!),
+        if (chat.error != null)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
+            child: AurisNotification(
+              title: 'TRANSMISSION ERROR',
+              message: chat.error!,
+              variant: AurisNotificationVariant.error,
+              onDismiss: () => context.read<ChatProvider>().clearError(),
+            ),
+          ),
         const ChatInput(),
       ],
     );
@@ -44,6 +55,8 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final responding =
+        context.select<ChatProvider, bool>((c) => c.isResponding);
     return SafeArea(
       bottom: false,
       child: Padding(
@@ -56,7 +69,12 @@ class _Header extends StatelessWidget {
                 tooltip: 'Conversations',
                 onPressed: () => Scaffold.of(context).openDrawer(),
               ),
-            const Expanded(child: ModelSelector()),
+            Expanded(
+              child: AurisScanBracket(
+                pulse: responding,
+                child: const ModelSelector(),
+              ),
+            ),
             const SizedBox(width: 8),
             IconButton(
               icon: const Icon(Icons.add_comment_outlined),
@@ -94,7 +112,6 @@ class _MessageListState extends State<_MessageList> {
   @override
   Widget build(BuildContext context) {
     final convo = context.watch<ChatProvider>().current!;
-    // Keep the latest message in view as tokens stream in.
     WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
 
     return ListView.builder(
@@ -107,62 +124,99 @@ class _MessageListState extends State<_MessageList> {
   }
 }
 
+/// HUD-styled welcome screen shown when there is no active conversation.
 class _EmptyState extends StatelessWidget {
   const _EmptyState();
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.alt_route, size: 64, color: theme.colorScheme.primary),
-          const SizedBox(height: 16),
-          Text('Start a conversation', style: theme.textTheme.titleMedium),
-          const SizedBox(height: 8),
-          Text(
-            'Pick a model above and send a message.',
-            style: theme.textTheme.bodyMedium
-                ?.copyWith(color: theme.colorScheme.outline),
-          ),
-        ],
-      ),
-    );
-  }
-}
+    final chat = context.watch<ChatProvider>();
+    final settings = context.watch<SettingsProvider>();
+    final hasKey = settings.hasApiKey;
 
-class _ErrorBanner extends StatelessWidget {
-  const _ErrorBanner({required this.message});
-
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Material(
-      color: theme.colorScheme.errorContainer,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        child: Row(
-          children: [
-            Icon(Icons.error_outline,
-                size: 20, color: theme.colorScheme.onErrorContainer),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                message,
-                style: TextStyle(color: theme.colorScheme.onErrorContainer),
+    return Stack(
+      children: [
+        const Positioned.fill(
+          child: AurisHexOrnament(opacity: 0.12, hexRadius: 26),
+        ),
+        Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 460),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  AurisScanBracket(
+                    pulse: true,
+                    padding: const EdgeInsets.all(14),
+                    child: Icon(
+                      Icons.alt_route,
+                      size: 56,
+                      color: theme.colorScheme.primary,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text('ROUTE', style: theme.textTheme.headlineSmall),
+                  const SizedBox(height: 4),
+                  Text(
+                    'OpenRouter uplink',
+                    style: theme.textTheme.bodyMedium
+                        ?.copyWith(color: theme.colorScheme.outline),
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: AurisStatCard(
+                          label: 'Sessions',
+                          value: '${chat.conversations.length}',
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: AurisStatCard(
+                          label: 'Link',
+                          value: hasKey ? 'ONLINE' : 'NO KEY',
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  AurisPanel(
+                    title: 'System',
+                    code: hasKey ? 'RDY' : 'WARN',
+                    child: AurisTerminal(
+                      title: 'BOOT LOG',
+                      height: 150,
+                      lines: [
+                        const AurisTerminalLine(
+                          '> auris interface initialised',
+                          type: AurisTerminalLineType.ok,
+                        ),
+                        AurisTerminalLine(
+                          hasKey
+                              ? '> api key loaded from secure store'
+                              : '! no api key — open settings',
+                          type: hasKey
+                              ? AurisTerminalLineType.ok
+                              : AurisTerminalLineType.error,
+                        ),
+                        const AurisTerminalLine('> select a model in the header'),
+                        const AurisTerminalLine(
+                          '> type a message to begin',
+                          type: AurisTerminalLineType.augment,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
-            IconButton(
-              icon: Icon(Icons.close,
-                  size: 18, color: theme.colorScheme.onErrorContainer),
-              onPressed: () => context.read<ChatProvider>().clearError(),
-            ),
-          ],
+          ),
         ),
-      ),
+      ],
     );
   }
 }

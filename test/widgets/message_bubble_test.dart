@@ -1,22 +1,29 @@
+import 'package:auris/auris.dart';
+import 'package:auris/auris_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:route/models/chat_message.dart';
 import 'package:route/widgets/message_bubble.dart';
 
+// Auris HUD widgets read their scheme from the AurisTheme extension, so the
+// bubble must be hosted under an AurisTheme-skinned MaterialApp.
 Widget _wrap(ChatMessage message) => MaterialApp(
+      theme: AurisTheme.dark(),
       home: Scaffold(body: MessageBubble(message: message)),
     );
 
 void main() {
-  testWidgets('renders a user message with the "You" label', (tester) async {
+  testWidgets('renders a user message with a YOU badge in a container',
+      (tester) async {
     await tester.pumpWidget(_wrap(
       ChatMessage(id: '1', role: MessageRole.user, content: 'Hello there'),
     ));
 
-    expect(find.text('You'), findsOneWidget);
+    expect(find.text('YOU'), findsOneWidget);
     expect(find.text('Hello there'), findsOneWidget);
-    expect(find.byIcon(Icons.person_outline), findsOneWidget);
+    // The bubble (and the badge) are chamfered Auris containers.
+    expect(find.byType(AurisContainer), findsWidgets);
   });
 
   testWidgets('renders an assistant message as Markdown with a copy button',
@@ -25,7 +32,7 @@ void main() {
       ChatMessage(id: '1', role: MessageRole.assistant, content: '# Title'),
     ));
 
-    expect(find.text('Assistant'), findsOneWidget);
+    expect(find.text('ASSISTANT'), findsOneWidget);
     expect(find.byType(MarkdownBody), findsOneWidget);
     expect(find.text('Copy'), findsOneWidget);
   });
@@ -42,7 +49,6 @@ void main() {
     ));
     await tester.pump(const Duration(milliseconds: 100));
 
-    // Three animated dots, and no copy button while streaming.
     expect(find.byType(CircleAvatar), findsNWidgets(3));
     expect(find.text('Copy'), findsNothing);
   });
