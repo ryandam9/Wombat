@@ -97,6 +97,18 @@ void main() {
     expect(prefs.getBool('animate_model_indicator'), isTrue);
   });
 
+  test('continuousModelBorder defaults to false and persists', () async {
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    final settings = SettingsProvider(FakeSecureStorageService(), prefs);
+    await waitUntil(() => !settings.loading);
+
+    expect(settings.continuousModelBorder, isFalse);
+    await settings.setContinuousModelBorder(true);
+    expect(settings.continuousModelBorder, isTrue);
+    expect(prefs.getBool('continuous_model_border'), isTrue);
+  });
+
   test('font settings default sensibly and persist', () async {
     SharedPreferences.setMockInitialValues({});
     final prefs = await SharedPreferences.getInstance();

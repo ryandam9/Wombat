@@ -298,6 +298,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
           contentPadding: EdgeInsets.zero,
           dense: true,
         ),
+        SwitchListTile(
+          value: settings.continuousModelBorder,
+          onChanged: (v) =>
+              context.read<SettingsProvider>().setContinuousModelBorder(v),
+          title: const Text('Continuously animate the model border'),
+          subtitle: const Text(
+            'Off: the border animates once when you pick a model.',
+          ),
+          contentPadding: EdgeInsets.zero,
+          dense: true,
+        ),
       ],
     );
   }

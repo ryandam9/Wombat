@@ -5,11 +5,16 @@ import 'package:provider/provider.dart';
 
 import '../models/openrouter_model.dart';
 import '../providers/chat_provider.dart';
+import '../providers/settings_provider.dart';
 import '../screens/model_picker_screen.dart';
 
 /// A compact pill showing the current conversation's model that opens the model
-/// picker when tapped. The pill is wrapped in a slowly rotating gradient border
-/// so the selected model always stands out in the header.
+/// picker when tapped. The pill is wrapped in a gradient border so the selected
+/// model stands out in the header.
+///
+/// By default the border sweeps once whenever a new model is selected and then
+/// settles, so it isn't distracting. When [SettingsProvider.continuousModelBorder]
+/// is on, the border spins continuously instead.
 class ModelSelector extends StatefulWidget {
   const ModelSelector({super.key});
 
@@ -22,12 +27,34 @@ class _ModelSelectorState extends State<ModelSelector>
   late final AnimationController _controller = AnimationController(
     vsync: this,
     duration: const Duration(seconds: 4),
-  )..repeat();
+  );
+
+  String? _lastModelId;
+  bool? _lastContinuous;
 
   @override
   void dispose() {
     _controller.dispose();
     super.dispose();
+  }
+
+  /// Drives the border animation in response to model changes and the
+  /// continuous-animation setting. Safe to call on every build: it only acts
+  /// when something relevant actually changed.
+  void _syncAnimation(String modelId, bool continuous) {
+    final modelChanged = modelId != _lastModelId;
+    final continuousChanged = continuous != _lastContinuous;
+    _lastModelId = modelId;
+    _lastContinuous = continuous;
+
+    if (continuous) {
+      // Start (or keep) the endless spin.
+      if (continuousChanged || !_controller.isAnimating) _controller.repeat();
+    } else {
+      // Stop spinning if we just turned it off; sweep once on a model change.
+      if (continuousChanged) _controller.stop();
+      if (modelChanged || continuousChanged) _controller.forward(from: 0);
+    }
   }
 
   Future<void> _openPicker() async {
@@ -46,6 +73,9 @@ class _ModelSelectorState extends State<ModelSelector>
   Widget build(BuildContext context) {
     final chat = context.watch<ChatProvider>();
     final modelId = chat.current?.modelId ?? '—';
+    final continuous = context
+        .select<SettingsProvider, bool>((s) => s.continuousModelBorder);
+    _syncAnimation(modelId, continuous);
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
 

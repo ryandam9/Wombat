@@ -18,6 +18,7 @@ class SettingsProvider extends ChangeNotifier {
   static const _kThemeMode = 'theme_mode';
   static const _kDownloadDir = 'download_dir';
   static const _kAnimateModelIndicator = 'animate_model_indicator';
+  static const _kContinuousModelBorder = 'continuous_model_border';
   static const _kHeadingFont = 'font_heading';
   static const _kUserFont = 'font_user';
   static const _kModelFont = 'font_model';
@@ -35,6 +36,7 @@ class SettingsProvider extends ChangeNotifier {
   ThemeMode _themeMode = ThemeMode.system;
   String? _downloadDir;
   bool _animateModelIndicator = false;
+  bool _continuousModelBorder = false;
   // Roboto Condensed is the default app font (bundled asset).
   AppFont _headingFont = AppFont.robotoCondensed;
   AppFont _userFont = AppFont.robotoCondensed;
@@ -55,6 +57,11 @@ class SettingsProvider extends ChangeNotifier {
   /// Whether the model indicator in the chat header pulses while streaming.
   /// Off by default so it doesn't blink distractingly.
   bool get animateModelIndicator => _animateModelIndicator;
+
+  /// Whether the gradient border around the selected model spins continuously.
+  /// Off by default: the border animates once when a model is selected, then
+  /// settles, so it doesn't distract while reading.
+  bool get continuousModelBorder => _continuousModelBorder;
 
   /// Fonts for headings, user text, model output, and the settings screen.
   AppFont get headingFont => _headingFont;
@@ -86,6 +93,8 @@ class SettingsProvider extends ChangeNotifier {
     _downloadDir = _prefs.getString(_kDownloadDir);
     _animateModelIndicator =
         _prefs.getBool(_kAnimateModelIndicator) ?? false;
+    _continuousModelBorder =
+        _prefs.getBool(_kContinuousModelBorder) ?? false;
     const def = AppFont.robotoCondensed; // default app font
     _headingFont = AppFontX.fromIndex(_prefs.getInt(_kHeadingFont) ?? def.index);
     _userFont = AppFontX.fromIndex(_prefs.getInt(_kUserFont) ?? def.index);
@@ -141,6 +150,12 @@ class SettingsProvider extends ChangeNotifier {
   Future<void> setAnimateModelIndicator(bool value) async {
     _animateModelIndicator = value;
     await _prefs.setBool(_kAnimateModelIndicator, value);
+    notifyListeners();
+  }
+
+  Future<void> setContinuousModelBorder(bool value) async {
+    _continuousModelBorder = value;
+    await _prefs.setBool(_kContinuousModelBorder, value);
     notifyListeners();
   }
 
