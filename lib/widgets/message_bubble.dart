@@ -1,11 +1,13 @@
+import 'package:auris/auris_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 
 import '../models/chat_message.dart';
 
-/// Renders a single chat message. Assistant replies are rendered as Markdown;
-/// user messages as plain selectable text in a coloured bubble.
+/// Renders a single chat message inside a chamfered [AurisContainer].
+/// Assistant replies are rendered as Markdown; user messages as plain
+/// selectable text.
 class MessageBubble extends StatelessWidget {
   const MessageBubble({super.key, required this.message});
 
@@ -23,20 +25,24 @@ class MessageBubble extends StatelessWidget {
       child: Column(
         crossAxisAlignment: align,
         children: [
-          _RoleLabel(isUser: _isUser),
-          const SizedBox(height: 4),
+          AurisBadge(
+            _isUser ? 'YOU' : 'ASSISTANT',
+            variant:
+                _isUser ? AurisBadgeVariant.gold : AurisBadgeVariant.amber,
+          ),
+          const SizedBox(height: 6),
           ConstrainedBox(
             constraints: BoxConstraints(
               maxWidth: _isUser ? 560 : double.infinity,
             ),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              decoration: BoxDecoration(
-                color: _isUser
-                    ? theme.colorScheme.primaryContainer
-                    : theme.colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(14),
-              ),
+            child: AurisContainer(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              fill: _isUser
+                  ? theme.colorScheme.primaryContainer
+                  : theme.colorScheme.surfaceContainerHighest,
+              borderColor: _isUser
+                  ? theme.colorScheme.primary
+                  : theme.colorScheme.outline,
               child: _content(context),
             ),
           ),
@@ -64,9 +70,6 @@ class MessageBubble extends StatelessWidget {
     return MarkdownBody(
       data: message.content,
       selectable: true,
-      onTapLink: (text, href, title) {
-        // Links are non-actionable by default; copy handled via the button.
-      },
       styleSheet: MarkdownStyleSheet.fromTheme(theme).copyWith(
         code: theme.textTheme.bodyMedium?.copyWith(
           fontFamily: 'monospace',
@@ -77,33 +80,6 @@ class MessageBubble extends StatelessWidget {
           borderRadius: BorderRadius.circular(8),
         ),
       ),
-    );
-  }
-}
-
-class _RoleLabel extends StatelessWidget {
-  const _RoleLabel({required this.isUser});
-
-  final bool isUser;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(
-          isUser ? Icons.person_outline : Icons.smart_toy_outlined,
-          size: 16,
-          color: theme.colorScheme.outline,
-        ),
-        const SizedBox(width: 4),
-        Text(
-          isUser ? 'You' : 'Assistant',
-          style: theme.textTheme.labelSmall
-              ?.copyWith(color: theme.colorScheme.outline),
-        ),
-      ],
     );
   }
 }
@@ -161,7 +137,7 @@ class _TypingIndicatorState extends State<_TypingIndicator>
 
   @override
   Widget build(BuildContext context) {
-    final color = Theme.of(context).colorScheme.outline;
+    final color = Theme.of(context).colorScheme.primary;
     return SizedBox(
       height: 16,
       child: AnimatedBuilder(

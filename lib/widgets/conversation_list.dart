@@ -1,3 +1,4 @@
+import 'package:auris/auris_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -27,9 +28,18 @@ class ConversationList extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(16, 16, 8, 8),
             child: Row(
               children: [
-                Icon(Icons.alt_route, color: theme.colorScheme.primary),
+                AurisScanBracket(
+                  padding: const EdgeInsets.all(4),
+                  child: Icon(Icons.alt_route, color: theme.colorScheme.primary),
+                ),
+                const SizedBox(width: 10),
+                Text('ROUTE', style: theme.textTheme.titleLarge),
                 const SizedBox(width: 8),
-                Text('Route', style: theme.textTheme.titleLarge),
+                if (chat.conversations.isNotEmpty)
+                  AurisBadge(
+                    '${chat.conversations.length}',
+                    variant: AurisBadgeVariant.slate,
+                  ),
                 const Spacer(),
                 IconButton(
                   tooltip: 'Settings',
@@ -105,7 +115,8 @@ class _ConversationTile extends StatelessWidget {
     final theme = Theme.of(context);
     return ListTile(
       selected: selected,
-      selectedTileColor: theme.colorScheme.primaryContainer.withValues(alpha: 0.4),
+      selectedTileColor:
+          theme.colorScheme.primaryContainer.withValues(alpha: 0.4),
       leading: const Icon(Icons.chat_bubble_outline, size: 20),
       title: Text(
         conversation.title,
