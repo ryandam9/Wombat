@@ -53,23 +53,20 @@ void main() {
     expect(find.text('Roboto Condensed'), findsWidgets);
   });
 
-  testWidgets('wide layout shows a nav list and the selected detail',
+  testWidgets('wide layout packs every card without a nav rail',
       (tester) async {
     tester.view.devicePixelRatio = 1.0;
-    tester.view.physicalSize = const Size(1200, 1000);
+    tester.view.physicalSize = const Size(1200, 1600);
     addTearDown(tester.view.reset);
 
     await _pump(tester, settings);
     expect(tester.takeException(), isNull);
 
-    // The two-pane nav lists every section; the Fonts detail is hidden until
-    // its nav entry is tapped.
-    expect(find.text('Fonts'), findsOneWidget);
-    expect(find.text('HEADING'), findsNothing);
-
-    await tester.tap(find.text('Fonts'));
-    await tester.pumpAndSettle();
-
+    // The masonry renders every section card at once (no nav/detail split),
+    // so the Fonts card and its rows are present without any interaction.
+    // SectionPanel renders titles upper-cased.
+    expect(find.text('SETUP'), findsOneWidget);
+    expect(find.text('FONTS'), findsOneWidget);
     expect(find.text('HEADING'), findsOneWidget);
     expect(find.text('Roboto Condensed'), findsWidgets);
   });

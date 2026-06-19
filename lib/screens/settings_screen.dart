@@ -23,7 +23,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   late final TextEditingController _keyController;
   bool _obscure = true;
-  int _selected = 0;
 
   @override
   void initState() {
@@ -51,7 +50,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget build(BuildContext context) {
     final settings = context.watch<SettingsProvider>();
     final theme = Theme.of(context);
-    final sections = _sections(context, settings);
     final wide = MediaQuery.of(context).size.width >= _wideBreakpoint;
 
     return Scaffold(
@@ -62,7 +60,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
           textTheme:
               theme.textTheme.apply(fontFamily: settings.settingsFont.family),
         ),
-        child: wide ? _twoPane(sections) : _stacked(sections),
+        child: wide
+            ? _wide(settings)
+            : _stacked(_sections(context, settings)),
       ),
     );
   }
@@ -83,50 +83,41 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  /// Wide/desktop: a section list on the left, the selected detail on the right.
-  Widget _twoPane(List<_Section> sections) {
-    final theme = Theme.of(context);
-    final selected = sections[_selected.clamp(0, sections.length - 1)];
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        SizedBox(
-          width: 240,
-          child: ListView(
-            padding: const EdgeInsets.symmetric(vertical: 8),
+  /// Wide/desktop: a full-width, centred masonry of compact cards. The Setup
+  /// strip spans the top; the remaining sections pack into balanced columns so
+  /// tall cards (API Key, Fonts) sit beside short ones with no wasted gaps.
+  Widget _wide(SettingsProvider settings) {
+    final width = MediaQuery.of(context).size.width;
+    // Two columns on a normal desktop window, three when there's ample room.
+    final columns = width >= 1180 ? 3 : 2;
+    final cards = <_Card>[
+      (weight: 3, child: _panel('API Key', _apiKey(settings))),
+      (weight: 1, child: _panel('Default Model', _defaultModel(settings))),
+      (weight: 1.5, child: _panel('Appearance', _appearance(settings))),
+      (weight: 2, child: _panel('Downloads', _downloads(settings))),
+      (weight: 2.5, child: _panel('Fonts', _fonts(settings))),
+    ];
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1100),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              for (var i = 0; i < sections.length; i++)
-                ListTile(
-                  leading: Icon(sections[i].icon),
-                  title: Text(sections[i].title),
-                  selected: i == _selected,
-                  selectedTileColor:
-                      theme.colorScheme.primaryContainer.withValues(alpha: 0.4),
-                  onTap: () => setState(() => _selected = i),
-                ),
+              _panel('Setup', _SetupProgress(hasApiKey: settings.hasApiKey)),
+              const SizedBox(height: 16),
+              _Masonry(columns: columns, spacing: 16, items: cards),
             ],
           ),
         ),
-        const VerticalDivider(width: 1),
-        Expanded(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 720),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(selected.title, style: theme.textTheme.headlineSmall),
-                  const SizedBox(height: 16),
-                  selected.content,
-                ],
-              ),
-            ),
-          ),
-        ),
-      ],
+      ),
     );
   }
+
+  Widget _panel(String title, Widget child) =>
+      SectionPanel(title: title, child: child);
 
   // ── Sections ──────────────────────────────────────────────────────────
 
@@ -249,22 +240,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        RadioGroup<ThemeMode>(
-          groupValue: settings.themeMode,
-          onChanged: (m) {
-            if (m != null) context.read<SettingsProvider>().setThemeMode(m);
-          },
-          child: Column(
-            children: [
-              for (final mode in ThemeMode.values)
-                RadioListTile<ThemeMode>(
-                  value: mode,
-                  title: Text(_themeLabel(mode)),
-                  contentPadding: EdgeInsets.zero,
-                  dense: true,
-                ),
-            ],
-          ),
+        // A compact segmented control instead of three full-height radio rows.
+        SegmentedButton<ThemeMode>(
+          segments: const [
+            ButtonSegment(
+              value: ThemeMode.system,
+              label: Text('System'),
+              icon: Icon(Icons.brightness_auto),
+            ),
+            ButtonSegment(
+              value: ThemeMode.light,
+              label: Text('Light'),
+              icon: Icon(Icons.light_mode_outlined),
+            ),
+            ButtonSegment(
+              value: ThemeMode.dark,
+              label: Text('Dark'),
+              icon: Icon(Icons.dark_mode_outlined),
+            ),
+          ],
+          selected: {settings.themeMode},
+          showSelectedIcon: false,
+          onSelectionChanged: (s) =>
+              context.read<SettingsProvider>().setThemeMode(s.first),
         ),
         SwitchListTile(
           value: settings.animateModelIndicator,
@@ -350,11 +348,56 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  String _themeLabel(ThemeMode mode) => switch (mode) {
-        ThemeMode.system => 'System',
-        ThemeMode.light => 'Light',
-        ThemeMode.dark => 'Dark',
-      };
+}
+
+/// One masonry item: a card plus a relative height weight used to balance it
+/// across columns (taller content → larger weight).
+typedef _Card = ({double weight, Widget child});
+
+/// A dependency-free masonry: greedily assigns each card to the currently
+/// shortest column (by accumulated weight) so columns stay balanced and no
+/// card is stretched to match a taller neighbour.
+class _Masonry extends StatelessWidget {
+  const _Masonry({
+    required this.items,
+    required this.columns,
+    required this.spacing,
+  });
+
+  final List<_Card> items;
+  final int columns;
+  final double spacing;
+
+  @override
+  Widget build(BuildContext context) {
+    final buckets = List.generate(columns, (_) => <Widget>[]);
+    final heights = List<double>.filled(columns, 0);
+    for (final item in items) {
+      var shortest = 0;
+      for (var i = 1; i < columns; i++) {
+        if (heights[i] < heights[shortest]) shortest = i;
+      }
+      if (buckets[shortest].isNotEmpty) {
+        buckets[shortest].add(SizedBox(height: spacing));
+      }
+      buckets[shortest].add(item.child);
+      heights[shortest] += item.weight;
+    }
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (var i = 0; i < columns; i++) ...[
+          if (i > 0) SizedBox(width: spacing),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: buckets[i],
+            ),
+          ),
+        ],
+      ],
+    );
+  }
 }
 
 /// A labelled font picker using a standard, compact dropdown menu.
