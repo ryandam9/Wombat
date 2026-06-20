@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../widgets/ui_kit.dart';
-
-/// A static help page explaining how some of the less-obvious features work
-/// (e.g. what happens to a recorded voice clip) plus common troubleshooting.
+/// A help & troubleshooting guide. Topics are grouped into sections and shown
+/// collapsed by default — each shows a short summary and expands on tap to
+/// reveal the full details.
 class HelpScreen extends StatelessWidget {
   const HelpScreen({super.key});
 
@@ -12,136 +11,326 @@ class HelpScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Help & Troubleshoot')),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
         children: const [
-          _VoiceMessagesSection(),
-          SizedBox(height: 16),
-          _TroubleshootingSection(),
-          SizedBox(height: 24),
+          _Section(
+            title: 'Voice & audio',
+            items: [
+              _HelpTopic(
+                icon: Icons.mic_none,
+                title: 'How voice messages work',
+                summary: 'Recordings are sent to the model as audio — not '
+                    'saved as an mp3.',
+                detail: _VoiceMessagesDetail(),
+              ),
+              _HelpTopic(
+                icon: Icons.mic_off_outlined,
+                title: 'The mic button does nothing / recording fails',
+                summary: 'Check microphone permission and your audio server.',
+                detail: _Paragraph(
+                  'Grant the microphone permission when prompted. On Linux, '
+                  'make sure your audio server (PulseAudio / PipeWire) is '
+                  'running so the mic can be captured.',
+                ),
+              ),
+              _HelpTopic(
+                icon: Icons.hearing_disabled,
+                title: 'My voice clip was ignored or returned an error',
+                summary: 'The selected model must accept audio input.',
+                detail: _Paragraph(
+                  'Pick a model that accepts audio input (e.g. '
+                  'openai/gpt-4o-audio-preview, or an audio-capable Gemini '
+                  'model). Text-only models cannot process audio attachments.',
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 20),
+          _Section(
+            title: 'Models & usage',
+            items: [
+              _HelpTopic(
+                icon: Icons.compare_arrows,
+                title: 'Comparing models',
+                summary: 'Run one prompt against several models side by side.',
+                detail: _Paragraph(
+                  'Open "Compare models" from the sidebar, add up to five '
+                  'models, type a prompt and Run. Replies stream in side by '
+                  'side. The session is preserved if you navigate away and '
+                  'come back, and the Debug button shows the underlying API '
+                  'sessions for each model.',
+                ),
+              ),
+              _HelpTopic(
+                icon: Icons.cloud_off_outlined,
+                title: "Models won't load",
+                summary: 'Usually an invalid key or no network.',
+                detail: _Paragraph(
+                  'Check that your API key is valid and you have network '
+                  'access, then tap Retry in the model picker.',
+                ),
+              ),
+              _HelpTopic(
+                icon: Icons.insights_outlined,
+                title: 'Usage & cost tracking',
+                summary: 'Per-session tokens and USD cost from each response.',
+                detail: _Paragraph(
+                  'OpenRouter returns exact token counts and the USD cost of '
+                  'each request; the app accumulates these for the current '
+                  'session (in memory, reset on restart). Open the usage panel '
+                  'from the chat header to see totals and a per-model '
+                  'breakdown.',
+                ),
+              ),
+              _HelpTopic(
+                icon: Icons.account_balance_wallet_outlined,
+                title: 'Account balance shows "BALANCE UNAVAILABLE"',
+                summary: 'The credits endpoint can require a privileged key.',
+                detail: _Paragraph(
+                  'If your inference key lacks credit-read permission the '
+                  'balance is hidden, but per-session token and cost tracking '
+                  'still works.',
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 20),
+          _Section(
+            title: 'Setup, privacy & data',
+            items: [
+              _HelpTopic(
+                icon: Icons.key_outlined,
+                title: 'Adding your OpenRouter API key',
+                summary: 'Stored on-device; sent only to OpenRouter.',
+                detail: _Paragraph(
+                  'Open Settings and save a valid key from openrouter.ai/keys. '
+                  'It is kept in the platform secure store (Android Keystore / '
+                  'Linux libsecret) and sent only to OpenRouter — never to any '
+                  'server of ours.',
+                ),
+              ),
+              _HelpTopic(
+                icon: Icons.storage_outlined,
+                title: 'Where is my data stored?',
+                summary: 'Conversations live on your device as JSON.',
+                detail: _Paragraph(
+                  'Conversations (including attachments, stored as base64) are '
+                  'saved on-device as JSON and survive restarts. Requests go '
+                  'straight from your device to OpenRouter; nothing is proxied '
+                  'through a server of ours.',
+                ),
+              ),
+              _HelpTopic(
+                icon: Icons.palette_outlined,
+                title: 'Customizing the theme',
+                summary: 'System / Light / Dark, plus a custom accent colour.',
+                detail: _Paragraph(
+                  'Choose the theme mode in Settings → Appearance. You can '
+                  'also pick a custom accent colour, which reseeds the whole '
+                  'light and dark palette.',
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
   }
 }
 
-class _VoiceMessagesSection extends StatelessWidget {
-  const _VoiceMessagesSection();
+/// A titled group of collapsible help topics.
+class _Section extends StatelessWidget {
+  const _Section({required this.title, required this.items});
+
+  final String title;
+  final List<_HelpTopic> items;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return SectionPanel(
-      title: 'How voice messages work',
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Tap the mic in the composer to record a clip. It is sent to the '
-            'model as audio — it is not saved as an mp3. Here is exactly what '
-            'happens to a recording:',
-            style: theme.textTheme.bodyMedium,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(4, 8, 4, 8),
+          child: Text(
+            title.toUpperCase(),
+            style: theme.textTheme.labelLarge?.copyWith(
+              letterSpacing: 1.2,
+              color: theme.colorScheme.primary,
+            ),
           ),
-          const SizedBox(height: 16),
-          const _Step(
-            number: 1,
-            title: 'Capture',
-            body: 'Raw 16-bit PCM from the mic is buffered in memory and '
-                'wrapped into a WAV (audio/wav). Nothing is written to a local '
-                'temp file during capture.',
-          ),
-          const _Step(
-            number: 2,
-            title: 'Attachment',
-            body: 'It becomes a message attachment held as base64 bytes in '
-                'memory, shown as a chip in the composer.',
-          ),
-          const _Step(
-            number: 3,
-            title: 'Send',
-            body: 'On Send it is attached to your message and sent inline in '
-                'the request body, base64-encoded, straight from your device '
-                'to OpenRouter — no server of our own in between:',
-          ),
+        ),
+        for (final item in items) ...[
+          item,
           const SizedBox(height: 8),
-          const _CodeBlock(
-            '{\n'
-            '  "type": "input_audio",\n'
-            '  "input_audio": {\n'
-            '    "data": "<base64 WAV>",\n'
-            '    "format": "wav"\n'
-            '  }\n'
-            '}',
-          ),
-          const SizedBox(height: 12),
-          const _Step(
-            number: 4,
-            title: 'Persistence',
-            body: 'The clip is stored as base64 inside the conversation on '
-                'disk, so it survives restarts. It is not a standalone '
-                '.wav/.mp3 file — though you can export it to a .wav with the '
-                'Save button on the attachment.',
-          ),
-          const SizedBox(height: 8),
-          const InfoBanner(
-            kind: BannerKind.warning,
-            title: 'The model must support audio input',
-            message: 'OpenRouter only forwards audio to models that accept it '
-                '(e.g. openai/gpt-4o-audio-preview, some Gemini models). If the '
-                'selected model does not support audio, the request errors or '
-                'the audio is ignored. We send WAV, which is one of the two '
-                'formats OpenRouter accepts (wav / mp3).',
-          ),
         ],
+      ],
+    );
+  }
+}
+
+/// A single collapsible help entry: icon + title + one-line summary, expanding
+/// to reveal [detail].
+class _HelpTopic extends StatelessWidget {
+  const _HelpTopic({
+    required this.icon,
+    required this.title,
+    required this.summary,
+    required this.detail,
+  });
+
+  final IconData icon;
+  final String title;
+  final String summary;
+  final Widget detail;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+      ),
+      child: Theme(
+        // Remove ExpansionTile's default top/bottom divider lines.
+        data: theme.copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          leading: Icon(icon, color: theme.colorScheme.primary),
+          title: Text(
+            title,
+            style: theme.textTheme.titleSmall
+                ?.copyWith(fontWeight: FontWeight.w600),
+          ),
+          subtitle: Text(
+            summary,
+            style: theme.textTheme.bodySmall
+                ?.copyWith(color: theme.colorScheme.outline),
+          ),
+          childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          expandedCrossAxisAlignment: CrossAxisAlignment.start,
+          children: [detail],
+        ),
       ),
     );
   }
 }
 
-class _TroubleshootingSection extends StatelessWidget {
-  const _TroubleshootingSection();
+/// Plain body text for a help topic.
+class _Paragraph extends StatelessWidget {
+  const _Paragraph(this.text);
+
+  final String text;
 
   @override
   Widget build(BuildContext context) {
-    return const SectionPanel(
-      title: 'Troubleshooting',
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _Faq(
-            question: 'The mic button does nothing / recording fails',
-            answer: 'Grant the microphone permission when prompted. On Linux, '
-                'make sure your audio server (PulseAudio / PipeWire) is running '
-                'so the mic can be captured.',
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Text(text, style: Theme.of(context).textTheme.bodyMedium),
+    );
+  }
+}
+
+/// The detailed, multi-part explanation of how a recorded voice clip is
+/// handled end to end.
+class _VoiceMessagesDetail extends StatelessWidget {
+  const _VoiceMessagesDetail();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Tap the mic in the composer to record a clip. It is sent to the '
+          'model as audio — it is not saved as an mp3. Here is exactly what '
+          'happens to a recording:',
+          style: theme.textTheme.bodyMedium,
+        ),
+        const SizedBox(height: 12),
+        const _Step(
+          number: 1,
+          title: 'Capture',
+          body: 'Raw 16-bit PCM from the mic is buffered in memory and '
+              'wrapped into a WAV (audio/wav). Nothing is written to a local '
+              'temp file during capture.',
+        ),
+        const _Step(
+          number: 2,
+          title: 'Attachment',
+          body: 'It becomes a message attachment held as base64 bytes in '
+              'memory, shown as a chip in the composer.',
+        ),
+        const _Step(
+          number: 3,
+          title: 'Send',
+          body: 'On Send it is attached to your message and sent inline in '
+              'the request body, base64-encoded, straight from your device to '
+              'OpenRouter — no server of our own in between:',
+        ),
+        const SizedBox(height: 8),
+        const _CodeBlock(
+          '{\n'
+          '  "type": "input_audio",\n'
+          '  "input_audio": {\n'
+          '    "data": "<base64 WAV>",\n'
+          '    "format": "wav"\n'
+          '  }\n'
+          '}',
+        ),
+        const SizedBox(height: 12),
+        const _Step(
+          number: 4,
+          title: 'Persistence',
+          body: 'The clip is stored as base64 inside the conversation on '
+              'disk, so it survives restarts. It is not a standalone '
+              '.wav/.mp3 file — though you can export it to a .wav with the '
+              'Save button on the attachment.',
+        ),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.tertiaryContainer,
+            borderRadius: BorderRadius.circular(10),
           ),
-          _FaqDivider(),
-          _Faq(
-            question: 'My voice clip was ignored or returned an error',
-            answer: 'Pick a model that accepts audio input (e.g. '
-                'openai/gpt-4o-audio-preview, or an audio-capable Gemini '
-                'model). Text-only models cannot process audio attachments.',
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.warning_amber,
+                  size: 20, color: theme.colorScheme.onTertiaryContainer),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'The model must support audio input',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: theme.colorScheme.onTertiaryContainer,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'OpenRouter only forwards audio to models that accept it '
+                      '(e.g. openai/gpt-4o-audio-preview, some Gemini models). '
+                      'If the selected model does not support audio, the '
+                      'request errors or the audio is ignored. We send WAV, '
+                      'one of the two formats OpenRouter accepts (wav / mp3).',
+                      style: TextStyle(
+                          color: theme.colorScheme.onTertiaryContainer),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-          _FaqDivider(),
-          _Faq(
-            question: '"Add your OpenRouter API key in Settings first."',
-            answer: 'Open Settings and save a valid key from '
-                'openrouter.ai/keys. It is stored in the device secure store '
-                'and sent only to OpenRouter.',
-          ),
-          _FaqDivider(),
-          _Faq(
-            question: 'Models won\'t load',
-            answer: 'Check that your API key is valid and you have network '
-                'access, then tap Retry in the model picker.',
-          ),
-          _FaqDivider(),
-          _Faq(
-            question: 'Account balance shows "BALANCE UNAVAILABLE"',
-            answer: 'The credits endpoint can require a privileged key. If your '
-                'inference key lacks that permission the balance is hidden, but '
-                'per-session token and cost tracking still works.',
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -219,50 +408,4 @@ class _CodeBlock extends StatelessWidget {
       ),
     );
   }
-}
-
-/// A question/answer pair.
-class _Faq extends StatelessWidget {
-  const _Faq({required this.question, required this.answer});
-
-  final String question;
-  final String answer;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(Icons.help_outline,
-                  size: 18, color: theme.colorScheme.primary),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(question,
-                    style: theme.textTheme.titleSmall
-                        ?.copyWith(fontWeight: FontWeight.w600)),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Padding(
-            padding: const EdgeInsets.only(left: 26),
-            child: Text(answer, style: theme.textTheme.bodyMedium),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _FaqDivider extends StatelessWidget {
-  const _FaqDivider();
-
-  @override
-  Widget build(BuildContext context) => const Divider(height: 1);
 }
