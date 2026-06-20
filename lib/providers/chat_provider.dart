@@ -66,18 +66,28 @@ class ChatNotifier extends Notifier<ChatState> {
   }
 
   ChatState _snapshot() => ChatState(
-        conversations: _conversations,
+        conversations: _sorted(),
         current: _current,
         loading: _loading,
         isResponding: _isResponding,
         error: _error,
       );
 
+  /// Conversations ordered for display: pinned first, then by recency.
+  List<Conversation> _sorted() {
+    final list = List<Conversation>.from(_conversations);
+    list.sort((a, b) {
+      if (a.pinned != b.pinned) return a.pinned ? -1 : 1;
+      return b.updatedAt.compareTo(a.updatedAt);
+    });
+    return list;
+  }
+
   void _emit() => state = _snapshot();
 
   // Convenience accessors mirroring the current state (handy for callers that
   // hold the notifier directly, e.g. tests).
-  List<Conversation> get conversations => List.unmodifiable(_conversations);
+  List<Conversation> get conversations => _sorted();
   Conversation? get current => _current;
   bool get loading => _loading;
   bool get isResponding => _isResponding;
@@ -135,6 +145,26 @@ class ChatNotifier extends Notifier<ChatState> {
     _emit();
     _persist();
     return convo;
+  }
+
+  /// Toggles the pinned state of a conversation (pinned chats sort to the top).
+  void togglePin(String id) {
+    final match = _conversations.where((c) => c.id == id);
+    if (match.isEmpty) return;
+    match.first.pinned = !match.first.pinned;
+    _emit();
+    _persist();
+  }
+
+  /// Renames a conversation. Empty titles are ignored.
+  void renameConversation(String id, String title) {
+    final trimmed = title.trim();
+    if (trimmed.isEmpty) return;
+    final match = _conversations.where((c) => c.id == id);
+    if (match.isEmpty) return;
+    match.first.title = trimmed;
+    _emit();
+    _persist();
   }
 
   Future<void> deleteConversation(String id) async {

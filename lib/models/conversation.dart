@@ -7,6 +7,7 @@ class Conversation {
     required this.title,
     required this.modelId,
     this.supportsImageOutput = false,
+    this.pinned = false,
     List<ChatMessage>? messages,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -22,6 +23,9 @@ class Conversation {
   /// should ask for the `image` output modality.
   bool supportsImageOutput;
 
+  /// Whether the user pinned this chat to the top of the sidebar list.
+  bool pinned;
+
   final List<ChatMessage> messages;
   final DateTime createdAt;
   DateTime updatedAt;
@@ -31,6 +35,7 @@ class Conversation {
         'title': title,
         'modelId': modelId,
         'supportsImageOutput': supportsImageOutput,
+        'pinned': pinned,
         'createdAt': createdAt.toIso8601String(),
         'updatedAt': updatedAt.toIso8601String(),
         'messages': messages.map((m) => m.toJson()).toList(),
@@ -41,6 +46,7 @@ class Conversation {
         title: json['title'] as String? ?? 'New chat',
         modelId: json['modelId'] as String? ?? '',
         supportsImageOutput: json['supportsImageOutput'] as bool? ?? false,
+        pinned: json['pinned'] as bool? ?? false,
         createdAt: DateTime.tryParse(json['createdAt'] as String? ?? ''),
         updatedAt: DateTime.tryParse(json['updatedAt'] as String? ?? ''),
         messages: (json['messages'] as List<dynamic>? ?? [])

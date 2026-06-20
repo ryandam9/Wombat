@@ -112,35 +112,11 @@ class _Header extends ConsumerWidget {
               onPressed: () =>
                   ref.read(chatProvider.notifier).newConversation(),
             ),
-            // On phones, fold the secondary actions into an overflow menu so the
-            // header never overcrowds; show them inline on wide layouts.
-            if (showMenuButton)
-              const _OverflowMenu()
-            else ...[
-              const _UsageButton(),
-              IconButton(
-                icon: const Icon(Icons.help_outline),
-                tooltip: 'Help & Troubleshoot',
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute<void>(builder: (_) => const HelpScreen()),
-                ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.bug_report_outlined),
-                tooltip: 'Debug sessions',
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute<void>(builder: (_) => const DebugScreen()),
-                ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.settings_outlined),
-                tooltip: 'Settings',
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                      builder: (_) => const SettingsScreen()),
-                ),
-              ),
-            ],
+            // Secondary actions (Usage, Debug, Settings, …) live in the sidebar
+            // navigation rail on wide layouts. Show them in a header overflow
+            // menu only when the sidebar isn't available: on phones (drawer) or
+            // when the wide sidebar is collapsed.
+            if (showMenuButton || onExpandSidebar != null) const _OverflowMenu(),
           ],
         ),
       ),
@@ -220,33 +196,6 @@ class _OverflowMenu extends ConsumerWidget {
   }
 }
 
-/// Header action that opens the usage screen, showing the running session
-/// cost once any requests have been made.
-class _UsageButton extends ConsumerWidget {
-  const _UsageButton();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final usage = ref.watch(usageProvider);
-    void open() => Navigator.of(context).push(
-          MaterialPageRoute<void>(builder: (_) => const UsageScreen()),
-        );
-
-    if (usage.isEmpty) {
-      return IconButton(
-        icon: const Icon(Icons.insights_outlined),
-        tooltip: 'Usage',
-        onPressed: open,
-      );
-    }
-    return TextButton.icon(
-      onPressed: open,
-      icon: const Icon(Icons.insights_outlined, size: 18),
-      label: Text('\$${usage.cost.toStringAsFixed(4)}'),
-    );
-  }
-}
-
 class _MessageList extends ConsumerStatefulWidget {
   const _MessageList({super.key});
 
@@ -286,9 +235,13 @@ class _MessageListState extends ConsumerState<_MessageList> {
   }
 }
 
-/// Welcome screen shown when there is no active conversation.
+/// Welcome dashboard shown when there is no active conversation.
 class _EmptyState extends ConsumerWidget {
   const _EmptyState();
+
+  void _openSettings(BuildContext context) => Navigator.of(context).push(
+        MaterialPageRoute<void>(builder: (_) => const SettingsScreen()),
+      );
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -300,45 +253,53 @@ class _EmptyState extends ConsumerWidget {
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 460),
+          constraints: const BoxConstraints(maxWidth: 560),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               ClipOval(
                 child: Image.asset(
                   'assets/icon/app_icon.png',
-                  width: 64,
-                  height: 64,
+                  width: 96,
+                  height: 96,
                   fit: BoxFit.cover,
                   errorBuilder: (_, __, ___) => Icon(Icons.pets,
-                      size: 56, color: theme.colorScheme.primary),
+                      size: 84, color: theme.colorScheme.primary),
                 ),
               ),
               const SizedBox(height: 16),
-              Text('Wombat', style: theme.textTheme.headlineSmall),
+              Text('Wombat', style: theme.textTheme.headlineMedium),
               const SizedBox(height: 4),
               Text(
                 'Chat with LLMs via OpenRouter',
-                style: theme.textTheme.bodyMedium
+                style: theme.textTheme.bodyLarge
                     ?.copyWith(color: theme.colorScheme.outline),
               ),
-              const SizedBox(height: 20),
-              Row(
-                children: [
-                  Expanded(
-                    child: StatCard(
-                      label: 'Conversations',
-                      value: '${chat.conversations.length}',
+              const SizedBox(height: 24),
+              IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(
+                      child: _DashCard(
+                        icon: Icons.chat_bubble_outline,
+                        label: 'Conversations',
+                        value: '${chat.conversations.length}',
+                        subtitle: 'Total chats',
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: StatCard(
-                      label: 'API key',
-                      value: hasKey ? 'Set' : 'Missing',
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: _DashCard(
+                        icon: Icons.bolt,
+                        label: 'API key',
+                        value: hasKey ? 'Set' : 'Missing',
+                        subtitle: 'OpenRouter',
+                        onTap: () => _openSettings(context),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
               const SizedBox(height: 16),
               SectionPanel(
@@ -346,14 +307,30 @@ class _EmptyState extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _Step(
-                      done: hasKey,
-                      text: hasKey
+                    _StartStep(
+                      icon: Icons.key_outlined,
+                      title: hasKey
                           ? 'API key configured'
-                          : 'Add your API key in Settings',
+                          : 'Add your API key',
+                      description: hasKey
+                          ? 'Your OpenRouter API key is set and ready to use.'
+                          : 'Save your OpenRouter key in Settings to begin.',
+                      done: hasKey,
+                      onTap: hasKey ? null : () => _openSettings(context),
                     ),
-                    const _Step(text: 'Pick a model in the header'),
-                    const _Step(text: 'Type a message to begin'),
+                    const Divider(height: 20),
+                    const _StartStep(
+                      icon: Icons.grid_view_outlined,
+                      title: 'Pick a model in the header',
+                      description:
+                          'Choose from 200+ models available on OpenRouter.',
+                    ),
+                    const Divider(height: 20),
+                    const _StartStep(
+                      icon: Icons.send_outlined,
+                      title: 'Type a message to begin',
+                      description: 'Ask anything. Wombat is ready to help!',
+                    ),
                   ],
                 ),
               ),
@@ -365,28 +342,146 @@ class _EmptyState extends ConsumerWidget {
   }
 }
 
-class _Step extends StatelessWidget {
-  const _Step({required this.text, this.done = false});
+/// A dashboard summary card: a leading icon disc, a label, a large value and a
+/// subtitle. Tappable cards (e.g. API key) show a trailing chevron.
+class _DashCard extends StatelessWidget {
+  const _DashCard({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.subtitle,
+    this.onTap,
+  });
 
-  final String text;
-  final bool done;
+  final IconData icon;
+  final String label;
+  final String value;
+  final String subtitle;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+    return Material(
+      color: theme.colorScheme.surfaceContainerHighest,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _IconDisc(icon: icon),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      label.toUpperCase(),
+                      style: theme.textTheme.labelSmall
+                          ?.copyWith(color: theme.colorScheme.outline),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      value,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.titleLarge
+                          ?.copyWith(fontWeight: FontWeight.w700),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodySmall
+                          ?.copyWith(color: theme.colorScheme.outline),
+                    ),
+                  ],
+                ),
+              ),
+              if (onTap != null)
+                Icon(Icons.chevron_right, color: theme.colorScheme.outline),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A getting-started step: icon disc, title + description, and a trailing
+/// chevron (or a green check when [done]).
+class _StartStep extends StatelessWidget {
+  const _StartStep({
+    required this.icon,
+    required this.title,
+    required this.description,
+    this.done = false,
+    this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String description;
+  final bool done;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return InkWell(
+      borderRadius: BorderRadius.circular(10),
+      onTap: onTap,
       child: Row(
         children: [
-          Icon(
-            done ? Icons.check_circle : Icons.radio_button_unchecked,
-            size: 18,
-            color: done ? theme.colorScheme.primary : theme.colorScheme.outline,
+          _IconDisc(icon: icon),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title,
+                    style: theme.textTheme.titleSmall
+                        ?.copyWith(fontWeight: FontWeight.w600)),
+                const SizedBox(height: 2),
+                Text(description,
+                    style: theme.textTheme.bodySmall
+                        ?.copyWith(color: theme.colorScheme.outline)),
+              ],
+            ),
           ),
-          const SizedBox(width: 10),
-          Expanded(child: Text(text, style: theme.textTheme.bodyMedium)),
+          const SizedBox(width: 8),
+          if (done)
+            Icon(Icons.check_circle, color: theme.colorScheme.primary)
+          else
+            Icon(Icons.chevron_right, color: theme.colorScheme.outline),
         ],
       ),
+    );
+  }
+}
+
+/// A small rounded square with a centered accent icon.
+class _IconDisc extends StatelessWidget {
+  const _IconDisc({required this.icon});
+
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      width: 40,
+      height: 40,
+      decoration: BoxDecoration(
+        color: theme.colorScheme.primary.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Icon(icon, size: 20, color: theme.colorScheme.primary),
     );
   }
 }

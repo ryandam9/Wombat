@@ -37,8 +37,25 @@ void main() {
 
     // The sidebar (with its title) is visible alongside the chat pane.
     expect(find.text('Compare models'), findsOneWidget);
-    // Settings moved into the chat header (issue #42).
+    // Settings lives in the sidebar navigation rail.
     expect(find.byIcon(Icons.settings_outlined), findsOneWidget);
+  });
+
+  testWidgets('sidebar shows the navigation rail and recent-chats section',
+      (tester) async {
+    tester.view.devicePixelRatio = 1.0;
+    tester.view.physicalSize = const Size(1200, 900);
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(await buildApp(tester));
+    await tester.pump();
+
+    expect(find.text('NAVIGATION'), findsOneWidget);
+    expect(find.text('RECENT CHATS'), findsOneWidget);
+    for (final label in ['Chat history', 'Models', 'Usage', 'Debug',
+      'API keys', 'Settings']) {
+      expect(find.text(label), findsOneWidget, reason: 'missing nav item $label');
+    }
   });
 
   testWidgets('collapsing hides the sidebar and expanding restores it',

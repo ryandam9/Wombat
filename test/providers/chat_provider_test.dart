@@ -228,4 +228,33 @@ void main() {
       expect(chat.error, isNull);
     });
   });
+
+  group('pin + rename', () {
+    test('togglePin pins a conversation to the top of the list', () async {
+      final chat = await buildChat();
+      final first = chat.newConversation();
+      chat.newConversation(); // second, now most-recent and at the top
+
+      // Pinning the older conversation floats it above the newer one.
+      chat.togglePin(first.id);
+      expect(chat.conversations.first.id, first.id);
+      expect(chat.conversations.first.pinned, isTrue);
+
+      // Unpinning restores recency order (newer first).
+      chat.togglePin(first.id);
+      expect(chat.conversations.first.id, isNot(first.id));
+    });
+
+    test('renameConversation updates the title; blank titles are ignored',
+        () async {
+      final chat = await buildChat();
+      final convo = chat.newConversation();
+
+      chat.renameConversation(convo.id, 'My chat');
+      expect(convo.title, 'My chat');
+
+      chat.renameConversation(convo.id, '   ');
+      expect(convo.title, 'My chat');
+    });
+  });
 }
