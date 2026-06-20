@@ -109,6 +109,31 @@ void main() {
     expect(find.text('TODAY'), findsOneWidget);
   });
 
+  testWidgets('Chat history page can delete all chats', (tester) async {
+    tester.view.devicePixelRatio = 1.0;
+    tester.view.physicalSize = const Size(1200, 1600);
+    addTearDown(tester.view.reset);
+
+    final convos = [
+      for (var i = 0; i < 3; i++)
+        Conversation(id: 'c$i', title: 'Chat $i', modelId: 'm/$i'),
+    ];
+    await tester.pumpWidget(await buildApp(tester, conversations: convos));
+    await tester.pump();
+
+    await tester.tap(find.text('Chat history'));
+    await tester.pumpAndSettle();
+    expect(find.byType(ListTile), findsNWidgets(3));
+
+    await tester.tap(find.byTooltip('Delete all chats'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Delete all'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(ListTile), findsNothing);
+    expect(find.text('No conversations yet'), findsOneWidget);
+  });
+
   testWidgets('Chat history opens the two-pane chat workspace', (tester) async {
     tester.view.devicePixelRatio = 1.0;
     tester.view.physicalSize = const Size(1200, 900);
