@@ -196,9 +196,7 @@ with services injected as plain `Provider`s in `lib/providers/app_providers.dart
 plain service classes for testability.
 
 Conversations, messages, and attachments are persisted on-device in a normalized
-**SQLite** database via [`drift`](https://pub.dev/packages/drift). A
-`conversations.json` file from older installs is imported automatically on first
-launch (without clobbering existing database data).
+**SQLite** database via [`drift`](https://pub.dev/packages/drift).
 
 ```
 lib/
@@ -214,8 +212,8 @@ lib/
     openrouter_service.dart      REST client: models, streaming chat, credits
     secure_storage_service.dart  API-key storage (flutter_secure_storage)
     database/app_database.dart   Drift/SQLite schema (conversations/messages/…)
-    drift_conversation_store.dart SQLite persistence + legacy JSON import
-    conversation_store.dart      Legacy JSON store (import source only)
+    drift_conversation_store.dart SQLite-backed conversation persistence
+    conversation_store.dart      ConversationStore persistence interface
     debug_log.dart               In-memory, opt-in capture of API sessions
     download_service.dart        Save output (desktop folder / share sheet)
   providers/

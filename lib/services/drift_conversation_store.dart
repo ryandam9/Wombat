@@ -9,21 +9,14 @@ import 'database/app_database.dart';
 /// SQLite-backed [ConversationStore] using drift.
 ///
 /// Conversations, their messages and attachments are stored in normalised
-/// tables. On first use it imports any legacy `conversations.json` written by
-/// [JsonConversationStore], then leaves a `.migrated` marker so the import runs
-/// only once.
+/// tables.
 class DriftConversationStore extends ConversationStore {
-  DriftConversationStore(this._db, {JsonConversationStore? legacyStore})
-      : _legacyStore = legacyStore;
+  DriftConversationStore(this._db);
 
   final AppDatabase _db;
-  final JsonConversationStore? _legacyStore;
-  bool _migrationChecked = false;
 
   @override
   Future<List<Conversation>> load() async {
-    await _migrateLegacyIfNeeded();
-
     final convRows = await (_db.select(_db.conversations)
           ..orderBy([(c) => OrderingTerm.desc(c.updatedAt)]))
         .get();
@@ -137,24 +130,6 @@ class DriftConversationStore extends ConversationStore {
         }
       }
     });
-  }
-
-  /// Imports a legacy JSON store into the empty database exactly once.
-  Future<void> _migrateLegacyIfNeeded() async {
-    if (_migrationChecked) return;
-    _migrationChecked = true;
-    final legacy = _legacyStore;
-    if (legacy == null) return;
-    try {
-      // Only import when the DB is empty, so we never clobber live data.
-      final existing = await _db.select(_db.conversations).get();
-      if (existing.isNotEmpty) return;
-      final old = await legacy.load();
-      if (old.isNotEmpty) await save(old);
-      await legacy.archive();
-    } catch (_) {
-      // Migration is best-effort; a failure must not block app start.
-    }
   }
 
   MessageRole _roleFromName(String name) => MessageRole.values.firstWhere(

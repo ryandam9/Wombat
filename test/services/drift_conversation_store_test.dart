@@ -1,11 +1,8 @@
-import 'dart:io';
-
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:wombat/models/attachment.dart';
 import 'package:wombat/models/chat_message.dart';
 import 'package:wombat/models/conversation.dart';
-import 'package:wombat/services/conversation_store.dart';
 import 'package:wombat/services/database/app_database.dart';
 import 'package:wombat/services/drift_conversation_store.dart';
 
@@ -92,36 +89,5 @@ void main() {
     // No orphaned messages remain.
     final messages = await db.select(db.messages).get();
     expect(messages, isEmpty);
-  });
-
-  test('imports a legacy JSON store once, then archives it', () async {
-    final tempDir = await Directory.systemTemp.createTemp('wombat_migrate');
-    addTearDown(() async {
-      if (tempDir.existsSync()) await tempDir.delete(recursive: true);
-    });
-
-    final legacy = JsonConversationStore(directory: tempDir);
-    await legacy.save([
-      Conversation(
-        id: 'old',
-        title: 'Legacy chat',
-        modelId: 'm',
-        messages: [
-          ChatMessage(id: 'm1', role: MessageRole.user, content: 'from json'),
-        ],
-      ),
-    ]);
-
-    final migrating = DriftConversationStore(db, legacyStore: legacy);
-    final loaded = await migrating.load();
-
-    expect(loaded, hasLength(1));
-    expect(loaded.single.id, 'old');
-    expect(loaded.single.messages.single.content, 'from json');
-
-    // The original file is archived so the import doesn't repeat.
-    final original = File('${tempDir.path}/${JsonConversationStore.fileName}');
-    expect(original.existsSync(), isFalse);
-    expect(File('${original.path}.migrated').existsSync(), isTrue);
   });
 }
