@@ -16,7 +16,7 @@ import 'ui_kit.dart';
 
 /// The sections reachable from the sidebar navigation rail. On desktop these
 /// swap the centre pane in place; on mobile each opens as its own route.
-enum DashboardSection { chat, models, usage, debug, apiKeys, settings, help }
+enum DashboardSection { chat, models, usage, debug, settings, help }
 
 /// Sidebar: app header, primary actions, a navigation rail (Usage, Debug,
 /// Settings, …) and the list of recent chats with search and per-chat actions.
@@ -245,13 +245,6 @@ class _ConversationListState extends ConsumerState<ConversationList> {
                     selected: _isSelected(DashboardSection.debug),
                     onTap: () => _navigate(DashboardSection.debug,
                         mobile: () => _open(const DebugScreen())),
-                  ),
-                  _NavItem(
-                    icon: Icons.key_outlined,
-                    label: 'API keys',
-                    selected: _isSelected(DashboardSection.apiKeys),
-                    onTap: () => _navigate(DashboardSection.apiKeys,
-                        mobile: () => _open(const SettingsScreen())),
                   ),
                   _NavItem(
                     icon: Icons.settings_outlined,

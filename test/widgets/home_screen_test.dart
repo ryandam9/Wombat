@@ -56,9 +56,11 @@ void main() {
     expect(find.text('NAVIGATION'), findsOneWidget);
     expect(find.text('RECENT CHATS'), findsOneWidget);
     for (final label in ['Chat history', 'Models', 'Usage', 'Debug',
-      'API keys', 'Settings']) {
+      'Settings']) {
       expect(find.text(label), findsOneWidget, reason: 'missing nav item $label');
     }
+    // 'API keys' was removed; the key lives in Settings.
+    expect(find.text('API keys'), findsNothing);
   });
 
   testWidgets('desktop nav swaps the centre pane in place (no new route)',
