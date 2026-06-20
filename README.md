@@ -20,6 +20,7 @@ live usage/cost tracking, and a clean Material 3 interface.
 - [Features](#features)
 - [Settings](#settings)
 - [Usage & cost tracking](#usage--cost-tracking)
+- [Your data & privacy](#your-data--privacy)
 - [Installing & running](#installing--running)
 - [Running the tests](#running-the-tests)
 - [Architecture](#architecture)
@@ -52,7 +53,7 @@ A typical flow:
 | 🖼️ **Multimodal** | Attach **images, audio (incl. in-app recording) and PDFs** as input; render **generated images**, **inline SVG**, Markdown images, and **audio replies** as output — subject to the selected model's capabilities. See [below](#multimodal-payloads). |
 | 🧠 **Model picker** | Live catalogue from OpenRouter with search, a **free-only** filter, and sort by name / context length / price. Each model shows its context window and prompt pricing. You can also **enter a custom model ID** for models not yet listed. |
 | 💾 **Save output** | Save assistant replies, generated images, audio, and your own attachments — to a chosen folder / Save-As dialog on desktop, or the share sheet on Android. |
-| 🗂️ **Conversations** | Multiple chats with titles auto-derived from the first message; persisted on-device as JSON and reorderable by recency. |
+| 🗂️ **Conversations** | Multiple chats with titles auto-derived from the first message; persisted on-device in a local **SQLite** database and reorderable by recency. |
 | 📊 **Usage tracking** | Per-session input/output tokens, USD cost, request count, a per-model breakdown, and account credit balance. See [below](#usage--cost-tracking). |
 | 🔐 **Secure key storage** | API key kept in the platform secure store (Android Keystore / Linux libsecret / macOS Keychain). |
 | 📝 **Markdown rendering** | Assistant replies render Markdown (code blocks, lists, tables) with copy-to-clipboard. |
@@ -95,11 +96,41 @@ the final stream chunk. Wombat accumulates these for the current session.
 > "BALANCE UNAVAILABLE" — the session token/cost figures still work, since they
 > come from each request's own usage data.
 
+## Your data & privacy
+
+Wombat keeps your data on your device:
+
+- **Conversations, messages, and attachments** are stored in a local **SQLite**
+  database (`wombat.sqlite`) in the app's support directory. Attachments
+  (images, audio, PDFs) are embedded as base64, so very large files grow the
+  database — Wombat enforces per-attachment size limits (10 MB images, 25 MB
+  audio, 20 MB PDFs) to keep memory and storage in check.
+- **Your API key** is held in the platform secure store (Android Keystore /
+  Linux libsecret / macOS Keychain), never in plain prefs or files.
+- **Usage/cost totals** are in-memory only and reset on restart.
+- **Nothing is sent anywhere but OpenRouter.** Requests go straight from your
+  device to the OpenRouter API.
+
+### Debug capture
+
+A built-in **debug panel** can capture each API exchange (request, streamed
+response, timing, tokens) to help diagnose issues. It is **off by default** and
+**opt-in**: enable it from the panel's *Capture* switch.
+
+- Captured sessions live **only in memory** and are cleared on restart or via
+  **Clear**.
+- Captured request bodies include your prompt and conversation history; large
+  base64 attachment payloads are **redacted** and long strings **truncated**, so
+  the log stays light and avoids retaining raw media.
+
 ## Installing & running
 
 ### Prerequisites
 
-- [Flutter](https://docs.flutter.dev/get-started/install) **3.27+ / Dart 3.6+**
+- [Flutter](https://docs.flutter.dev/get-started/install) **3.44.2** (the version
+  tested in CI and pinned by the Claude Code web hook). The package's minimum is
+  Dart 3.6 (`environment` in `pubspec.yaml`), but builds are verified against
+  Flutter 3.44.2 / Dart 3.12.
 - An [OpenRouter API key](https://openrouter.ai/keys)
 - Platform toolchain for your target (see [Platform notes](#platform-notes))
 
@@ -137,7 +168,7 @@ flutter test          # run the full suite
 flutter analyze       # static analysis / lints
 ```
 
-The project has a comprehensive suite (91 tests across 16 files) covering:
+The project has a comprehensive suite covering:
 
 - **Models** — JSON round-trips and edge cases for messages, conversations,
   models, and usage.
@@ -156,25 +187,39 @@ The project has a comprehensive suite (91 tests across 16 files) covering:
 
 ## Architecture
 
-State management uses [`provider`](https://pub.dev/packages/provider) with three
-`ChangeNotifier`s (`SettingsProvider`, `ChatProvider`, `UsageProvider`) wired up
-in `main.dart`. Networking, persistence, and secure storage are isolated in
+State management uses [`flutter_riverpod`](https://pub.dev/packages/flutter_riverpod).
+The main app state lives in `Notifier`s exposed as `NotifierProvider`s
+(`SettingsNotifier`, `ChatNotifier`, the usage notifier, and the debug log),
+with services injected as plain `Provider`s in `lib/providers/app_providers.dart`.
+`SharedPreferences` is loaded in `main.dart` and injected through the
+`ProviderScope`. Networking, persistence, and secure storage are isolated in
 plain service classes for testability.
+
+Conversations, messages, and attachments are persisted on-device in a normalized
+**SQLite** database via [`drift`](https://pub.dev/packages/drift). A
+`conversations.json` file from older installs is imported automatically on first
+launch (without clobbering existing database data).
 
 ```
 lib/
-  main.dart                      Entry point + provider wiring
+  main.dart                      Entry point: loads prefs, wires ProviderScope
   app.dart                       MaterialApp + Material 3 theme
   models/
     chat_message.dart            A single message (role, content, streaming)
     conversation.dart            A saved chat (messages + model)
+    attachment.dart              Image / audio / file part (base64)
     openrouter_model.dart        A catalogue entry (id, pricing, context)
     usage.dart                   TokenUsage, ModelUsage, CreditBalance
   services/
     openrouter_service.dart      REST client: models, streaming chat, credits
     secure_storage_service.dart  API-key storage (flutter_secure_storage)
-    conversation_store.dart      JSON persistence (path_provider)
+    database/app_database.dart   Drift/SQLite schema (conversations/messages/…)
+    drift_conversation_store.dart SQLite persistence + legacy JSON import
+    conversation_store.dart      Legacy JSON store (import source only)
+    debug_log.dart               In-memory, opt-in capture of API sessions
+    download_service.dart        Save output (desktop folder / share sheet)
   providers/
+    app_providers.dart           Service providers (db, store, OpenRouter, …)
     settings_provider.dart       API key, default model, theme
     chat_provider.dart           Conversations + send/stream orchestration
     usage_provider.dart          Session token/cost totals + account balance
@@ -183,6 +228,7 @@ lib/
     settings_screen.dart         API key, default model, appearance
     model_picker_screen.dart     Searchable model catalogue
     usage_screen.dart            Session usage + account balance
+    debug_screen.dart            Opt-in API session inspector
   widgets/
     chat_view.dart               Header, message list, empty state, errors
     conversation_list.dart       Sidebar of saved conversations
@@ -196,14 +242,21 @@ lib/
 | Package | Purpose |
 |---------|---------|
 | [`http`](https://pub.dev/packages/http) | OpenRouter REST + streaming |
-| [`provider`](https://pub.dev/packages/provider) | State management |
+| [`flutter_riverpod`](https://pub.dev/packages/flutter_riverpod) | State management |
+| [`drift`](https://pub.dev/packages/drift) · [`sqlite3_flutter_libs`](https://pub.dev/packages/sqlite3_flutter_libs) | Conversation persistence (SQLite) |
 | [`flutter_secure_storage`](https://pub.dev/packages/flutter_secure_storage) | API-key storage |
 | [`shared_preferences`](https://pub.dev/packages/shared_preferences) | Theme & default-model prefs |
-| [`path_provider`](https://pub.dev/packages/path_provider) | Conversation file location |
-| [`flutter_markdown`](https://pub.dev/packages/flutter_markdown) | Render assistant replies |
+| [`path_provider`](https://pub.dev/packages/path_provider) | Database & file locations |
+| [`flutter_markdown_plus`](https://pub.dev/packages/flutter_markdown_plus) | Render assistant replies |
 | [`flutter_svg`](https://pub.dev/packages/flutter_svg) | Render inline SVG output |
+| [`record`](https://pub.dev/packages/record) · [`audioplayers`](https://pub.dev/packages/audioplayers) | Record / play audio |
+| [`file_selector`](https://pub.dev/packages/file_selector) · [`share_plus`](https://pub.dev/packages/share_plus) | Attach files · save/share output |
 | [`google_fonts`](https://pub.dev/packages/google_fonts) | Selectable fonts |
 | [`uuid`](https://pub.dev/packages/uuid) · [`intl`](https://pub.dev/packages/intl) | IDs · number/date formatting |
+
+> The full, version-pinned dependency set is in
+> [`pubspec.yaml`](pubspec.yaml) and [`pubspec.lock`](pubspec.lock) (committed
+> for reproducible builds).
 
 ## How it talks to OpenRouter
 
