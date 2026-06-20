@@ -77,4 +77,49 @@ void main() {
     // Usage from both runs was recorded (2 × $0.01).
     expect(container.read(usageProvider).cost, closeTo(0.02, 1e-9));
   });
+
+  testWidgets('preserves the session after leaving and returning',
+      (tester) async {
+    await pump(tester);
+
+    Future<void> addModel(String name) async {
+      await tester.tap(find.text('Add model'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(name).first);
+      await tester.pumpAndSettle();
+    }
+
+    await addModel('Alpha');
+    await addModel('Beta');
+    await tester.enterText(find.byType(TextField).first, 'Hi there');
+    await tester.pump();
+    await tester.tap(find.text('Run'));
+    await tester.pumpAndSettle();
+    expect(find.byType(MessageBubble), findsNWidgets(2));
+
+    // Simulate pressing Back: tear the screen down (disposes its State) while
+    // keeping the same provider container, then return to it.
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(home: Scaffold(body: SizedBox())),
+      ),
+    );
+    await tester.pump();
+    expect(find.byType(CompareScreen), findsNothing);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(home: CompareScreen()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // The models, results and prompt all came back.
+    expect(find.widgetWithText(InputChip, 'Alpha'), findsOneWidget);
+    expect(find.widgetWithText(InputChip, 'Beta'), findsOneWidget);
+    expect(find.byType(MessageBubble), findsNWidgets(2));
+    expect(find.widgetWithText(TextField, 'Hi there'), findsOneWidget);
+  });
 }

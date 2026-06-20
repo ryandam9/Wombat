@@ -1,20 +1,19 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../models/chat_message.dart';
 import '../models/openrouter_model.dart';
-import '../models/usage.dart';
-import '../providers/app_providers.dart';
+import '../providers/compare_provider.dart';
 import '../providers/settings_provider.dart';
-import '../providers/usage_provider.dart';
 import '../widgets/message_bubble.dart';
 import '../widgets/ui_kit.dart';
 import 'model_picker_screen.dart';
 
 /// Runs one prompt against several models at once and shows the replies side
 /// by side for comparison.
+///
+/// The session itself lives in [compareProvider], so navigating back and
+/// returning preserves the selected models, prompt, in-flight streams and
+/// results.
 class CompareScreen extends ConsumerStatefulWidget {
   const CompareScreen({super.key});
 
@@ -22,60 +21,22 @@ class CompareScreen extends ConsumerStatefulWidget {
   ConsumerState<CompareScreen> createState() => _CompareScreenState();
 }
 
-/// One model's run: a (mutable) assistant message plus its status.
-class _Run {
-  _Run(this.model);
-
-  final OpenRouterModel model;
-  final ChatMessage message = ChatMessage(
-    id: 'cmp-${DateTime.now().microsecondsSinceEpoch}-${_seq++}',
-    role: MessageRole.assistant,
-    content: '',
-    isStreaming: true,
-  );
-  TokenUsage? usage;
-  String? error;
-  StreamSubscription<String>? sub;
-
-  static int _seq = 0;
-}
-
 class _CompareScreenState extends ConsumerState<CompareScreen> {
   static const double _wideBreakpoint = 760;
-  static const int _maxModels = 5;
 
-  final TextEditingController _prompt = TextEditingController();
-  final List<OpenRouterModel> _models = [];
-  final List<_Run> _runs = [];
-  bool _running = false;
+  late final TextEditingController _prompt;
 
-  // Coalesce streaming updates into ~16 fps.
-  Timer? _throttle;
-  bool _dirty = false;
+  @override
+  void initState() {
+    super.initState();
+    // Restore any in-progress prompt from the persisted session.
+    _prompt = TextEditingController(text: ref.read(compareProvider).prompt);
+  }
 
   @override
   void dispose() {
     _prompt.dispose();
-    _throttle?.cancel();
-    for (final r in _runs) {
-      r.sub?.cancel();
-    }
     super.dispose();
-  }
-
-  void _scheduleUpdate() {
-    if (_throttle != null) {
-      _dirty = true;
-      return;
-    }
-    if (mounted) setState(() {});
-    _throttle = Timer(const Duration(milliseconds: 60), () {
-      _throttle = null;
-      if (_dirty) {
-        _dirty = false;
-        _scheduleUpdate();
-      }
-    });
   }
 
   Future<void> _addModel() async {
@@ -83,118 +44,55 @@ class _CompareScreenState extends ConsumerState<CompareScreen> {
       MaterialPageRoute(builder: (_) => const ModelPickerScreen()),
     );
     if (picked == null) return;
-    if (_models.any((m) => m.id == picked.id)) return; // no duplicates
-    setState(() => _models.add(picked));
+    ref.read(compareProvider.notifier).addModel(picked);
   }
 
-  void _removeModel(OpenRouterModel model) =>
-      setState(() => _models.removeWhere((m) => m.id == model.id));
-
-  void _stop() {
-    for (final r in _runs) {
-      r.sub?.cancel();
-      if (r.message.isStreaming) r.message.isStreaming = false;
-    }
-    setState(() => _running = false);
-  }
-
-  Future<void> _run() async {
-    final text = _prompt.text.trim();
+  void _run() {
     final apiKey = ref.read(settingsProvider).apiKey;
-    if (text.isEmpty || _models.isEmpty || _running) return;
     if (apiKey == null || apiKey.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Add your API key in Settings first.')),
       );
       return;
     }
-
-    // Reset and build a fresh run per model.
-    for (final r in _runs) {
-      r.sub?.cancel();
-    }
-    final service = ref.read(openRouterServiceProvider);
-    final usageNotifier = ref.read(usageProvider.notifier);
-    final userMsg = ChatMessage(
-      id: 'cmp-user-${DateTime.now().microsecondsSinceEpoch}',
-      role: MessageRole.user,
-      content: text,
-    );
-
-    setState(() {
-      _runs
-        ..clear()
-        ..addAll(_models.map(_Run.new));
-      _running = true;
-    });
-
-    for (final run in _runs) {
-      run.sub = service
-          .streamChat(
-            apiKey: apiKey,
-            model: run.model.id,
-            messages: [userMsg],
-            onUsage: (u) {
-              run.usage = u;
-              usageNotifier.record(run.model.id, u);
-            },
-          )
-          .listen(
-        (delta) {
-          run.message.content += delta;
-          _scheduleUpdate();
-        },
-        onError: (Object e) {
-          run.error = e.toString();
-          run.message.isStreaming = false;
-          _onRunEnded();
-        },
-        onDone: () {
-          run.message.isStreaming = false;
-          _onRunEnded();
-        },
-        cancelOnError: true,
-      );
-    }
-  }
-
-  void _onRunEnded() {
-    if (_runs.every((r) => !r.message.isStreaming)) {
-      _running = false;
-    }
-    _scheduleUpdate();
+    ref.read(compareProvider.notifier).run();
   }
 
   @override
   Widget build(BuildContext context) {
     final wide = MediaQuery.of(context).size.width >= _wideBreakpoint;
-    final canRun =
-        !_running && _models.isNotEmpty && _prompt.text.trim().isNotEmpty;
+    final state = ref.watch(compareProvider);
+    final notifier = ref.read(compareProvider.notifier);
+    final canRun = !state.running &&
+        state.models.isNotEmpty &&
+        state.prompt.trim().isNotEmpty;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Compare models')),
       body: Column(
         children: [
           _ModelBar(
-            models: _models,
-            onAdd: _models.length >= _maxModels ? null : _addModel,
-            onRemove: _running ? null : _removeModel,
-            max: _maxModels,
+            models: state.models,
+            onAdd: state.models.length >= CompareNotifier.maxModels
+                ? null
+                : _addModel,
+            onRemove: state.running ? null : notifier.removeModel,
+            max: CompareNotifier.maxModels,
           ),
           const Divider(height: 1),
           Expanded(
-            child: _runs.isEmpty
+            child: state.runs.isEmpty
                 ? const _ComparePlaceholder()
-                : _Results(runs: _runs, wide: wide),
+                : _Results(runs: state.runs, wide: wide),
           ),
           const Divider(height: 1),
           _PromptBar(
             controller: _prompt,
-            running: _running,
+            running: state.running,
             canRun: canRun,
-            onChanged: (_) => setState(() {}),
+            onChanged: notifier.setPrompt,
             onRun: _run,
-            onStop: _stop,
+            onStop: notifier.stop,
           ),
         ],
       ),
@@ -316,7 +214,7 @@ class _PromptBar extends StatelessWidget {
 class _Results extends StatelessWidget {
   const _Results({required this.runs, required this.wide});
 
-  final List<_Run> runs;
+  final List<CompareRun> runs;
   final bool wide;
 
   @override
@@ -345,7 +243,7 @@ class _Results extends StatelessWidget {
 class _ResultColumn extends StatelessWidget {
   const _ResultColumn({required this.run});
 
-  final _Run run;
+  final CompareRun run;
 
   @override
   Widget build(BuildContext context) {
@@ -369,7 +267,7 @@ class _ResultColumn extends StatelessWidget {
 class _ResultCard extends StatelessWidget {
   const _ResultCard({required this.run});
 
-  final _Run run;
+  final CompareRun run;
 
   @override
   Widget build(BuildContext context) {
@@ -399,7 +297,7 @@ class _ResultCard extends StatelessWidget {
 class _ResultHeader extends StatelessWidget {
   const _ResultHeader({required this.run});
 
-  final _Run run;
+  final CompareRun run;
 
   @override
   Widget build(BuildContext context) {
@@ -447,7 +345,7 @@ class _ResultHeader extends StatelessWidget {
 class _ResultBody extends StatelessWidget {
   const _ResultBody({required this.run});
 
-  final _Run run;
+  final CompareRun run;
 
   @override
   Widget build(BuildContext context) {
