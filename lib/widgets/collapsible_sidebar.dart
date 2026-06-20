@@ -15,6 +15,7 @@ class CollapsibleSidebar extends StatefulWidget {
     required this.sidebar,
     required this.rail,
     this.railWidth = 48,
+    this.duration = const Duration(milliseconds: 280),
   });
 
   final bool collapsed;
@@ -22,6 +23,10 @@ class CollapsibleSidebar extends StatefulWidget {
   final double railWidth;
   final Widget sidebar;
   final Widget rail;
+
+  /// Collapse/expand animation duration (set to [Duration.zero] for reduced
+  /// motion).
+  final Duration duration;
 
   @override
   State<CollapsibleSidebar> createState() => _CollapsibleSidebarState();
@@ -31,13 +36,14 @@ class _CollapsibleSidebarState extends State<CollapsibleSidebar>
     with SingleTickerProviderStateMixin {
   late final AnimationController _c = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 280),
+    duration: widget.duration,
     value: widget.collapsed ? 0 : 1,
   );
 
   @override
   void didUpdateWidget(CollapsibleSidebar old) {
     super.didUpdateWidget(old);
+    _c.duration = widget.duration;
     if (widget.collapsed != old.collapsed) {
       widget.collapsed ? _c.reverse() : _c.forward();
     }

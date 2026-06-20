@@ -7,6 +7,7 @@ import '../providers/settings_provider.dart';
 import '../widgets/collapsible_sidebar.dart';
 import '../widgets/conversation_list.dart';
 import '../widgets/dashboard_landing.dart';
+import '../widgets/motion.dart';
 import 'chat_workspace_screen.dart';
 import 'compare_screen.dart';
 import 'debug_screen.dart';
@@ -34,8 +35,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   static const double _minSidebarWidth = 220;
   static const double _maxSidebarWidth = 520;
 
-  double _sidebarWidth = 340;
+  double _sidebarWidth = SettingsNotifier.defaultSidebarWidth;
   bool _collapsed = false;
+  bool _widthInitialized = false;
   DashboardSection _section = DashboardSection.chat;
 
   // Selected bottom-navigation tab on the narrow (phone) layout.
@@ -46,6 +48,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       _sidebarWidth =
           (_sidebarWidth + dx).clamp(_minSidebarWidth, _maxSidebarWidth);
     });
+  }
+
+  void _persistWidth() =>
+      ref.read(settingsProvider.notifier).setSidebarWidth(_sidebarWidth);
+
+  void _resetWidth() {
+    setState(() => _sidebarWidth = SettingsNotifier.defaultSidebarWidth);
+    _persistWidth();
   }
 
   void _openWorkspace() {
@@ -82,6 +92,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final isWide = MediaQuery.of(context).size.width >= _wideBreakpoint;
+    final settings = ref.watch(settingsProvider);
+    // Seed the sidebar width from the persisted setting once it has loaded.
+    if (!_widthInitialized && !settings.loading) {
+      _sidebarWidth = settings.sidebarWidth;
+      _widthInitialized = true;
+    }
+    final motion = Motion.of(context, ref);
 
     if (isWide) {
       return Scaffold(
@@ -90,6 +107,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             CollapsibleSidebar(
               collapsed: _collapsed,
               width: _sidebarWidth,
+              railWidth: 80,
+              duration: motion.medium,
               sidebar: ConversationList(
                 selectedSection: _section,
                 onNavigate: (s) => setState(() => _section = s),
@@ -97,11 +116,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 openChatBuilder: (_) => const ChatWorkspaceScreen(),
                 onCollapse: () => setState(() => _collapsed = true),
               ),
-              rail: _CollapsedRail(
+              rail: _CollapsedNavRail(
+                selected: _section,
+                onNavigate: (s) => setState(() => _section = s),
                 onExpand: () => setState(() => _collapsed = false),
               ),
             ),
-            if (!_collapsed) _ResizableSeparator(onDrag: _resize),
+            if (!_collapsed)
+              _ResizableSeparator(
+                onDrag: _resize,
+                onDragEnd: _persistWidth,
+                onReset: _resetWidth,
+              ),
             Expanded(
               child: PageTransitionSwitcher(
                 transitionBuilder: (child, primary, secondary) =>
@@ -252,57 +278,116 @@ class _MobileChatsTab extends ConsumerWidget {
   }
 }
 
-/// A thin rail shown when the sidebar is collapsed: just an expand button so
-/// the navigation can be brought back from any section.
-class _CollapsedRail extends StatelessWidget {
-  const _CollapsedRail({required this.onExpand});
+/// The collapsed sidebar: a compact icon navigation rail so every section
+/// stays reachable (Chats, Models, Usage, Debug, Settings, Help) plus an
+/// expand button — instead of hiding navigation behind a single arrow.
+class _CollapsedNavRail extends StatelessWidget {
+  const _CollapsedNavRail({
+    required this.selected,
+    required this.onNavigate,
+    required this.onExpand,
+  });
 
+  final DashboardSection selected;
+  final ValueChanged<DashboardSection> onNavigate;
   final VoidCallback onExpand;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Container(
-      width: 48,
-      decoration: BoxDecoration(
-        border: Border(
-          right: BorderSide(color: theme.colorScheme.outlineVariant),
-        ),
-      ),
-      child: SafeArea(
-        child: Column(
-          children: [
-            const SizedBox(height: 8),
-            IconButton(
+    // Destinations follow DashboardSection.values order.
+    return SingleChildScrollView(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(minHeight: MediaQuery.of(context).size.height),
+        child: IntrinsicHeight(
+          child: NavigationRail(
+            extended: false,
+            labelType: NavigationRailLabelType.none,
+            selectedIndex: selected.index,
+            onDestinationSelected: (i) =>
+                onNavigate(DashboardSection.values[i]),
+            leading: IconButton(
               tooltip: 'Show sidebar',
               icon: const Icon(Icons.menu_open),
               onPressed: onExpand,
             ),
-          ],
+            destinations: const [
+              NavigationRailDestination(
+                icon: Icon(Icons.history),
+                label: Text('Chats'),
+              ),
+              NavigationRailDestination(
+                icon: Icon(Icons.grid_view_outlined),
+                label: Text('Models'),
+              ),
+              NavigationRailDestination(
+                icon: Icon(Icons.insights_outlined),
+                label: Text('Usage'),
+              ),
+              NavigationRailDestination(
+                icon: Icon(Icons.bug_report_outlined),
+                label: Text('Debug'),
+              ),
+              NavigationRailDestination(
+                icon: Icon(Icons.settings_outlined),
+                label: Text('Settings'),
+              ),
+              NavigationRailDestination(
+                icon: Icon(Icons.help_outline),
+                label: Text('Help'),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-/// A thin draggable handle between the sidebar and the chat pane. Dragging it
-/// horizontally resizes the sidebar; it shows a resize cursor on desktop/web.
-class _ResizableSeparator extends StatelessWidget {
-  const _ResizableSeparator({required this.onDrag});
+/// A draggable handle between the sidebar and the chat pane. Dragging resizes
+/// the sidebar; hovering highlights it; double-clicking resets the width.
+class _ResizableSeparator extends StatefulWidget {
+  const _ResizableSeparator({
+    required this.onDrag,
+    required this.onDragEnd,
+    required this.onReset,
+  });
 
   /// Called with the horizontal drag delta (in logical pixels).
   final void Function(double dx) onDrag;
+  final VoidCallback onDragEnd;
+  final VoidCallback onReset;
+
+  @override
+  State<_ResizableSeparator> createState() => _ResizableSeparatorState();
+}
+
+class _ResizableSeparatorState extends State<_ResizableSeparator> {
+  bool _hovering = false;
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return MouseRegion(
       cursor: SystemMouseCursors.resizeColumn,
+      onEnter: (_) => setState(() => _hovering = true),
+      onExit: (_) => setState(() => _hovering = false),
       child: GestureDetector(
         behavior: HitTestBehavior.translucent,
-        onHorizontalDragUpdate: (details) => onDrag(details.delta.dx),
-        child: const SizedBox(
-          width: 8,
-          child: Center(child: VerticalDivider(width: 1)),
+        onHorizontalDragUpdate: (details) => widget.onDrag(details.delta.dx),
+        onHorizontalDragEnd: (_) => widget.onDragEnd(),
+        onDoubleTap: widget.onReset,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 120),
+          width: _hovering ? 10 : 8,
+          color: _hovering
+              ? scheme.primary.withValues(alpha: 0.08)
+              : Colors.transparent,
+          child: Center(
+            child: VerticalDivider(
+              width: 1,
+              color: _hovering ? scheme.primary : scheme.outlineVariant,
+            ),
+          ),
         ),
       ),
     );
