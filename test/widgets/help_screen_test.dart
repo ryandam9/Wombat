@@ -3,10 +3,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:wombat/screens/help_screen.dart';
 
 void main() {
-  Future<void> pump(WidgetTester tester) async {
+  Future<void> pump(WidgetTester tester, {double width = 800}) async {
     // Tall viewport so all sections/topics build in the lazy ListView.
     tester.view.devicePixelRatio = 1.0;
-    tester.view.physicalSize = const Size(800, 2400);
+    tester.view.physicalSize = Size(width, 2400);
     addTearDown(tester.view.reset);
     await tester.pumpWidget(const MaterialApp(home: HelpScreen()));
     await tester.pump();
@@ -31,6 +31,19 @@ void main() {
     // ...but the details are hidden until a topic is expanded.
     expect(find.text('Capture'), findsNothing);
     expect(find.textContaining('input_audio'), findsNothing);
+  });
+
+  testWidgets('uses a multi-column layout on wide screens', (tester) async {
+    await pump(tester, width: 1300);
+
+    // All three sections render side by side without overflow.
+    expect(tester.takeException(), isNull);
+    expect(find.text('VOICE & AUDIO'), findsOneWidget);
+    expect(find.text('MODELS & USAGE'), findsOneWidget);
+    expect(find.text('SETUP, PRIVACY & DATA'), findsOneWidget);
+    // Multi-column uses a horizontally-scrolling Row of columns rather than a
+    // single ListView.
+    expect(find.byType(SingleChildScrollView), findsOneWidget);
   });
 
   testWidgets('expanding a topic reveals its details', (tester) async {

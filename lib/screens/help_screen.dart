@@ -10,8 +10,7 @@ class HelpScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Help & Troubleshoot')),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+      body: _ResponsiveSections(
         children: const [
           _Section(
             title: 'Voice & audio',
@@ -45,7 +44,6 @@ class HelpScreen extends StatelessWidget {
               ),
             ],
           ),
-          SizedBox(height: 20),
           _Section(
             title: 'Models & usage',
             items: [
@@ -94,7 +92,6 @@ class HelpScreen extends StatelessWidget {
               ),
             ],
           ),
-          SizedBox(height: 20),
           _Section(
             title: 'Setup, privacy & data',
             items: [
@@ -134,6 +131,62 @@ class HelpScreen extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Lays the help sections in multiple columns on wide screens (so the desktop
+/// view doesn't leave most of the width empty) and a single column when narrow.
+class _ResponsiveSections extends StatelessWidget {
+  const _ResponsiveSections({required this.children});
+
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    const pad = EdgeInsets.fromLTRB(16, 8, 16, 24);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final cols = constraints.maxWidth >= 1100
+            ? 3
+            : (constraints.maxWidth >= 720 ? 2 : 1);
+        if (cols == 1) {
+          return ListView(
+            padding: pad,
+            children: [
+              for (final s in children)
+                Padding(padding: const EdgeInsets.only(bottom: 20), child: s),
+            ],
+          );
+        }
+        // Distribute the sections across columns round-robin.
+        final columns = List.generate(cols, (_) => <Widget>[]);
+        for (var i = 0; i < children.length; i++) {
+          columns[i % cols].add(
+            Padding(
+              padding: const EdgeInsets.only(bottom: 20),
+              child: children[i],
+            ),
+          );
+        }
+        return SingleChildScrollView(
+          padding: pad,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              for (var i = 0; i < cols; i++) ...[
+                if (i > 0) const SizedBox(width: 20),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: columns[i],
+                  ),
+                ),
+              ],
+            ],
+          ),
+        );
+      },
     );
   }
 }
