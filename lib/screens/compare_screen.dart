@@ -385,7 +385,13 @@ class _ResultBody extends StatelessWidget {
       );
     }
     // Reuse the chat bubble's Markdown/SVG/image rendering and copy/save.
-    return MessageBubble(message: run.message);
+    // Force the model name so each column stays distinct (ignore the global
+    // custom AI name here).
+    return MessageBubble(
+      message: run.message,
+      modelName: run.model.name,
+      preferModelName: true,
+    );
   }
 }
 

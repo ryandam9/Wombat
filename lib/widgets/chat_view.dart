@@ -267,8 +267,10 @@ class _MessageListState extends ConsumerState<_MessageList> {
       controller: _controller,
       padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
       itemCount: convo.messages.length,
-      itemBuilder: (context, index) =>
-          MessageBubble(message: convo.messages[index]),
+      itemBuilder: (context, index) => MessageBubble(
+        message: convo.messages[index],
+        modelName: convo.modelId,
+      ),
     );
   }
 }
