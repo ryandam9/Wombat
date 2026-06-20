@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:wombat/providers/chat_provider.dart';
 import 'package:wombat/screens/home_screen.dart';
 import 'package:wombat/theme/app_theme.dart';
+import 'package:wombat/widgets/chat_view.dart';
 
 import '../helpers/fakes.dart';
 
@@ -77,6 +78,45 @@ void main() {
     expect(find.text('Compare models'), findsOneWidget);
     // ...and there is no back button (nothing was pushed).
     expect(find.byTooltip('Back'), findsNothing);
+  });
+
+  testWidgets('Chat history opens the two-pane chat workspace', (tester) async {
+    tester.view.devicePixelRatio = 1.0;
+    tester.view.physicalSize = const Size(1200, 900);
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(await buildApp(tester));
+    await tester.pump();
+
+    // The dashboard centre is the landing, not a chat view.
+    expect(find.byType(ChatView), findsNothing);
+
+    await tester.tap(find.text('Chat history'));
+    await tester.pumpAndSettle();
+
+    // The workspace page (chat + history) is now shown, with a back affordance.
+    expect(find.byType(ChatView), findsOneWidget);
+    expect(find.byTooltip('Back to dashboard'), findsOneWidget);
+
+    // Going back returns to the dashboard.
+    await tester.tap(find.byTooltip('Back to dashboard'));
+    await tester.pumpAndSettle();
+    expect(find.byType(ChatView), findsNothing);
+  });
+
+  testWidgets('New chat opens the chat workspace', (tester) async {
+    tester.view.devicePixelRatio = 1.0;
+    tester.view.physicalSize = const Size(1200, 900);
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(await buildApp(tester));
+    await tester.pump();
+
+    await tester.tap(find.widgetWithText(FilledButton, 'New chat'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(ChatView), findsOneWidget);
+    expect(find.byTooltip('Back to dashboard'), findsOneWidget);
   });
 
   testWidgets('collapsing hides the sidebar and expanding restores it',
