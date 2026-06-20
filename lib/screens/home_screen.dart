@@ -66,7 +66,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         return const UsageScreen();
       case DashboardSection.debug:
         return const DebugScreen();
-      case DashboardSection.apiKeys:
       case DashboardSection.settings:
         return const SettingsScreen();
       case DashboardSection.help:
