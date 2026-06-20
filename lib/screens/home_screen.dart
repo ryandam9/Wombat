@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/settings_provider.dart';
 import '../widgets/chat_view.dart';
 import '../widgets/conversation_list.dart';
+import '../widgets/dashboard_landing.dart';
+import 'chat_workspace_screen.dart';
 import 'debug_screen.dart';
 import 'help_screen.dart';
 import 'model_picker_screen.dart';
@@ -40,12 +42,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     });
   }
 
+  void _openWorkspace() {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => const ChatWorkspaceScreen()),
+    );
+  }
+
   /// The centre-pane content for the active section. Each section is shown in
-  /// place (not pushed), so there is no back button on desktop.
+  /// place (not pushed), so there is no back button on desktop. Chat itself
+  /// opens as its own workspace page, so the default centre is the dashboard.
   Widget _sectionPane() {
     switch (_section) {
       case DashboardSection.chat:
-        return const ChatView(showMenuButton: false);
+        return const DashboardLanding();
       case DashboardSection.models:
         return ModelPickerScreen(
           onPicked: (model) {
@@ -79,6 +88,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 child: ConversationList(
                   selectedSection: _section,
                   onNavigate: (s) => setState(() => _section = s),
+                  onOpenChat: _openWorkspace,
                   onCollapse: () => setState(() => _collapsed = true),
                 ),
               ),

@@ -25,8 +25,11 @@ class ConversationList extends ConsumerStatefulWidget {
     super.key,
     this.inDrawer = false,
     this.onCollapse,
+    this.onBack,
     this.selectedSection,
     this.onNavigate,
+    this.onOpenChat,
+    this.showNavigation = true,
   });
 
   /// When shown inside a [Drawer], selecting a conversation should close it.
@@ -35,12 +38,25 @@ class ConversationList extends ConsumerStatefulWidget {
   /// When provided (wide layout), shows a button to collapse the sidebar.
   final VoidCallback? onCollapse;
 
+  /// When provided, shows a back button in the header (used by the chat
+  /// workspace page to return to the dashboard).
+  final VoidCallback? onBack;
+
   /// The currently active section (desktop), used to highlight its nav item.
   final DashboardSection? selectedSection;
 
   /// When provided (desktop), tapping a nav item switches the centre pane in
   /// place via this callback instead of pushing a new route.
   final void Function(DashboardSection section)? onNavigate;
+
+  /// When provided, opening or creating a chat (New chat, a recent chat, or
+  /// "Chat history") invokes this — used by the dashboard to open the chat
+  /// workspace page. When null, chats are shown in place.
+  final VoidCallback? onOpenChat;
+
+  /// Whether to show the navigation rail (Models, Usage, …). The chat workspace
+  /// hides it so the sidebar is purely the conversation history.
+  final bool showNavigation;
 
   @override
   ConsumerState<ConversationList> createState() => _ConversationListState();
@@ -76,6 +92,7 @@ class _ConversationListState extends ConsumerState<ConversationList> {
   void _newChat() {
     ref.read(chatProvider.notifier).newConversation();
     if (widget.inDrawer) Navigator.of(context).pop();
+    widget.onOpenChat?.call();
   }
 
   bool _isSelected(DashboardSection section) =>
@@ -110,7 +127,10 @@ class _ConversationListState extends ConsumerState<ConversationList> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _Header(
-              count: chat.conversations.length, onCollapse: widget.onCollapse),
+            count: chat.conversations.length,
+            onCollapse: widget.onCollapse,
+            onBack: widget.onBack,
+          ),
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
             child: FilledButton.icon(
@@ -133,61 +153,64 @@ class _ConversationListState extends ConsumerState<ConversationList> {
             child: ListView(
               padding: EdgeInsets.zero,
               children: [
-                const _SectionLabel('Navigation'),
-                _NavItem(
-                  icon: Icons.history,
-                  label: 'Chat history',
-                  selected: _isSelected(DashboardSection.chat),
-                  onTap: () => _navigate(
-                    DashboardSection.chat,
-                    mobile: () {
-                      if (widget.inDrawer) Navigator.of(context).pop();
+                if (widget.showNavigation) ...[
+                  const _SectionLabel('Navigation'),
+                  _NavItem(
+                    icon: Icons.history,
+                    label: 'Chat history',
+                    selected: _isSelected(DashboardSection.chat),
+                    onTap: () {
+                      if (widget.onOpenChat != null) {
+                        widget.onOpenChat!();
+                      } else if (widget.inDrawer) {
+                        Navigator.of(context).pop();
+                      }
                     },
                   ),
-                ),
-                _NavItem(
-                  icon: Icons.grid_view_outlined,
-                  label: 'Models',
-                  selected: _isSelected(DashboardSection.models),
-                  onTap: () =>
-                      _navigate(DashboardSection.models, mobile: _openModels),
-                ),
-                _NavItem(
-                  icon: Icons.insights_outlined,
-                  label: 'Usage',
-                  selected: _isSelected(DashboardSection.usage),
-                  onTap: () => _navigate(DashboardSection.usage,
-                      mobile: () => _open(const UsageScreen())),
-                ),
-                _NavItem(
-                  icon: Icons.bug_report_outlined,
-                  label: 'Debug',
-                  selected: _isSelected(DashboardSection.debug),
-                  onTap: () => _navigate(DashboardSection.debug,
-                      mobile: () => _open(const DebugScreen())),
-                ),
-                _NavItem(
-                  icon: Icons.key_outlined,
-                  label: 'API keys',
-                  selected: _isSelected(DashboardSection.apiKeys),
-                  onTap: () => _navigate(DashboardSection.apiKeys,
-                      mobile: () => _open(const SettingsScreen())),
-                ),
-                _NavItem(
-                  icon: Icons.settings_outlined,
-                  label: 'Settings',
-                  selected: _isSelected(DashboardSection.settings),
-                  onTap: () => _navigate(DashboardSection.settings,
-                      mobile: () => _open(const SettingsScreen())),
-                ),
-                _NavItem(
-                  icon: Icons.help_outline,
-                  label: 'Help & Troubleshoot',
-                  selected: _isSelected(DashboardSection.help),
-                  onTap: () => _navigate(DashboardSection.help,
-                      mobile: () => _open(const HelpScreen())),
-                ),
-                const SizedBox(height: 8),
+                  _NavItem(
+                    icon: Icons.grid_view_outlined,
+                    label: 'Models',
+                    selected: _isSelected(DashboardSection.models),
+                    onTap: () =>
+                        _navigate(DashboardSection.models, mobile: _openModels),
+                  ),
+                  _NavItem(
+                    icon: Icons.insights_outlined,
+                    label: 'Usage',
+                    selected: _isSelected(DashboardSection.usage),
+                    onTap: () => _navigate(DashboardSection.usage,
+                        mobile: () => _open(const UsageScreen())),
+                  ),
+                  _NavItem(
+                    icon: Icons.bug_report_outlined,
+                    label: 'Debug',
+                    selected: _isSelected(DashboardSection.debug),
+                    onTap: () => _navigate(DashboardSection.debug,
+                        mobile: () => _open(const DebugScreen())),
+                  ),
+                  _NavItem(
+                    icon: Icons.key_outlined,
+                    label: 'API keys',
+                    selected: _isSelected(DashboardSection.apiKeys),
+                    onTap: () => _navigate(DashboardSection.apiKeys,
+                        mobile: () => _open(const SettingsScreen())),
+                  ),
+                  _NavItem(
+                    icon: Icons.settings_outlined,
+                    label: 'Settings',
+                    selected: _isSelected(DashboardSection.settings),
+                    onTap: () => _navigate(DashboardSection.settings,
+                        mobile: () => _open(const SettingsScreen())),
+                  ),
+                  _NavItem(
+                    icon: Icons.help_outline,
+                    label: 'Help & Troubleshoot',
+                    selected: _isSelected(DashboardSection.help),
+                    onTap: () => _navigate(DashboardSection.help,
+                        mobile: () => _open(const HelpScreen())),
+                  ),
+                  const SizedBox(height: 8),
+                ],
                 _RecentHeader(
                   searching: _searching,
                   onToggleSearch: () => setState(() {
@@ -239,6 +262,7 @@ class _ConversationListState extends ConsumerState<ConversationList> {
                             .read(chatProvider.notifier)
                             .selectConversation(convo.id);
                         if (widget.inDrawer) Navigator.of(context).pop();
+                        widget.onOpenChat?.call();
                       },
                     ),
               ],
@@ -251,18 +275,25 @@ class _ConversationListState extends ConsumerState<ConversationList> {
 }
 
 class _Header extends StatelessWidget {
-  const _Header({required this.count, this.onCollapse});
+  const _Header({required this.count, this.onCollapse, this.onBack});
 
   final int count;
   final VoidCallback? onCollapse;
+  final VoidCallback? onBack;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
+      padding: EdgeInsets.fromLTRB(onBack != null ? 4 : 16, 12, 8, 12),
       child: Row(
         children: [
+          if (onBack != null)
+            IconButton(
+              tooltip: 'Back to dashboard',
+              icon: const Icon(Icons.arrow_back),
+              onPressed: onBack,
+            ),
           ClipOval(
             child: Image.asset(
               'assets/icon/app_icon.png',
@@ -274,7 +305,14 @@ class _Header extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 10),
-          Text('Wombat', style: theme.textTheme.titleLarge),
+          Flexible(
+            child: Text(
+              'Wombat',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.titleLarge,
+            ),
+          ),
           const SizedBox(width: 8),
           if (count > 0) StatusChip('$count', color: theme.colorScheme.outline),
           const Spacer(),
