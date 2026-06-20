@@ -21,6 +21,18 @@ class WombatApp extends ConsumerWidget {
       theme: _withHeadingFont(AppTheme.lightFor(seed), headingFont),
       darkTheme: _withHeadingFont(AppTheme.darkFor(seed), headingFont),
       themeMode: themeMode,
+      // Make text selectable anywhere in the app. SelectionArea needs an
+      // Overlay ancestor for its selection handles/toolbar; the app's own
+      // Navigator overlay is a descendant here, so we provide one above it.
+      // TextFields keep their own editing selection.
+      builder: (context, child) => Overlay(
+        initialEntries: [
+          OverlayEntry(
+            builder: (context) =>
+                SelectionArea(child: child ?? const SizedBox()),
+          ),
+        ],
+      ),
       home: const HomeScreen(),
     );
   }

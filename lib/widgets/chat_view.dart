@@ -223,15 +223,13 @@ class _MessageListState extends ConsumerState<_MessageList> {
     final convo = ref.watch(chatProvider).current!;
     WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
 
-    // SelectionArea lets the user drag-select and copy across messages.
-    return SelectionArea(
-      child: ListView.builder(
-        controller: _controller,
-        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
-        itemCount: convo.messages.length,
-        itemBuilder: (context, index) =>
-            MessageBubble(message: convo.messages[index]),
-      ),
+    // Messages are selectable via the app-wide SelectionArea (see app.dart).
+    return ListView.builder(
+      controller: _controller,
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+      itemCount: convo.messages.length,
+      itemBuilder: (context, index) =>
+          MessageBubble(message: convo.messages[index]),
     );
   }
 }
