@@ -24,7 +24,7 @@ void main() {
     });
 
     test('collapses repeats and falls back when empty', () {
-      expect(DownloadService.sanitize('   '), 'route-output');
+      expect(DownloadService.sanitize('   '), 'wombat-output');
       expect(DownloadService.sanitize('//'), '_');
     });
   });
@@ -67,8 +67,8 @@ void main() {
   group('DownloadService.buildFileName', () {
     test('combines a sanitized base with the inferred extension', () {
       expect(
-        DownloadService.buildFileName('route-image', 'image/png'),
-        'route-image.png',
+        DownloadService.buildFileName('wombat-image', 'image/png'),
+        'wombat-image.png',
       );
       expect(
         DownloadService.buildFileName('my reply', 'text/markdown'),

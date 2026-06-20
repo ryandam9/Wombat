@@ -9,6 +9,9 @@ live usage/cost tracking, and a clean Material 3 interface.
 > Targets **Android** and **Linux desktop** out of the box (other platforms are
 > a one-command scaffold away — see [Other platforms](#other-platforms)).
 
+> 🤖 **This app is fully written by Claude Opus 4.8.** Every line of code,
+> test, and this documentation was authored by Anthropic's Claude Opus 4.8.
+
 ---
 
 ## Table of contents
@@ -28,7 +31,7 @@ live usage/cost tracking, and a clean Material 3 interface.
 
 ## What it does
 
-Route is a thin, native client for OpenRouter's OpenAI-compatible API. You bring
+Wombat is a thin, native client for OpenRouter's OpenAI-compatible API. You bring
 your own API key; the app never proxies through any server of its own — requests
 go straight from your device to OpenRouter.
 
@@ -104,8 +107,8 @@ the final stream chunk. Wombat accumulates these for the current session.
 
 ```bash
 # 1. Clone
-git clone https://github.com/ryandam9/Route.git
-cd Route
+git clone https://github.com/ryandam9/Wombat.git
+cd Wombat
 
 # 2. Fetch dependencies
 flutter pub get
@@ -204,7 +207,7 @@ lib/
 
 ## How it talks to OpenRouter
 
-Route uses OpenRouter's OpenAI-compatible REST API (see
+Wombat uses OpenRouter's OpenAI-compatible REST API (see
 `lib/services/openrouter_service.dart`):
 
 | Endpoint | Used for |
@@ -283,4 +286,4 @@ the system file picker — no extra setup.
 
 ---
 
-*Route is an independent client and is not affiliated with OpenRouter.*
+*Wombat is an independent client and is not affiliated with OpenRouter.*

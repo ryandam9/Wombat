@@ -107,7 +107,7 @@ class DownloadService {
         .replaceAll(RegExp(r'[\\/:*?"<>|\n\r\t]'), '_')
         .replaceAll(RegExp(r'_+'), '_');
     final trimmed = cleaned.length > 60 ? cleaned.substring(0, 60) : cleaned;
-    return trimmed.isEmpty ? 'route-output' : trimmed;
+    return trimmed.isEmpty ? 'wombat-output' : trimmed;
   }
 
   static String extensionForMime(String? mime) {

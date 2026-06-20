@@ -35,9 +35,9 @@ class AttachmentView extends StatelessWidget {
   }
 
   String get _baseName => switch (attachment.kind) {
-        AttachmentKind.image => 'route-image',
-        AttachmentKind.audio => 'route-audio',
-        AttachmentKind.file => (attachment.name ?? 'route-document')
+        AttachmentKind.image => 'wombat-image',
+        AttachmentKind.audio => 'wombat-audio',
+        AttachmentKind.file => (attachment.name ?? 'wombat-document')
             .replaceAll(RegExp(r'\.[^.]*$'), ''),
       };
 }

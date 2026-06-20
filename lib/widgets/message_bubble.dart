@@ -84,7 +84,7 @@ class MessageBubble extends ConsumerWidget {
                   SaveButton(
                     compact: true,
                     bytes: () => utf8.encode(save.text),
-                    baseName: 'route-reply',
+                    baseName: 'wombat-reply',
                     mimeType: save.mimeType,
                   ),
                 ],

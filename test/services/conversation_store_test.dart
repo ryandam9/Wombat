@@ -10,7 +10,7 @@ void main() {
   late ConversationStore store;
 
   setUp(() async {
-    tempDir = await Directory.systemTemp.createTemp('route_store_test');
+    tempDir = await Directory.systemTemp.createTemp('wombat_store_test');
     store = ConversationStore(directory: tempDir);
   });
 
