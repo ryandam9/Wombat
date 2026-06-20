@@ -28,13 +28,9 @@ final appDatabaseProvider = Provider<AppDatabase>((ref) {
   return db;
 });
 
-/// On-disk conversation persistence, backed by SQLite. Imports any legacy
-/// `conversations.json` from older installs on first launch.
+/// On-disk conversation persistence, backed by SQLite.
 final conversationStoreProvider = Provider<ConversationStore>(
-  (ref) => DriftConversationStore(
-    ref.watch(appDatabaseProvider),
-    legacyStore: JsonConversationStore(),
-  ),
+  (ref) => DriftConversationStore(ref.watch(appDatabaseProvider)),
 );
 
 /// Process environment variables, consulted on desktop to seed the API key.
