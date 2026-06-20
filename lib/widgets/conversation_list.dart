@@ -107,6 +107,13 @@ class _ConversationListState extends ConsumerState<ConversationList> {
     widget.onOpenChat?.call();
   }
 
+  /// Opens the chat workspace / history. Closes the drawer first on mobile so
+  /// it isn't left open behind the pushed workspace.
+  void _openHistory() {
+    if (widget.inDrawer) Navigator.of(context).pop();
+    widget.onOpenChat?.call();
+  }
+
   bool _isSelected(DashboardSection section) =>
       widget.onNavigate != null && widget.selectedSection == section;
 
@@ -284,13 +291,7 @@ class _ConversationListState extends ConsumerState<ConversationList> {
                     icon: Icons.history,
                     label: 'Chat history',
                     selected: _isSelected(DashboardSection.chat),
-                    onTap: () {
-                      if (widget.onOpenChat != null) {
-                        widget.onOpenChat!();
-                      } else if (widget.inDrawer) {
-                        Navigator.of(context).pop();
-                      }
-                    },
+                    onTap: _openHistory,
                   ),
                   _NavItem(
                     icon: Icons.grid_view_outlined,
@@ -384,13 +385,7 @@ class _ConversationListState extends ConsumerState<ConversationList> {
                     Padding(
                       padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
                       child: TextButton.icon(
-                        onPressed: () {
-                          if (widget.onOpenChat != null) {
-                            widget.onOpenChat!();
-                          } else if (widget.inDrawer) {
-                            Navigator.of(context).pop();
-                          }
-                        },
+                        onPressed: _openHistory,
                         icon: const Icon(Icons.history, size: 18),
                         label: Text('View all ($hiddenCount more)'),
                       ),

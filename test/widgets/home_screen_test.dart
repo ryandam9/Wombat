@@ -5,7 +5,9 @@ import 'package:wombat/models/conversation.dart';
 import 'package:wombat/providers/chat_provider.dart';
 import 'package:wombat/screens/home_screen.dart';
 import 'package:wombat/theme/app_theme.dart';
+import 'package:wombat/widgets/chat_input.dart';
 import 'package:wombat/widgets/chat_view.dart';
+import 'package:wombat/widgets/dashboard_landing.dart';
 
 import '../helpers/fakes.dart';
 
@@ -28,6 +30,48 @@ void main() {
       child: MaterialApp(theme: AppTheme.dark, home: const HomeScreen()),
     );
   }
+
+  testWidgets('narrow home is the dashboard, with no chat header or composer',
+      (tester) async {
+    tester.view.devicePixelRatio = 1.0;
+    tester.view.physicalSize = const Size(390, 840);
+    addTearDown(tester.view.reset);
+
+    // Even with an existing (empty) conversation, the main page stays the
+    // dashboard — the chat header/composer belong to an opened chat.
+    await tester.pumpWidget(await buildApp(
+      tester,
+      conversations: [
+        Conversation(id: 'c1', title: 'New chat', modelId: 'test/model'),
+      ],
+    ));
+    await tester.pump();
+
+    expect(find.byType(DashboardLanding), findsOneWidget);
+    expect(find.byType(ChatView), findsNothing);
+    expect(find.byType(ChatInput), findsNothing);
+    // The drawer is reachable from the app bar.
+    expect(find.byTooltip('Menu'), findsOneWidget);
+  });
+
+  testWidgets('narrow: New chat from the drawer opens the chat workspace',
+      (tester) async {
+    tester.view.devicePixelRatio = 1.0;
+    tester.view.physicalSize = const Size(390, 840);
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(await buildApp(tester));
+    await tester.pump();
+
+    await tester.tap(find.byTooltip('Menu'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'New chat'));
+    await tester.pumpAndSettle();
+
+    // Now in the chat workspace: the chat view (header + composer) is shown.
+    expect(find.byType(ChatView), findsOneWidget);
+    expect(find.byType(ChatInput), findsOneWidget);
+  });
 
   testWidgets('wide layout shows the sidebar and a settings icon in the header',
       (tester) async {

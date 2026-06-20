@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/settings_provider.dart';
-import '../widgets/chat_view.dart';
 import '../widgets/collapsible_sidebar.dart';
 import '../widgets/conversation_list.dart';
 import '../widgets/dashboard_landing.dart';
@@ -117,9 +116,28 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       );
     }
 
-    return const Scaffold(
-      drawer: Drawer(child: ConversationList(inDrawer: true)),
-      body: ChatView(showMenuButton: true),
+    // Narrow layout mirrors the wide one: the home is the dashboard, and
+    // opening or starting a chat pushes the chat workspace. This keeps the main
+    // page free of the chat header/composer (which belong to an open chat), so
+    // an empty/leftover conversation lives in Chat history rather than showing
+    // here. See issue #100 / dashboard discussion.
+    return Scaffold(
+      appBar: AppBar(
+        leading: Builder(
+          builder: (context) => IconButton(
+            icon: const Icon(Icons.menu),
+            tooltip: 'Menu',
+            onPressed: () => Scaffold.of(context).openDrawer(),
+          ),
+        ),
+      ),
+      drawer: Drawer(
+        child: ConversationList(
+          inDrawer: true,
+          onOpenChat: _openWorkspace,
+        ),
+      ),
+      body: const DashboardLanding(),
     );
   }
 }

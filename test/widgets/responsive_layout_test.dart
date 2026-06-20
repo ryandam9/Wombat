@@ -6,6 +6,7 @@ import 'package:wombat/models/usage.dart';
 import 'package:wombat/providers/chat_provider.dart';
 import 'package:wombat/providers/settings_provider.dart';
 import 'package:wombat/providers/usage_provider.dart';
+import 'package:wombat/screens/chat_workspace_screen.dart';
 import 'package:wombat/screens/debug_screen.dart';
 import 'package:wombat/screens/home_screen.dart';
 import 'package:wombat/screens/model_picker_screen.dart';
@@ -51,11 +52,12 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
   }
 
-  testWidgets('home lays out at phone widths with a long model id and usage',
+  testWidgets('chat workspace lays out at phone widths with a long model id',
       (tester) async {
     await setup(tester);
     // Worst case for the header: a long model name, a visible cost, and the
-    // streaming activity indicator enabled.
+    // streaming activity indicator enabled. The chat header lives in the
+    // workspace (the narrow home is the dashboard).
     await container.read(settingsProvider.notifier).setAnimateModelIndicator(true);
     final chat = container.read(chatProvider.notifier);
     chat.newConversation();
@@ -68,6 +70,14 @@ void main() {
               promptTokens: 1234, completionTokens: 5678, cost: 1.2345),
         );
 
+    for (final w in phoneWidths) {
+      await pumpAt(tester, w, const ChatWorkspaceScreen());
+      expect(tester.takeException(), isNull, reason: 'overflow at width $w');
+    }
+  });
+
+  testWidgets('dashboard home lays out at phone widths', (tester) async {
+    await setup(tester);
     for (final w in phoneWidths) {
       await pumpAt(tester, w, const HomeScreen());
       expect(tester.takeException(), isNull, reason: 'overflow at width $w');
