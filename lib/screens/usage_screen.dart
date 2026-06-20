@@ -1,14 +1,14 @@
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:syncfusion_flutter_charts/charts.dart';
 
 import '../models/usage.dart';
 import '../providers/usage_provider.dart';
 import '../widgets/ui_kit.dart';
 
 /// Shows OpenRouter usage accumulated during the current app session, plus the
-/// account credit balance — with Syncfusion charts for the balance and the
+/// account credit balance — with fl_chart charts for the balance and the
 /// per-model breakdowns.
 class UsageScreen extends ConsumerStatefulWidget {
   const UsageScreen({super.key});
@@ -187,38 +187,56 @@ class _BalanceContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final remaining = credits.remaining.clamp(0.0, double.infinity);
+    final used = credits.totalUsage.clamp(0.0, double.infinity);
+    final empty = remaining + used <= 0;
     final donut = SizedBox(
       width: 150,
       height: 150,
-      child: SfCircularChart(
-        margin: EdgeInsets.zero,
-        annotations: [
-          CircularChartAnnotation(
-            widget: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(money(credits.totalCredits, dp: 2),
-                    style: theme.textTheme.titleMedium
-                        ?.copyWith(fontWeight: FontWeight.w700)),
-                Text('Balance',
-                    style: theme.textTheme.labelSmall
-                        ?.copyWith(color: theme.colorScheme.outline)),
-              ],
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          PieChart(
+            PieChartData(
+              startDegreeOffset: -90,
+              sectionsSpace: 2,
+              centerSpaceRadius: 50,
+              sections: empty
+                  ? [
+                      PieChartSectionData(
+                        value: 1,
+                        color: theme.colorScheme.surfaceContainerHighest,
+                        radius: 22,
+                        showTitle: false,
+                      ),
+                    ]
+                  : [
+                      PieChartSectionData(
+                        value: remaining,
+                        color: theme.colorScheme.primary,
+                        radius: 22,
+                        showTitle: false,
+                      ),
+                      PieChartSectionData(
+                        value: used,
+                        color: theme.colorScheme.surfaceContainerHighest,
+                        radius: 22,
+                        showTitle: false,
+                      ),
+                    ],
             ),
+            duration: Duration.zero,
           ),
-        ],
-        series: <DoughnutSeries<_Slice, String>>[
-          DoughnutSeries<_Slice, String>(
-            dataSource: [
-              _Slice('Remaining', credits.remaining, theme.colorScheme.primary),
-              _Slice('Used', credits.totalUsage,
-                  theme.colorScheme.surfaceContainerHighest),
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(money(credits.totalCredits, dp: 2),
+                  style: theme.textTheme.titleMedium
+                      ?.copyWith(fontWeight: FontWeight.w700)),
+              Text('Balance',
+                  style: theme.textTheme.labelSmall
+                      ?.copyWith(color: theme.colorScheme.outline)),
             ],
-            xValueMapper: (d, _) => d.label,
-            yValueMapper: (d, _) => d.value,
-            pointColorMapper: (d, _) => d.color,
-            innerRadius: '72%',
-            animationDuration: 0,
           ),
         ],
       ),
@@ -275,37 +293,61 @@ class _CostByModelPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final palette = _palette(theme.colorScheme);
     final models = usage.byModel;
+    final maxCost =
+        models.map((m) => m.cost).fold<double>(0, (a, b) => a > b ? a : b);
     return SectionPanel(
       title: 'Cost by model',
       child: SizedBox(
-        height: 60.0 + models.length * 44,
-        child: SfCartesianChart(
-          margin: EdgeInsets.zero,
-          plotAreaBorderWidth: 0,
-          palette: _palette(theme.colorScheme),
-          primaryXAxis: _categoryAxis(theme),
-          primaryYAxis: NumericAxis(
-            numberFormat: NumberFormat.simpleCurrency(decimalDigits: 2),
-            labelStyle: _axisLabelStyle(theme),
-            axisLine: const AxisLine(width: 0),
-            majorTickLines: const MajorTickLines(width: 0),
-          ),
-          series: <CartesianSeries<ModelUsage, String>>[
-            BarSeries<ModelUsage, String>(
-              dataSource: models,
-              xValueMapper: (m, _) => _shortModel(m.modelId),
-              yValueMapper: (m, _) => m.cost,
-              pointColorMapper: (m, i) =>
-                  _palette(theme.colorScheme)[i % 6],
-              dataLabelMapper: (m, _) => money(m.cost),
-              dataLabelSettings: DataLabelSettings(
-                isVisible: true,
-                textStyle: _axisLabelStyle(theme),
-              ),
-              animationDuration: 0,
+        height: 240,
+        child: BarChart(
+          BarChartData(
+            alignment: BarChartAlignment.spaceAround,
+            maxY: maxCost <= 0 ? 1 : maxCost * 1.25,
+            barTouchData: const BarTouchData(enabled: false),
+            gridData: FlGridData(
+              show: true,
+              drawVerticalLine: false,
+              getDrawingHorizontalLine: (_) =>
+                  FlLine(color: theme.colorScheme.outlineVariant, strokeWidth: 0.5),
             ),
-          ],
+            borderData: FlBorderData(show: false),
+            titlesData: FlTitlesData(
+              topTitles: const AxisTitles(),
+              rightTitles: const AxisTitles(),
+              leftTitles: AxisTitles(
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  reservedSize: 52,
+                  getTitlesWidget: (v, _) => Text(
+                    NumberFormat.simpleCurrency(decimalDigits: 2).format(v),
+                    style: _axisLabelStyle(theme),
+                  ),
+                ),
+              ),
+              bottomTitles: AxisTitles(
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  reservedSize: 34,
+                  getTitlesWidget: (v, _) =>
+                      _bottomLabel(theme, models, v.toInt()),
+                ),
+              ),
+            ),
+            barGroups: [
+              for (var i = 0; i < models.length; i++)
+                BarChartGroupData(x: i, barRods: [
+                  BarChartRodData(
+                    toY: models[i].cost,
+                    color: palette[i % palette.length],
+                    width: 20,
+                    borderRadius:
+                        const BorderRadius.vertical(top: Radius.circular(4)),
+                  ),
+                ]),
+            ],
+          ),
         ),
       ),
     );
@@ -322,44 +364,82 @@ class _TokensByModelPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final models = usage.byModel;
+    final maxTokens = models
+        .map((m) => m.totalTokens)
+        .fold<int>(0, (a, b) => a > b ? a : b);
     return SectionPanel(
       title: 'Tokens by model',
-      child: SizedBox(
-        height: 260,
-        child: SfCartesianChart(
-          margin: EdgeInsets.zero,
-          plotAreaBorderWidth: 0,
-          legend: Legend(
-            isVisible: true,
-            position: LegendPosition.top,
-            textStyle: _axisLabelStyle(theme),
-          ),
-          primaryXAxis: _categoryAxis(theme),
-          primaryYAxis: NumericAxis(
-            numberFormat: NumberFormat.compact(),
-            labelStyle: _axisLabelStyle(theme),
-            axisLine: const AxisLine(width: 0),
-            majorTickLines: const MajorTickLines(width: 0),
-          ),
-          series: <StackedColumnSeries<ModelUsage, String>>[
-            StackedColumnSeries<ModelUsage, String>(
-              name: 'Input',
-              dataSource: models,
-              xValueMapper: (m, _) => _shortModel(m.modelId),
-              yValueMapper: (m, _) => m.promptTokens,
-              color: theme.colorScheme.primary,
-              animationDuration: 0,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _ChartLegend(items: [
+            (label: 'Input', color: theme.colorScheme.primary),
+            (label: 'Output', color: theme.colorScheme.tertiary),
+          ]),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 230,
+            child: BarChart(
+              BarChartData(
+                alignment: BarChartAlignment.spaceAround,
+                maxY: maxTokens <= 0 ? 1 : maxTokens * 1.25,
+                barTouchData: const BarTouchData(enabled: false),
+                gridData: FlGridData(
+                  show: true,
+                  drawVerticalLine: false,
+                  getDrawingHorizontalLine: (_) => FlLine(
+                      color: theme.colorScheme.outlineVariant, strokeWidth: 0.5),
+                ),
+                borderData: FlBorderData(show: false),
+                titlesData: FlTitlesData(
+                  topTitles: const AxisTitles(),
+                  rightTitles: const AxisTitles(),
+                  leftTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      reservedSize: 44,
+                      getTitlesWidget: (v, _) => Text(
+                        NumberFormat.compact().format(v),
+                        style: _axisLabelStyle(theme),
+                      ),
+                    ),
+                  ),
+                  bottomTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      reservedSize: 34,
+                      getTitlesWidget: (v, _) =>
+                          _bottomLabel(theme, models, v.toInt()),
+                    ),
+                  ),
+                ),
+                barGroups: [
+                  for (var i = 0; i < models.length; i++)
+                    BarChartGroupData(x: i, barRods: [
+                      BarChartRodData(
+                        toY: models[i].totalTokens.toDouble(),
+                        width: 20,
+                        borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(4)),
+                        rodStackItems: [
+                          BarChartRodStackItem(
+                            0,
+                            models[i].promptTokens.toDouble(),
+                            theme.colorScheme.primary,
+                          ),
+                          BarChartRodStackItem(
+                            models[i].promptTokens.toDouble(),
+                            models[i].totalTokens.toDouble(),
+                            theme.colorScheme.tertiary,
+                          ),
+                        ],
+                      ),
+                    ]),
+                ],
+              ),
             ),
-            StackedColumnSeries<ModelUsage, String>(
-              name: 'Output',
-              dataSource: models,
-              xValueMapper: (m, _) => _shortModel(m.modelId),
-              yValueMapper: (m, _) => m.completionTokens,
-              color: theme.colorScheme.tertiary,
-              animationDuration: 0,
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -374,67 +454,108 @@ class _TokenSharePanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final palette = _palette(theme.colorScheme);
     final models = usage.byModel;
+    final total = models.fold<int>(0, (sum, m) => sum + m.totalTokens);
+    final denom = total == 0 ? 1 : total;
     return SectionPanel(
       title: 'Token share',
-      child: SizedBox(
-        height: 260,
-        child: SfCircularChart(
-          margin: EdgeInsets.zero,
-          palette: _palette(theme.colorScheme),
-          legend: Legend(
-            isVisible: true,
-            position: LegendPosition.bottom,
-            overflowMode: LegendItemOverflowMode.wrap,
-            textStyle: _axisLabelStyle(theme),
-          ),
-          series: <PieSeries<ModelUsage, String>>[
-            PieSeries<ModelUsage, String>(
-              dataSource: models,
-              xValueMapper: (m, _) => _shortModel(m.modelId),
-              yValueMapper: (m, _) => m.totalTokens,
-              dataLabelMapper: (m, _) =>
-                  '${(m.totalTokens / _totalTokens(models) * 100).toStringAsFixed(0)}%',
-              dataLabelSettings: DataLabelSettings(
-                isVisible: true,
-                labelPosition: ChartDataLabelPosition.outside,
-                textStyle: _axisLabelStyle(theme),
-                connectorLineSettings:
-                    const ConnectorLineSettings(type: ConnectorType.curve),
+      child: Column(
+        children: [
+          SizedBox(
+            height: 200,
+            child: PieChart(
+              PieChartData(
+                sectionsSpace: 2,
+                centerSpaceRadius: 40,
+                sections: [
+                  for (var i = 0; i < models.length; i++)
+                    PieChartSectionData(
+                      value: models[i].totalTokens.toDouble(),
+                      color: palette[i % palette.length],
+                      radius: 64,
+                      title:
+                          '${(models[i].totalTokens / denom * 100).toStringAsFixed(0)}%',
+                      titleStyle: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                ],
               ),
-              animationDuration: 0,
+              duration: Duration.zero,
             ),
-          ],
-        ),
+          ),
+          const SizedBox(height: 12),
+          _ChartLegend(items: [
+            for (var i = 0; i < models.length; i++)
+              (
+                label: _shortModel(models[i].modelId),
+                color: palette[i % palette.length]
+              ),
+          ]),
+        ],
       ),
     );
   }
-
-  int _totalTokens(List<ModelUsage> models) {
-    final total = models.fold<int>(0, (sum, m) => sum + m.totalTokens);
-    return total == 0 ? 1 : total;
-  }
 }
-
-CategoryAxis _categoryAxis(ThemeData theme) => CategoryAxis(
-      labelStyle: _axisLabelStyle(theme),
-      labelIntersectAction: AxisLabelIntersectAction.wrap,
-      majorGridLines: const MajorGridLines(width: 0),
-      axisLine: AxisLine(width: 0.5, color: theme.colorScheme.outlineVariant),
-      majorTickLines: const MajorTickLines(width: 0),
-    );
 
 TextStyle _axisLabelStyle(ThemeData theme) => TextStyle(
       color: theme.colorScheme.onSurfaceVariant,
       fontSize: 11,
     );
 
-/// Slice datum for the balance doughnut.
-class _Slice {
-  _Slice(this.label, this.value, this.color);
-  final String label;
-  final double value;
-  final Color color;
+/// A bottom-axis label for bar charts: the short model name for [index].
+Widget _bottomLabel(ThemeData theme, List<ModelUsage> models, int index) {
+  if (index < 0 || index >= models.length) return const SizedBox.shrink();
+  return Padding(
+    padding: const EdgeInsets.only(top: 6),
+    child: SizedBox(
+      width: 72,
+      child: Text(
+        _shortModel(models[index].modelId),
+        textAlign: TextAlign.center,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+        style: _axisLabelStyle(theme),
+      ),
+    ),
+  );
+}
+
+/// A small wrapping legend: a coloured dot + label per item.
+class _ChartLegend extends StatelessWidget {
+  const _ChartLegend({required this.items});
+
+  final List<({String label, Color color})> items;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Wrap(
+      spacing: 16,
+      runSpacing: 6,
+      children: [
+        for (final item in items)
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 12,
+                height: 12,
+                decoration: BoxDecoration(
+                  color: item.color,
+                  borderRadius: BorderRadius.circular(3),
+                ),
+              ),
+              const SizedBox(width: 6),
+              Text(item.label, style: _axisLabelStyle(theme)),
+            ],
+          ),
+      ],
+    );
+  }
 }
 
 class _ByModelPanel extends StatelessWidget {

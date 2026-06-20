@@ -29,7 +29,7 @@ void main() {
 
     // Tall viewport so the lazy ListView builds the lower panels too.
     tester.view.devicePixelRatio = 1.0;
-    tester.view.physicalSize = const Size(900, 1600);
+    tester.view.physicalSize = const Size(900, 2800);
     addTearDown(tester.view.reset);
 
     await tester.pumpWidget(
