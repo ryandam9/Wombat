@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:wombat/models/attachment.dart';
 import 'package:wombat/models/chat_message.dart';
@@ -94,6 +95,25 @@ void main() {
 
       expect(chat.error, contains('API key'));
       expect(chat.current, isNull);
+    });
+
+    test('fires reply-complete feedback when a response finishes', () async {
+      final calls = <MethodCall>[];
+      final messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      messenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
+        calls.add(call);
+        return null;
+      });
+      addTearDown(() => messenger.setMockMethodCallHandler(
+          SystemChannels.platform, null));
+
+      final service = FakeOpenRouterService(chunks: ['ok']);
+      final chat = await buildChat(service: service);
+      await chat.sendMessage('hello');
+
+      // Tests run as Android, so the cue is a haptic vibrate.
+      expect(calls.any((c) => c.method == 'HapticFeedback.vibrate'), isTrue);
     });
 
     test('appends user message and streamed assistant reply', () async {

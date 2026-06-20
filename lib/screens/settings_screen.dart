@@ -334,6 +334,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           contentPadding: EdgeInsets.zero,
           dense: true,
         ),
+        SwitchListTile(
+          value: settings.replyCompleteFeedback,
+          onChanged: (v) =>
+              ref.read(settingsProvider.notifier).setReplyCompleteFeedback(v),
+          title: const Text('Feedback when a reply finishes'),
+          subtitle: const Text(
+            'A haptic buzz on mobile, or a short sound on desktop.',
+          ),
+          contentPadding: EdgeInsets.zero,
+          dense: true,
+        ),
       ],
     );
   }

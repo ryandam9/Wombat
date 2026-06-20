@@ -23,6 +23,7 @@ class SettingsState {
     required this.downloadDir,
     required this.animateModelIndicator,
     required this.continuousModelBorder,
+    required this.replyCompleteFeedback,
     required this.headingFont,
     required this.userFont,
     required this.modelFont,
@@ -47,6 +48,10 @@ class SettingsState {
   final String? downloadDir;
   final bool animateModelIndicator;
   final bool continuousModelBorder;
+
+  /// Whether to play a haptic (mobile) or sound (desktop) cue when a model
+  /// reply finishes streaming.
+  final bool replyCompleteFeedback;
   final AppFont headingFont;
   final AppFont userFont;
   final AppFont modelFont;
@@ -77,6 +82,7 @@ class SettingsNotifier extends Notifier<SettingsState> {
   static const _kDownloadDir = 'download_dir';
   static const _kAnimateModelIndicator = 'animate_model_indicator';
   static const _kContinuousModelBorder = 'continuous_model_border';
+  static const _kReplyCompleteFeedback = 'reply_complete_feedback';
   static const _kHeadingFont = 'font_heading';
   static const _kUserFont = 'font_user';
   static const _kModelFont = 'font_model';
@@ -102,6 +108,7 @@ class SettingsNotifier extends Notifier<SettingsState> {
   String? _downloadDir;
   bool _animateModelIndicator = false;
   bool _continuousModelBorder = false;
+  bool _replyCompleteFeedback = true;
   // Roboto Condensed is the default app font (bundled asset).
   AppFont _headingFont = AppFont.robotoCondensed;
   AppFont _userFont = AppFont.robotoCondensed;
@@ -134,6 +141,7 @@ class SettingsNotifier extends Notifier<SettingsState> {
         downloadDir: _downloadDir,
         animateModelIndicator: _animateModelIndicator,
         continuousModelBorder: _continuousModelBorder,
+        replyCompleteFeedback: _replyCompleteFeedback,
         headingFont: _headingFont,
         userFont: _userFont,
         modelFont: _modelFont,
@@ -160,6 +168,7 @@ class SettingsNotifier extends Notifier<SettingsState> {
     _downloadDir = _prefs.getString(_kDownloadDir);
     _animateModelIndicator = _prefs.getBool(_kAnimateModelIndicator) ?? false;
     _continuousModelBorder = _prefs.getBool(_kContinuousModelBorder) ?? false;
+    _replyCompleteFeedback = _prefs.getBool(_kReplyCompleteFeedback) ?? true;
     const def = AppFont.robotoCondensed; // default app font
     _headingFont = AppFontX.fromIndex(_prefs.getInt(_kHeadingFont) ?? def.index);
     _userFont = AppFontX.fromIndex(_prefs.getInt(_kUserFont) ?? def.index);
@@ -245,6 +254,12 @@ class SettingsNotifier extends Notifier<SettingsState> {
   Future<void> setContinuousModelBorder(bool value) async {
     _continuousModelBorder = value;
     await _prefs.setBool(_kContinuousModelBorder, value);
+    _emit();
+  }
+
+  Future<void> setReplyCompleteFeedback(bool value) async {
+    _replyCompleteFeedback = value;
+    await _prefs.setBool(_kReplyCompleteFeedback, value);
     _emit();
   }
 

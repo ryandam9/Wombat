@@ -7,6 +7,7 @@ import '../models/attachment.dart';
 import '../models/chat_message.dart';
 import '../models/conversation.dart';
 import '../services/conversation_store.dart';
+import '../services/feedback_service.dart';
 import '../services/openrouter_service.dart';
 import 'app_providers.dart';
 import 'settings_provider.dart';
@@ -292,6 +293,11 @@ class ChatNotifier extends Notifier<ChatState> {
       onDone: () {
         assistantMsg.isStreaming = false;
         _finish(convo);
+        // Cue the user that the reply is complete (haptic on mobile, sound on
+        // desktop); errors and manual stops don't fire this.
+        if (ref.read(settingsProvider).replyCompleteFeedback) {
+          AppFeedback.responseComplete();
+        }
         if (!completer.isCompleted) completer.complete();
       },
       cancelOnError: true,
