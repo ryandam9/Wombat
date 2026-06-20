@@ -51,9 +51,12 @@ void main() {
     await tester.tap(find.text('Models'));
     await tester.pumpAndSettle();
 
-    // Pick the model: the picker pops with it, resuming _openModels after the
-    // list widget was disposed — this used to throw "Using ref ... unmounted".
+    // Pick the model: on narrow the card opens a detail sheet; tapping
+    // "Select model" pops the picker, resuming _openModels after the list
+    // widget was disposed — this used to throw "Using ref ... unmounted".
     await tester.tap(find.text('Chosen').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Select model'));
     await tester.pumpAndSettle();
 
     expect(tester.takeException(), isNull);

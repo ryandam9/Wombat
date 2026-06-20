@@ -213,6 +213,27 @@ class _ModelPickerScreenState extends ConsumerState<ModelPickerScreen> {
     }
   }
 
+  /// On narrow layouts there's no side detail panel, so tapping a card opens
+  /// the model's details in a bottom sheet with an explicit "Select model"
+  /// button (rather than selecting silently on tap).
+  void _showModelSheet(OpenRouterModel model) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (sheetCtx) => SizedBox(
+        height: MediaQuery.of(sheetCtx).size.height * 0.75,
+        child: _DetailPanel(
+          model: model,
+          onSelect: () {
+            Navigator.of(sheetCtx).pop();
+            _select(model);
+          },
+        ),
+      ),
+    );
+  }
+
   void _toggle(OpenRouterModel model) => setState(() {
         if (!_selected.remove(model.id)) _selected.add(model.id);
       });
@@ -324,7 +345,7 @@ class _ModelPickerScreenState extends ConsumerState<ModelPickerScreen> {
                                   ? _toggle(m)
                                   : (showDetail
                                       ? setState(() => _preview = m)
-                                      : _select(m)),
+                                      : _showModelSheet(m)),
                               onToggleFavorite: (m) => ref
                                   .read(settingsProvider.notifier)
                                   .toggleFavoriteModel(m.id),
@@ -483,12 +504,15 @@ class _FilterBar extends StatelessWidget {
             (dark ? hsl.lightness + 0.22 : hsl.lightness - 0.10).clamp(0.0, 1.0))
         .toColor();
 
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
+    // Wrap (rather than a horizontal scroll) so every filter stays visible and
+    // none are clipped off the right edge on narrow screens.
+    return Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-      child: Row(
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 8,
         children: [
-          for (final f in _Filter.values) ...[
+          for (final f in _Filter.values)
             Builder(builder: (context) {
               // "All" is selected when no specific filter is active; the rest
               // toggle independently and combine.
@@ -515,8 +539,6 @@ class _FilterBar extends StatelessWidget {
                     : null,
               );
             }),
-            const SizedBox(width: 8),
-          ],
         ],
       ),
     );

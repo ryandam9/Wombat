@@ -132,4 +132,30 @@ void main() {
 
     expect(container.read(settingsProvider).favoriteModels, isNotEmpty);
   });
+
+  testWidgets('narrow: tapping a model opens a detail sheet with a Select button',
+      (tester) async {
+    await pump(tester, size: const Size(420, 900)); // no inline detail panel
+
+    // No inline "Select model" button at this width…
+    expect(find.text('Select model'), findsNothing);
+
+    await tester.tap(find.text('Alpha').first);
+    await tester.pumpAndSettle();
+
+    // …tapping a card opens a bottom sheet with an explicit select action.
+    expect(find.text('Select model'), findsOneWidget);
+    expect(find.text('View documentation'), findsOneWidget);
+  });
+
+  testWidgets('narrow: all filter chips stay on-screen (wrap, not clipped)',
+      (tester) async {
+    await pump(tester, size: const Size(420, 900));
+
+    // The last filter chip wraps onto a new line instead of clipping off the
+    // right edge.
+    final tools = tester.getRect(find.widgetWithText(FilterChip, 'Tools'));
+    expect(tools.right, lessThanOrEqualTo(420),
+        reason: 'Tools chip should wrap on-screen, not run off the right edge');
+  });
 }
