@@ -241,15 +241,70 @@ class _MessageList extends ConsumerStatefulWidget {
 class _MessageListState extends ConsumerState<_MessageList> {
   final ScrollController _controller = ScrollController();
 
+  /// Messages whose entrance animation has already played (so they don't
+  /// replay when rebuilt or scrolled back into view).
+  final Set<String> _animated = {};
+  int _lastCount = 0;
+  bool _showJumpToLatest = false;
+
+  /// How close to the bottom (in px) still counts as "following" the chat.
+  static const double _bottomThreshold = 160;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller.addListener(_onScroll);
+    // Don't replay entrance animations for messages that already exist when the
+    // chat opens — only animate ones added afterwards.
+    final convo = ref.read(chatProvider).current;
+    if (convo != null) {
+      _animated.addAll(convo.messages.map((m) => m.id));
+      _lastCount = convo.messages.length;
+    }
+  }
+
   @override
   void dispose() {
+    _controller.removeListener(_onScroll);
     _controller.dispose();
     super.dispose();
   }
 
-  void _scrollToBottom() {
+  bool get _nearBottom {
+    if (!_controller.hasClients) return true;
+    final pos = _controller.position;
+    return pos.maxScrollExtent - pos.pixels < _bottomThreshold;
+  }
+
+  void _onScroll() {
+    final show = _controller.hasClients && !_nearBottom;
+    if (show != _showJumpToLatest) setState(() => _showJumpToLatest = show);
+  }
+
+  /// Follows the conversation as it grows, but only when the user is already
+  /// near the bottom — so scrolling up to read isn't interrupted. A brand-new
+  /// message animates; streaming token growth jumps (tiny deltas, no jank).
+  void _autoFollow({required bool animated}) {
+    if (!_controller.hasClients || !_nearBottom) return;
+    final target = _controller.position.maxScrollExtent;
+    final reduce = ref.read(settingsProvider).reduceMotion;
+    if (animated && !reduce) {
+      _controller.animateTo(target,
+          duration: const Duration(milliseconds: 220), curve: Curves.easeOutCubic);
+    } else {
+      _controller.jumpTo(target);
+    }
+  }
+
+  void _jumpToLatest() {
     if (!_controller.hasClients) return;
-    _controller.jumpTo(_controller.position.maxScrollExtent);
+    final target = _controller.position.maxScrollExtent;
+    if (ref.read(settingsProvider).reduceMotion) {
+      _controller.jumpTo(target);
+    } else {
+      _controller.animateTo(target,
+          duration: const Duration(milliseconds: 260), curve: Curves.easeOutCubic);
+    }
   }
 
   @override
@@ -260,17 +315,54 @@ class _MessageListState extends ConsumerState<_MessageList> {
     // null.
     final convo = ref.watch(chatProvider).current;
     if (convo == null) return const SizedBox.shrink();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+
+    final newMessage = convo.messages.length != _lastCount;
+    _lastCount = convo.messages.length;
+    WidgetsBinding.instance
+        .addPostFrameCallback((_) => _autoFollow(animated: newMessage));
+
+    final reduce = ref.watch(settingsProvider.select((s) => s.reduceMotion)) ||
+        MediaQuery.of(context).disableAnimations;
 
     // Messages are selectable via the app-wide SelectionArea (see app.dart).
-    return ListView.builder(
-      controller: _controller,
-      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
-      itemCount: convo.messages.length,
-      itemBuilder: (context, index) => MessageBubble(
-        message: convo.messages[index],
-        modelName: convo.modelId,
-      ),
+    return Stack(
+      children: [
+        ListView.builder(
+          controller: _controller,
+          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+          itemCount: convo.messages.length,
+          itemBuilder: (context, index) {
+            final message = convo.messages[index];
+            return MessageBubble(
+              message: message,
+              modelName: convo.modelId,
+              animate: !reduce && _animated.add(message.id),
+            );
+          },
+        ),
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: 12,
+          child: Center(
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 180),
+              transitionBuilder: (child, animation) => ScaleTransition(
+                scale: animation,
+                child: FadeTransition(opacity: animation, child: child),
+              ),
+              child: _showJumpToLatest
+                  ? FilledButton.tonalIcon(
+                      key: const ValueKey('jump-to-latest'),
+                      onPressed: _jumpToLatest,
+                      icon: const Icon(Icons.arrow_downward, size: 18),
+                      label: const Text('Jump to latest'),
+                    )
+                  : const SizedBox.shrink(),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

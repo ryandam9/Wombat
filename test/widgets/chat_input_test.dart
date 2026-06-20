@@ -87,7 +87,8 @@ void main() {
 
     await tester.enterText(find.byType(TextField), 'hello');
     await tester.tap(find.byIcon(Icons.arrow_upward));
-    await tester.pump();
+    // Let the send→stop AnimatedSwitcher finish before asserting.
+    await tester.pumpAndSettle();
 
     expect(find.byIcon(Icons.stop), findsOneWidget);
     expect(find.byIcon(Icons.arrow_upward), findsNothing);

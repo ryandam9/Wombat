@@ -34,6 +34,8 @@ class SettingsState {
     required this.favoriteModels,
     required this.userName,
     required this.aiName,
+    required this.reduceMotion,
+    required this.sidebarWidth,
   });
 
   final bool loading;
@@ -69,6 +71,13 @@ class SettingsState {
   /// Custom display name for AI replies (empty → the conversation's model).
   final String aiName;
 
+  /// When true, app animations are shortened/disabled (also honoured when the
+  /// platform requests reduced motion via `MediaQuery.disableAnimations`).
+  final bool reduceMotion;
+
+  /// Persisted width of the desktop sidebar.
+  final double sidebarWidth;
+
   bool get hasApiKey => apiKey != null && apiKey!.isNotEmpty;
 
   /// Name of the environment variable consulted for the API key.
@@ -101,6 +110,13 @@ class SettingsNotifier extends Notifier<SettingsState> {
   static const _kFavoriteModels = 'favorite_models';
   static const _kUserName = 'user_name';
   static const _kAiName = 'ai_name';
+  static const _kReduceMotion = 'reduce_motion';
+  static const _kSidebarWidth = 'sidebar_width';
+
+  /// Default and bounds for the desktop sidebar width.
+  static const double defaultSidebarWidth = 340;
+  static const double minSidebarWidth = 220;
+  static const double maxSidebarWidth = 520;
 
   /// Environment variable read at startup (desktop) to seed the API key when
   /// none is stored on the device.
@@ -132,6 +148,8 @@ class SettingsNotifier extends Notifier<SettingsState> {
   Set<String> _favoriteModels = {};
   String _userName = '';
   String _aiName = '';
+  bool _reduceMotion = false;
+  double _sidebarWidth = defaultSidebarWidth;
   bool _loading = true;
 
   @override
@@ -164,6 +182,8 @@ class SettingsNotifier extends Notifier<SettingsState> {
         favoriteModels: _favoriteModels,
         userName: _userName,
         aiName: _aiName,
+        reduceMotion: _reduceMotion,
+        sidebarWidth: _sidebarWidth,
       );
 
   void _emit() => state = _snapshot();
@@ -197,6 +217,9 @@ class SettingsNotifier extends Notifier<SettingsState> {
         (_prefs.getStringList(_kFavoriteModels) ?? const []).toSet();
     _userName = _prefs.getString(_kUserName) ?? '';
     _aiName = _prefs.getString(_kAiName) ?? '';
+    _reduceMotion = _prefs.getBool(_kReduceMotion) ?? false;
+    _sidebarWidth = (_prefs.getDouble(_kSidebarWidth) ?? defaultSidebarWidth)
+        .clamp(minSidebarWidth, maxSidebarWidth);
     final themeIndex = _prefs.getInt(_kThemeMode);
     if (themeIndex != null &&
         themeIndex >= 0 &&
@@ -274,6 +297,19 @@ class SettingsNotifier extends Notifier<SettingsState> {
   Future<void> setAiName(String name) async {
     _aiName = name.trim();
     await _prefs.setString(_kAiName, _aiName);
+    _emit();
+  }
+
+  Future<void> setReduceMotion(bool value) async {
+    _reduceMotion = value;
+    await _prefs.setBool(_kReduceMotion, value);
+    _emit();
+  }
+
+  /// Persists the desktop sidebar width (clamped to the allowed range).
+  Future<void> setSidebarWidth(double width) async {
+    _sidebarWidth = width.clamp(minSidebarWidth, maxSidebarWidth);
+    await _prefs.setDouble(_kSidebarWidth, _sidebarWidth);
     _emit();
   }
 

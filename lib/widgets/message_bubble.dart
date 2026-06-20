@@ -23,9 +23,14 @@ class MessageBubble extends ConsumerWidget {
     required this.message,
     this.modelName,
     this.preferModelName = false,
+    this.animate = true,
   });
 
   final ChatMessage message;
+
+  /// Whether to play the one-shot entrance animation. The list sets this to
+  /// false for pre-existing messages so they don't replay on rebuild/scroll.
+  final bool animate;
 
   /// The model behind this message, used as the AI label fallback (and, when
   /// [preferModelName] is set, always). Typically the conversation's model id.
@@ -67,16 +72,7 @@ class MessageBubble extends ConsumerWidget {
     final settings = ref.watch(settingsProvider);
     final align = _isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start;
 
-    // Gentle one-shot entrance (fade + slide-up) as each message appears.
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0, end: 1),
-      duration: const Duration(milliseconds: 240),
-      curve: Curves.easeOut,
-      builder: (context, t, child) => Opacity(
-        opacity: t.clamp(0.0, 1.0),
-        child: Transform.translate(offset: Offset(0, (1 - t) * 8), child: child),
-      ),
-      child: Padding(
+    final content = Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Column(
         crossAxisAlignment: align,
@@ -143,7 +139,19 @@ class MessageBubble extends ConsumerWidget {
             }),
         ],
       ),
+    );
+
+    if (!animate) return content;
+    // Gentle one-shot entrance (fade + slide-up) as each message appears.
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: const Duration(milliseconds: 240),
+      curve: Curves.easeOut,
+      builder: (context, t, child) => Opacity(
+        opacity: t.clamp(0.0, 1.0),
+        child: Transform.translate(offset: Offset(0, (1 - t) * 8), child: child),
       ),
+      child: content,
     );
   }
 

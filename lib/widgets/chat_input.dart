@@ -11,6 +11,7 @@ import '../models/attachment.dart';
 import '../providers/chat_provider.dart';
 import '../services/attachment_limits.dart';
 import '../services/wav.dart';
+import 'motion.dart';
 import 'pressable_scale.dart';
 
 /// The message composer: attachment picker, in-app audio recorder, a growing
@@ -202,6 +203,7 @@ class _ChatInputState extends ConsumerState<ChatInput> {
     final theme = Theme.of(context);
     final isResponding =
         ref.watch(chatProvider.select((c) => c.isResponding));
+    final motion = Motion.of(context, ref);
 
     return SafeArea(
       top: false,
@@ -210,9 +212,22 @@ class _ChatInputState extends ConsumerState<ChatInput> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (_attachments.isNotEmpty) _AttachmentPreviews(
-              attachments: _attachments,
-              onRemove: (i) => setState(() => _attachments.removeAt(i)),
+            // Attachment previews grow/shrink the composer smoothly.
+            AnimatedSize(
+              duration: motion.fast,
+              curve: Curves.easeOutCubic,
+              alignment: Alignment.topCenter,
+              child: AnimatedSwitcher(
+                duration: motion.fast,
+                child: _attachments.isEmpty
+                    ? const SizedBox(width: double.infinity)
+                    : _AttachmentPreviews(
+                        key: ValueKey(_attachments.length),
+                        attachments: _attachments,
+                        onRemove: (i) =>
+                            setState(() => _attachments.removeAt(i)),
+                      ),
+              ),
             ),
             Row(
               crossAxisAlignment: CrossAxisAlignment.end,
@@ -252,18 +267,28 @@ class _ChatInputState extends ConsumerState<ChatInput> {
                 ),
                 const SizedBox(width: 8),
                 PressableScale(
-                  child: isResponding
-                      ? IconButton.filledTonal(
-                          tooltip: 'Stop',
-                          icon: const Icon(Icons.stop),
-                          onPressed: () =>
-                              ref.read(chatProvider.notifier).stopResponding(),
-                        )
-                      : IconButton.filled(
-                          tooltip: 'Send',
-                          icon: const Icon(Icons.arrow_upward),
-                          onPressed: _send,
-                        ),
+                  child: AnimatedSwitcher(
+                    duration: motion.fast,
+                    transitionBuilder: (child, animation) => ScaleTransition(
+                      scale: animation,
+                      child: FadeTransition(opacity: animation, child: child),
+                    ),
+                    child: isResponding
+                        ? IconButton.filledTonal(
+                            key: const ValueKey('stop'),
+                            tooltip: 'Stop',
+                            icon: const Icon(Icons.stop),
+                            onPressed: () => ref
+                                .read(chatProvider.notifier)
+                                .stopResponding(),
+                          )
+                        : IconButton.filled(
+                            key: const ValueKey('send'),
+                            tooltip: 'Send',
+                            icon: const Icon(Icons.arrow_upward),
+                            onPressed: _send,
+                          ),
+                  ),
                 ),
               ],
             ),
@@ -316,7 +341,8 @@ class _AttachMenu extends StatelessWidget {
 }
 
 class _AttachmentPreviews extends StatelessWidget {
-  const _AttachmentPreviews({required this.attachments, required this.onRemove});
+  const _AttachmentPreviews(
+      {super.key, required this.attachments, required this.onRemove});
 
   final List<MessageAttachment> attachments;
   final void Function(int index) onRemove;
