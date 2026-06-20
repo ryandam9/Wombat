@@ -14,11 +14,14 @@ import '../helpers/fakes.dart';
 late ProviderContainer _container;
 
 // The bubble reads fonts from settings, so provide a configured container.
-Widget _wrap(ChatMessage message) => UncontrolledProviderScope(
+Widget _wrap(ChatMessage message, {String? modelName}) =>
+    UncontrolledProviderScope(
       container: _container,
       child: MaterialApp(
         theme: AppTheme.dark,
-        home: Scaffold(body: MessageBubble(message: message)),
+        home: Scaffold(
+          body: MessageBubble(message: message, modelName: modelName),
+        ),
       ),
     );
 
@@ -116,6 +119,52 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(find.byType(MarkdownBody), findsOneWidget);
+  });
+
+  testWidgets('uses the configured user name on the user badge',
+      (tester) async {
+    await _container.read(settingsProvider.notifier).setUserName('Ravi');
+
+    await tester.pumpWidget(_wrap(
+      ChatMessage(id: '1', role: MessageRole.user, content: 'hi'),
+    ));
+
+    expect(find.text('RAVI'), findsOneWidget); // StatusChip uppercases
+    expect(find.text('YOU'), findsNothing);
+  });
+
+  testWidgets('falls back to the model name for AI replies', (tester) async {
+    await tester.pumpWidget(_wrap(
+      ChatMessage(id: '1', role: MessageRole.assistant, content: 'hello'),
+      modelName: 'openai/gpt-4o-mini',
+    ));
+
+    expect(find.text('GPT-4O-MINI'), findsOneWidget);
+    expect(find.text('ASSISTANT'), findsNothing);
+  });
+
+  testWidgets('uses the configured AI name over the model name', (tester) async {
+    await _container.read(settingsProvider.notifier).setAiName('Jarvis');
+
+    await tester.pumpWidget(_wrap(
+      ChatMessage(id: '1', role: MessageRole.assistant, content: 'hello'),
+      modelName: 'openai/gpt-4o-mini',
+    ));
+
+    expect(find.text('JARVIS'), findsOneWidget);
+    expect(find.text('GPT-4O-MINI'), findsNothing);
+  });
+
+  testWidgets('user badge sits after the timestamp (at the trailing edge)',
+      (tester) async {
+    await tester.pumpWidget(_wrap(
+      ChatMessage(id: '1', role: MessageRole.user, content: 'hi'),
+    ));
+
+    final nameDx = tester.getTopLeft(find.text('YOU')).dx;
+    final timeDx = tester.getTopLeft(find.textContaining('·')).dx;
+    expect(nameDx, greaterThan(timeDx),
+        reason: 'the user name should follow the time, at the trailing edge');
   });
 
   testWidgets('renders an image attachment inline', (tester) async {

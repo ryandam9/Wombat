@@ -23,19 +23,24 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   static const double _wideBreakpoint = 880;
 
   late final TextEditingController _keyController;
+  late final TextEditingController _userNameController;
+  late final TextEditingController _aiNameController;
   bool _obscure = true;
 
   @override
   void initState() {
     super.initState();
-    _keyController = TextEditingController(
-      text: ref.read(settingsProvider).apiKey ?? '',
-    );
+    final settings = ref.read(settingsProvider);
+    _keyController = TextEditingController(text: settings.apiKey ?? '');
+    _userNameController = TextEditingController(text: settings.userName);
+    _aiNameController = TextEditingController(text: settings.aiName);
   }
 
   @override
   void dispose() {
     _keyController.dispose();
+    _userNameController.dispose();
+    _aiNameController.dispose();
     super.dispose();
   }
 
@@ -111,6 +116,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         _panel('Downloads', _downloads(settings)),
                         const SizedBox(height: 16),
                         _panel('Default Model', _defaultModel(settings)),
+                        const SizedBox(height: 16),
+                        _panel('Display names', _names(settings)),
                       ],
                     ),
                   ),
@@ -158,6 +165,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           title: 'Default Model',
           icon: Icons.smart_toy_outlined,
           content: _defaultModel(settings),
+        ),
+        (
+          title: 'Display names',
+          icon: Icons.badge_outlined,
+          content: _names(settings),
         ),
         (
           title: 'Fonts',
@@ -274,6 +286,47 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           },
           icon: const Icon(Icons.smart_toy_outlined),
           label: const Text('Change model'),
+        ),
+      ],
+    );
+  }
+
+  /// Custom display names shown on chat bubbles. Empty fields fall back to
+  /// "You" and the conversation's model name respectively.
+  Widget _names(SettingsState settings) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        TextField(
+          controller: _userNameController,
+          textInputAction: TextInputAction.next,
+          decoration: const InputDecoration(
+            labelText: 'Your name',
+            hintText: 'You',
+            border: OutlineInputBorder(),
+            isDense: true,
+          ),
+          onChanged: (v) => ref.read(settingsProvider.notifier).setUserName(v),
+        ),
+        const SizedBox(height: 12),
+        TextField(
+          controller: _aiNameController,
+          textInputAction: TextInputAction.done,
+          decoration: const InputDecoration(
+            labelText: 'AI name',
+            hintText: 'Model name',
+            border: OutlineInputBorder(),
+            isDense: true,
+          ),
+          onChanged: (v) => ref.read(settingsProvider.notifier).setAiName(v),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Shown on chat messages. Leave blank to use "You" and the '
+          "conversation's model name.",
+          style: theme.textTheme.bodySmall
+              ?.copyWith(color: theme.colorScheme.outline),
         ),
       ],
     );

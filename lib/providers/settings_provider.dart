@@ -32,6 +32,8 @@ class SettingsState {
     required this.userFontScale,
     required this.modelFontScale,
     required this.favoriteModels,
+    required this.userName,
+    required this.aiName,
   });
 
   final bool loading;
@@ -60,6 +62,12 @@ class SettingsState {
   final double userFontScale;
   final double modelFontScale;
   final Set<String> favoriteModels;
+
+  /// Custom display name for the user's own messages (empty → "You").
+  final String userName;
+
+  /// Custom display name for AI replies (empty → the conversation's model).
+  final String aiName;
 
   bool get hasApiKey => apiKey != null && apiKey!.isNotEmpty;
 
@@ -91,6 +99,8 @@ class SettingsNotifier extends Notifier<SettingsState> {
   static const _kUserFontScale = 'font_scale_user';
   static const _kModelFontScale = 'font_scale_model';
   static const _kFavoriteModels = 'favorite_models';
+  static const _kUserName = 'user_name';
+  static const _kAiName = 'ai_name';
 
   /// Environment variable read at startup (desktop) to seed the API key when
   /// none is stored on the device.
@@ -120,6 +130,8 @@ class SettingsNotifier extends Notifier<SettingsState> {
   double _userFontScale = 1.0;
   double _modelFontScale = 1.0;
   Set<String> _favoriteModels = {};
+  String _userName = '';
+  String _aiName = '';
   bool _loading = true;
 
   @override
@@ -150,6 +162,8 @@ class SettingsNotifier extends Notifier<SettingsState> {
         userFontScale: _userFontScale,
         modelFontScale: _modelFontScale,
         favoriteModels: _favoriteModels,
+        userName: _userName,
+        aiName: _aiName,
       );
 
   void _emit() => state = _snapshot();
@@ -181,6 +195,8 @@ class SettingsNotifier extends Notifier<SettingsState> {
     _modelFontScale = _clampScale(_prefs.getDouble(_kModelFontScale) ?? 1.0);
     _favoriteModels =
         (_prefs.getStringList(_kFavoriteModels) ?? const []).toSet();
+    _userName = _prefs.getString(_kUserName) ?? '';
+    _aiName = _prefs.getString(_kAiName) ?? '';
     final themeIndex = _prefs.getInt(_kThemeMode);
     if (themeIndex != null &&
         themeIndex >= 0 &&
@@ -242,6 +258,22 @@ class SettingsNotifier extends Notifier<SettingsState> {
   Future<void> setDefaultModel(String model) async {
     _defaultModel = model;
     await _prefs.setString(_kDefaultModel, model);
+    _emit();
+  }
+
+  /// Sets the display name shown on the user's own messages. Empty clears it
+  /// (falling back to "You").
+  Future<void> setUserName(String name) async {
+    _userName = name.trim();
+    await _prefs.setString(_kUserName, _userName);
+    _emit();
+  }
+
+  /// Sets the display name shown on AI replies. Empty clears it (falling back
+  /// to the conversation's model name).
+  Future<void> setAiName(String name) async {
+    _aiName = name.trim();
+    await _prefs.setString(_kAiName, _aiName);
     _emit();
   }
 

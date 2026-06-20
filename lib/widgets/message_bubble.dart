@@ -18,11 +18,48 @@ import 'ui_kit.dart';
 /// Renders a single chat message in a rounded bubble. Assistant replies are
 /// rendered as Markdown; user messages as plain selectable text.
 class MessageBubble extends ConsumerWidget {
-  const MessageBubble({super.key, required this.message});
+  const MessageBubble({
+    super.key,
+    required this.message,
+    this.modelName,
+    this.preferModelName = false,
+  });
 
   final ChatMessage message;
 
+  /// The model behind this message, used as the AI label fallback (and, when
+  /// [preferModelName] is set, always). Typically the conversation's model id.
+  final String? modelName;
+
+  /// When true, AI replies are always labelled with [modelName] rather than the
+  /// user's custom AI name — used by the compare screen to keep models distinct.
+  final bool preferModelName;
+
   bool get _isUser => message.role == MessageRole.user;
+
+  /// Label for the user's own messages: their configured name, else "You".
+  String _userLabel(SettingsState s) {
+    final name = s.userName.trim();
+    return name.isNotEmpty ? name : 'You';
+  }
+
+  /// Label for AI replies: the configured AI name, else the model name, else
+  /// "Assistant". [preferModelName] forces the model name.
+  String _aiLabel(SettingsState s) {
+    final custom = s.aiName.trim();
+    if (!preferModelName && custom.isNotEmpty) return custom;
+    final model = _shortModelName(modelName);
+    if (model != null) return model;
+    return custom.isNotEmpty ? custom : 'Assistant';
+  }
+
+  /// The trailing segment of a model id (e.g. `openai/gpt-4o-mini` → `gpt-4o-mini`).
+  static String? _shortModelName(String? id) {
+    final t = id?.trim() ?? '';
+    if (t.isEmpty) return null;
+    final slash = t.lastIndexOf('/');
+    return (slash >= 0 && slash < t.length - 1) ? t.substring(slash + 1) : t;
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -44,23 +81,28 @@ class MessageBubble extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: align,
         children: [
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              StatusChip(
-                _isUser ? 'YOU' : 'ASSISTANT',
-                color: _isUser
-                    ? theme.colorScheme.tertiary
-                    : theme.colorScheme.primary,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                DateFormat('MMM d · HH:mm').format(message.createdAt),
-                style: theme.textTheme.labelSmall
-                    ?.copyWith(color: theme.colorScheme.outline),
-              ),
-            ],
-          ),
+          Builder(builder: (context) {
+            final chip = StatusChip(
+              _isUser ? _userLabel(settings) : _aiLabel(settings),
+              color: _isUser
+                  ? theme.colorScheme.tertiary
+                  : theme.colorScheme.primary,
+            );
+            final time = Text(
+              DateFormat('MMM d · HH:mm').format(message.createdAt),
+              style: theme.textTheme.labelSmall
+                  ?.copyWith(color: theme.colorScheme.outline),
+            );
+            // The name chip sits on the bubble's alignment edge: at the end
+            // (after the time) for the right-aligned user, at the start for the
+            // left-aligned assistant.
+            return Row(
+              mainAxisSize: MainAxisSize.min,
+              children: _isUser
+                  ? [time, const SizedBox(width: 8), chip]
+                  : [chip, const SizedBox(width: 8), time],
+            );
+          }),
           const SizedBox(height: 6),
           ConstrainedBox(
             constraints: BoxConstraints(
