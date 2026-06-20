@@ -276,6 +276,13 @@ class _ModelPickerScreenState extends ConsumerState<ModelPickerScreen> {
                 onToggleDirection: () => setState(() => _asc = !_asc),
               ),
               _FilterBar(active: _filters, onToggled: _toggleFilter),
+              if (widget.multiSelect && _selected.isNotEmpty)
+                _SelectedBar(
+                  models: all
+                      .where((m) => _selected.contains(m.id))
+                      .toList(growable: false),
+                  onRemove: _toggle,
+                ),
               const Divider(height: 1),
               Expanded(
                 child: Row(
@@ -488,6 +495,58 @@ class _FilterBar extends StatelessWidget {
             }),
             const SizedBox(width: 8),
           ],
+        ],
+      ),
+    );
+  }
+}
+
+// ── Selected-models summary (multi-select) ──────────────────────────────────
+
+/// A strip listing the currently-ticked models so the choice stays visible
+/// while scrolling a long catalogue. Each chip removes that model.
+class _SelectedBar extends StatelessWidget {
+  const _SelectedBar({required this.models, required this.onRemove});
+
+  final List<OpenRouterModel> models;
+  final ValueChanged<OpenRouterModel> onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      width: double.infinity,
+      color: theme.colorScheme.surfaceContainerHigh,
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+      child: Row(
+        children: [
+          Text(
+            'SELECTED (${models.length})',
+            style: theme.textTheme.labelSmall?.copyWith(
+              letterSpacing: 1.1,
+              color: theme.colorScheme.primary,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  for (final m in models)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 6),
+                      child: InputChip(
+                        label: Text(m.name),
+                        onDeleted: () => onRemove(m),
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );

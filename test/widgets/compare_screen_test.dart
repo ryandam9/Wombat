@@ -93,6 +93,8 @@ void main() {
     await tester.tap(find.text('Alpha').first);
     await tester.tap(find.text('Beta').first);
     await tester.pump();
+    // The running "Selected" summary shows what's been ticked so far.
+    expect(find.text('SELECTED (2)'), findsOneWidget);
     await tester.tap(find.byType(FloatingActionButton)); // "Add 2"
     await tester.pumpAndSettle();
 
