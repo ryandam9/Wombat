@@ -2,11 +2,13 @@ import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../providers/chat_provider.dart';
 import '../providers/settings_provider.dart';
 import '../widgets/collapsible_sidebar.dart';
 import '../widgets/conversation_list.dart';
 import '../widgets/dashboard_landing.dart';
 import 'chat_workspace_screen.dart';
+import 'compare_screen.dart';
 import 'debug_screen.dart';
 import 'help_screen.dart';
 import 'model_picker_screen.dart';
@@ -35,6 +37,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   double _sidebarWidth = 340;
   bool _collapsed = false;
   DashboardSection _section = DashboardSection.chat;
+
+  // Selected bottom-navigation tab on the narrow (phone) layout.
+  int _tab = 0;
 
   void _resize(double dx) {
     setState(() {
@@ -116,28 +121,133 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       );
     }
 
-    // Narrow layout mirrors the wide one: the home is the dashboard, and
-    // opening or starting a chat pushes the chat workspace. This keeps the main
-    // page free of the chat header/composer (which belong to an open chat), so
-    // an empty/leftover conversation lives in Chat history rather than showing
-    // here. See issue #100 / dashboard discussion.
+    // Narrow (phone) layout: a Material 3 bottom navigation bar instead of a
+    // left drawer/rail. Each tab is a self-contained screen; opening a chat
+    // pushes the workspace as a full route, so the bottom bar is hidden there.
+    final Widget tab = switch (_tab) {
+      0 => _MobileChatsTab(onOpenChat: _openWorkspace),
+      1 => ModelPickerScreen(
+          onPicked: (model) {
+            ref.read(settingsProvider.notifier).setDefaultModel(model.id);
+            setState(() => _tab = 0); // back to Chats after choosing a default
+          },
+        ),
+      2 => const UsageScreen(),
+      _ => const SettingsScreen(),
+    };
+
+    return Scaffold(
+      body: tab,
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _tab,
+        onDestinationSelected: (i) => setState(() => _tab = i),
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.chat_bubble_outline),
+            selectedIcon: Icon(Icons.chat_bubble),
+            label: 'Chats',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.grid_view_outlined),
+            selectedIcon: Icon(Icons.grid_view),
+            label: 'Models',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.insights_outlined),
+            selectedIcon: Icon(Icons.insights),
+            label: 'Usage',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.settings_outlined),
+            selectedIcon: Icon(Icons.settings),
+            label: 'Settings',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The mobile "Chats" tab: conversation history (or the welcome dashboard when
+/// empty), a "New chat" FAB, and an overflow with the secondary actions that no
+/// longer live in a side rail (Compare, Help, Debug).
+class _MobileChatsTab extends ConsumerWidget {
+  const _MobileChatsTab({required this.onOpenChat});
+
+  /// Pushes the chat workspace (a full route, so the bottom bar is hidden).
+  final VoidCallback onOpenChat;
+
+  void _newChat(WidgetRef ref) {
+    ref.read(chatProvider.notifier).newConversation();
+    onOpenChat();
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final hasChats =
+        ref.watch(chatProvider.select((c) => c.conversations.isNotEmpty));
+
+    void push(Widget screen) => Navigator.of(context).push(
+          MaterialPageRoute<void>(builder: (_) => screen),
+        );
+
     return Scaffold(
       appBar: AppBar(
-        leading: Builder(
-          builder: (context) => IconButton(
-            icon: const Icon(Icons.menu),
-            tooltip: 'Menu',
-            onPressed: () => Scaffold.of(context).openDrawer(),
+        title: const Text('Wombat'),
+        actions: [
+          PopupMenuButton<String>(
+            tooltip: 'More',
+            icon: const Icon(Icons.more_vert),
+            onSelected: (value) => switch (value) {
+              'compare' => push(const CompareScreen()),
+              'help' => push(const HelpScreen()),
+              'debug' => push(const DebugScreen()),
+              _ => null,
+            },
+            itemBuilder: (_) => const [
+              PopupMenuItem(
+                value: 'compare',
+                child: ListTile(
+                  leading: Icon(Icons.compare_arrows),
+                  title: Text('Compare models'),
+                  contentPadding: EdgeInsets.zero,
+                  dense: true,
+                ),
+              ),
+              PopupMenuItem(
+                value: 'help',
+                child: ListTile(
+                  leading: Icon(Icons.help_outline),
+                  title: Text('Help & Troubleshoot'),
+                  contentPadding: EdgeInsets.zero,
+                  dense: true,
+                ),
+              ),
+              PopupMenuItem(
+                value: 'debug',
+                child: ListTile(
+                  leading: Icon(Icons.bug_report_outlined),
+                  title: Text('Debug sessions'),
+                  contentPadding: EdgeInsets.zero,
+                  dense: true,
+                ),
+              ),
+            ],
           ),
-        ),
+        ],
       ),
-      drawer: Drawer(
-        child: ConversationList(
-          inDrawer: true,
-          onOpenChat: _openWorkspace,
-        ),
+      body: hasChats
+          ? ConversationList(
+              embedded: true,
+              showNavigation: false,
+              onOpenChat: onOpenChat,
+            )
+          : const DashboardLanding(),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => _newChat(ref),
+        icon: const Icon(Icons.add),
+        label: const Text('New chat'),
       ),
-      body: const DashboardLanding(),
     );
   }
 }

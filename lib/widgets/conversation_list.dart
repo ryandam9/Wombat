@@ -33,6 +33,7 @@ class ConversationList extends ConsumerStatefulWidget {
     this.onOpenChat,
     this.openChatBuilder,
     this.showNavigation = true,
+    this.embedded = false,
   });
 
   /// When shown inside a [Drawer], selecting a conversation should close it.
@@ -65,6 +66,11 @@ class ConversationList extends ConsumerStatefulWidget {
   /// Whether to show the navigation rail (Models, Usage, …). The chat workspace
   /// hides it so the sidebar is purely the conversation history.
   final bool showNavigation;
+
+  /// When true, render only the conversation list — no branding header and no
+  /// New chat / Compare buttons. Used when a host (e.g. the mobile Chats tab)
+  /// provides its own app bar and a New chat FAB.
+  final bool embedded;
 
   @override
   ConsumerState<ConversationList> createState() => _ConversationListState();
@@ -262,36 +268,41 @@ class _ConversationListState extends ConsumerState<ConversationList> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _Header(
-            count: chat.conversations.length,
-            onCollapse: widget.onCollapse,
-            onBack: widget.onBack,
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
-            child: PressableScale(
-              child: FilledButton.icon(
-                onPressed: _newChat,
-                icon: const Icon(Icons.add),
-                label: const Text('New chat'),
+          if (!widget.embedded) ...[
+            _Header(
+              count: chat.conversations.length,
+              onCollapse: widget.onCollapse,
+              onBack: widget.onBack,
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
+              child: PressableScale(
+                child: FilledButton.icon(
+                  onPressed: _newChat,
+                  icon: const Icon(Icons.add),
+                  label: const Text('New chat'),
+                ),
               ),
             ),
-          ),
-          const SizedBox(height: 8),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: PressableScale(
-              child: OutlinedButton.icon(
-                onPressed: () => _open(const CompareScreen()),
-                icon: const Icon(Icons.compare_arrows),
-                label: const Text('Compare models'),
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: PressableScale(
+                child: OutlinedButton.icon(
+                  onPressed: () => _open(const CompareScreen()),
+                  icon: const Icon(Icons.compare_arrows),
+                  label: const Text('Compare models'),
+                ),
               ),
             ),
-          ),
-          const SizedBox(height: 8),
+            const SizedBox(height: 8),
+          ],
           Expanded(
             child: ListView(
-              padding: EdgeInsets.zero,
+              // Leave room past the last tile for the host's New chat FAB.
+              padding: widget.embedded
+                  ? const EdgeInsets.only(bottom: 88)
+                  : EdgeInsets.zero,
               children: [
                 if (widget.showNavigation) ...[
                   const _SectionLabel('Navigation'),
