@@ -7,11 +7,11 @@ import 'package:wombat/services/conversation_store.dart';
 
 void main() {
   late Directory tempDir;
-  late ConversationStore store;
+  late JsonConversationStore store;
 
   setUp(() async {
     tempDir = await Directory.systemTemp.createTemp('wombat_store_test');
-    store = ConversationStore(directory: tempDir);
+    store = JsonConversationStore(directory: tempDir);
   });
 
   tearDown(() async {
@@ -33,7 +33,7 @@ void main() {
     );
 
     await store.save([convo]);
-    final loaded = await ConversationStore(directory: tempDir).load();
+    final loaded = await JsonConversationStore(directory: tempDir).load();
 
     expect(loaded, hasLength(1));
     expect(loaded.single.title, 'Saved');

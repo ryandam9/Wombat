@@ -1,0 +1,169 @@
+import 'package:drift/drift.dart';
+
+import '../models/attachment.dart';
+import '../models/chat_message.dart';
+import '../models/conversation.dart';
+import 'conversation_store.dart';
+import 'database/app_database.dart';
+
+/// SQLite-backed [ConversationStore] using drift.
+///
+/// Conversations, their messages and attachments are stored in normalised
+/// tables. On first use it imports any legacy `conversations.json` written by
+/// [JsonConversationStore], then leaves a `.migrated` marker so the import runs
+/// only once.
+class DriftConversationStore extends ConversationStore {
+  DriftConversationStore(this._db, {JsonConversationStore? legacyStore})
+      : _legacyStore = legacyStore;
+
+  final AppDatabase _db;
+  final JsonConversationStore? _legacyStore;
+  bool _migrationChecked = false;
+
+  @override
+  Future<List<Conversation>> load() async {
+    await _migrateLegacyIfNeeded();
+
+    final convRows = await (_db.select(_db.conversations)
+          ..orderBy([(c) => OrderingTerm.desc(c.updatedAt)]))
+        .get();
+    if (convRows.isEmpty) return [];
+
+    final msgRows = await (_db.select(_db.messages)
+          ..orderBy([(m) => OrderingTerm.asc(m.position)]))
+        .get();
+    final attRows = await (_db.select(_db.attachments)
+          ..orderBy([(a) => OrderingTerm.asc(a.position)]))
+        .get();
+
+    // Group children by their parent id for an O(n) assembly.
+    final attByMessage = <String, List<AttachmentRow>>{};
+    for (final a in attRows) {
+      (attByMessage[a.messageId] ??= []).add(a);
+    }
+    final msgByConvo = <String, List<MessageRow>>{};
+    for (final m in msgRows) {
+      (msgByConvo[m.conversationId] ??= []).add(m);
+    }
+
+    return [
+      for (final c in convRows)
+        Conversation(
+          id: c.id,
+          title: c.title,
+          modelId: c.modelId,
+          supportsImageOutput: c.supportsImageOutput,
+          pinned: c.pinned,
+          createdAt: c.createdAt,
+          updatedAt: c.updatedAt,
+          messages: [
+            for (final m in msgByConvo[c.id] ?? const <MessageRow>[])
+              ChatMessage(
+                id: m.id,
+                role: _roleFromName(m.role),
+                content: m.content,
+                createdAt: m.createdAt,
+                error: m.error,
+                attachments: [
+                  for (final a in attByMessage[m.id] ?? const <AttachmentRow>[])
+                    MessageAttachment(
+                      kind: _kindFromName(a.kind),
+                      mimeType: a.mimeType,
+                      base64Data: a.data,
+                      name: a.name,
+                    ),
+                ],
+              ),
+          ],
+        ),
+    ];
+  }
+
+  @override
+  Future<void> save(List<Conversation> conversations) async {
+    await _db.transaction(() async {
+      final keepIds = conversations.map((c) => c.id).toList();
+      // Drop conversations the caller no longer has (cascades to messages and
+      // attachments via the foreign keys).
+      await (_db.delete(_db.conversations)
+            ..where((c) => c.id.isNotIn(keepIds)))
+          .go();
+
+      for (final c in conversations) {
+        await _db.into(_db.conversations).insertOnConflictUpdate(
+              ConversationsCompanion.insert(
+                id: c.id,
+                title: c.title,
+                modelId: c.modelId,
+                supportsImageOutput: Value(c.supportsImageOutput),
+                pinned: Value(c.pinned),
+                createdAt: c.createdAt,
+                updatedAt: c.updatedAt,
+              ),
+            );
+
+        // Replace this conversation's messages wholesale (cascade clears their
+        // attachments first), then re-insert in order.
+        await (_db.delete(_db.messages)
+              ..where((m) => m.conversationId.equals(c.id)))
+            .go();
+
+        for (var i = 0; i < c.messages.length; i++) {
+          final m = c.messages[i];
+          await _db.into(_db.messages).insert(
+                MessagesCompanion.insert(
+                  id: m.id,
+                  conversationId: c.id,
+                  position: i,
+                  role: m.role.name,
+                  content: m.content,
+                  createdAt: m.createdAt,
+                  error: Value(m.error),
+                ),
+              );
+          for (var j = 0; j < m.attachments.length; j++) {
+            final a = m.attachments[j];
+            await _db.into(_db.attachments).insert(
+                  AttachmentsCompanion.insert(
+                    messageId: m.id,
+                    position: j,
+                    kind: a.kind.name,
+                    mimeType: a.mimeType,
+                    data: a.base64Data,
+                    name: Value(a.name),
+                  ),
+                );
+          }
+        }
+      }
+    });
+  }
+
+  /// Imports a legacy JSON store into the empty database exactly once.
+  Future<void> _migrateLegacyIfNeeded() async {
+    if (_migrationChecked) return;
+    _migrationChecked = true;
+    final legacy = _legacyStore;
+    if (legacy == null) return;
+    try {
+      // Only import when the DB is empty, so we never clobber live data.
+      final existing = await _db.select(_db.conversations).get();
+      if (existing.isNotEmpty) return;
+      final old = await legacy.load();
+      if (old.isNotEmpty) await save(old);
+      await legacy.archive();
+    } catch (_) {
+      // Migration is best-effort; a failure must not block app start.
+    }
+  }
+
+  MessageRole _roleFromName(String name) => MessageRole.values.firstWhere(
+        (r) => r.name == name,
+        orElse: () => MessageRole.assistant,
+      );
+
+  AttachmentKind _kindFromName(String name) => AttachmentKind.values.firstWhere(
+        (k) => k.name == name,
+        orElse: () => AttachmentKind.file,
+      );
+}

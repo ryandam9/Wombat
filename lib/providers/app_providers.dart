@@ -4,7 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../services/conversation_store.dart';
+import '../services/database/app_database.dart';
 import '../services/debug_log.dart';
+import '../services/drift_conversation_store.dart';
 import '../services/openrouter_service.dart';
 import '../services/secure_storage_service.dart';
 
@@ -18,9 +20,22 @@ final sharedPreferencesProvider = Provider<SharedPreferences>(
 final secureStorageProvider =
     Provider<SecureStorageService>((ref) => SecureStorageService());
 
-/// On-disk conversation persistence.
-final conversationStoreProvider =
-    Provider<ConversationStore>((ref) => ConversationStore());
+/// The app's SQLite database (chat history). Closed when the provider is
+/// disposed.
+final appDatabaseProvider = Provider<AppDatabase>((ref) {
+  final db = AppDatabase();
+  ref.onDispose(db.close);
+  return db;
+});
+
+/// On-disk conversation persistence, backed by SQLite. Imports any legacy
+/// `conversations.json` from older installs on first launch.
+final conversationStoreProvider = Provider<ConversationStore>(
+  (ref) => DriftConversationStore(
+    ref.watch(appDatabaseProvider),
+    legacyStore: JsonConversationStore(),
+  ),
+);
 
 /// Process environment variables, consulted on desktop to seed the API key.
 /// Empty on mobile (and overridable in tests).

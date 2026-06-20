@@ -5,24 +5,39 @@ import 'package:path_provider/path_provider.dart';
 
 import '../models/conversation.dart';
 
-/// Persists conversations to a JSON file in the app support directory.
+/// Persistence boundary for the user's chat history.
 ///
-/// A flat JSON file keeps the app dependency-free of native databases and
-/// works uniformly across Android and desktop targets.
-class ConversationStore {
-  ConversationStore({Directory? directory}) : _overrideDir = directory;
+/// The app ships a SQLite-backed implementation ([DriftConversationStore]);
+/// tests provide an in-memory fake. The legacy JSON file format lives on in
+/// [JsonConversationStore], used to import older installs into the database.
+abstract class ConversationStore {
+  const ConversationStore();
+
+  /// Loads all saved conversations (most-recently-updated first is the caller's
+  /// responsibility to sort, but stores may return any order).
+  Future<List<Conversation>> load();
+
+  /// Persists [conversations], replacing whatever was stored before.
+  Future<void> save(List<Conversation> conversations);
+}
+
+/// The original conversation store: a flat `conversations.json` file in the app
+/// support directory. Retained so existing installs can be migrated into the
+/// SQLite database on first launch (see [DriftConversationStore]).
+class JsonConversationStore extends ConversationStore {
+  JsonConversationStore({Directory? directory}) : _overrideDir = directory;
 
   /// Optional directory override, primarily for tests. When null the platform
   /// application-support directory is used.
   final Directory? _overrideDir;
 
-  static const _fileName = 'conversations.json';
+  static const fileName = 'conversations.json';
   File? _cachedFile;
 
   Future<File> _file() async {
     if (_cachedFile != null) return _cachedFile!;
     final dir = _overrideDir ?? await getApplicationSupportDirectory();
-    final file = File('${dir.path}${Platform.pathSeparator}$_fileName');
+    final file = File('${dir.path}${Platform.pathSeparator}$fileName');
     if (!await file.exists()) {
       await file.create(recursive: true);
       await file.writeAsString('[]');
@@ -31,6 +46,7 @@ class ConversationStore {
     return file;
   }
 
+  @override
   Future<List<Conversation>> load() async {
     try {
       final file = await _file();
@@ -46,9 +62,23 @@ class ConversationStore {
     }
   }
 
+  @override
   Future<void> save(List<Conversation> conversations) async {
     final file = await _file();
     final data = jsonEncode(conversations.map((c) => c.toJson()).toList());
     await file.writeAsString(data);
+  }
+
+  /// Renames the JSON file to `<name>.migrated` so it is read once and kept as a
+  /// backup after the data has been imported into the database. No-op if the
+  /// file is missing.
+  Future<void> archive() async {
+    final dir = _overrideDir ?? await getApplicationSupportDirectory();
+    final path = '${dir.path}${Platform.pathSeparator}$fileName';
+    final file = File(path);
+    if (await file.exists()) {
+      await file.rename('$path.migrated');
+      _cachedFile = null;
+    }
   }
 }
