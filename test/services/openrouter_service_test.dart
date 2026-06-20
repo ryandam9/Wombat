@@ -85,6 +85,8 @@ void main() {
         final decoded = jsonDecode(body) as Map<String, dynamic>;
         expect(decoded['stream'], true);
         expect(decoded['model'], 'test/model');
+        // Usage accounting must be requested so cost/tokens come back.
+        expect(decoded['usage'], {'include': true});
         return sse([
           'data: {"choices":[{"delta":{"content":"Hel"}}]}',
           ': OPENROUTER PROCESSING',

@@ -116,6 +116,10 @@ class OpenRouterService {
       ..body = jsonEncode({
         'model': model,
         'stream': true,
+        // Opt into usage accounting so OpenRouter returns token counts and the
+        // request cost (in the final stream chunk). Without this the `usage`
+        // object is omitted and the Session usage screen stays empty.
+        'usage': {'include': true},
         if (imageOutput) 'modalities': ['image', 'text'],
         'messages':
             messages.map((m) => {'role': m.role.wireName, 'content': _content(m)}).toList(),
