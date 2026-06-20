@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../widgets/chat_view.dart';
+import '../widgets/collapsible_sidebar.dart';
 import '../widgets/conversation_list.dart';
 
 /// A focused, two-pane chat workspace opened from the dashboard ("Chat history"
@@ -36,21 +37,20 @@ class _ChatWorkspaceScreenState extends State<ChatWorkspaceScreen> {
       return Scaffold(
         body: Row(
           children: [
-            if (!_collapsed) ...[
-              SizedBox(
-                width: _sidebarWidth,
-                child: ConversationList(
-                  showNavigation: false,
-                  onBack: () => Navigator.of(context).pop(),
-                  onCollapse: () => setState(() => _collapsed = true),
-                ),
+            CollapsibleSidebar(
+              collapsed: _collapsed,
+              width: _sidebarWidth,
+              sidebar: ConversationList(
+                showNavigation: false,
+                onBack: () => Navigator.of(context).pop(),
+                onCollapse: () => setState(() => _collapsed = true),
               ),
-              _ResizableSeparator(onDrag: _resize),
-            ] else
-              _CollapsedRail(
+              rail: _CollapsedRail(
                 onBack: () => Navigator.of(context).pop(),
                 onExpand: () => setState(() => _collapsed = false),
               ),
+            ),
+            if (!_collapsed) _ResizableSeparator(onDrag: _resize),
             const Expanded(child: ChatView(showMenuButton: false)),
           ],
         ),

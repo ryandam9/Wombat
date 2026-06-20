@@ -1,3 +1,4 @@
+import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -12,6 +13,7 @@ import '../screens/help_screen.dart';
 import '../screens/model_picker_screen.dart';
 import '../screens/settings_screen.dart';
 import '../screens/usage_screen.dart';
+import 'pressable_scale.dart';
 import 'ui_kit.dart';
 
 /// The sections reachable from the sidebar navigation rail. On desktop these
@@ -29,6 +31,7 @@ class ConversationList extends ConsumerStatefulWidget {
     this.selectedSection,
     this.onNavigate,
     this.onOpenChat,
+    this.openChatBuilder,
     this.showNavigation = true,
   });
 
@@ -49,10 +52,15 @@ class ConversationList extends ConsumerStatefulWidget {
   /// place via this callback instead of pushing a new route.
   final void Function(DashboardSection section)? onNavigate;
 
-  /// When provided, opening or creating a chat (New chat, a recent chat, or
-  /// "Chat history") invokes this — used by the dashboard to open the chat
-  /// workspace page. When null, chats are shown in place.
+  /// When provided, opening or creating a chat (New chat, or "Chat history")
+  /// invokes this — used by the dashboard to open the chat workspace page. When
+  /// null, chats are shown in place.
   final VoidCallback? onOpenChat;
+
+  /// When provided, tapping a recent chat tile morphs it into the page this
+  /// builds (a container transform) instead of calling [onOpenChat]. Used by
+  /// the dashboard so the tapped card animates into the chat workspace.
+  final WidgetBuilder? openChatBuilder;
 
   /// Whether to show the navigation rail (Models, Usage, …). The chat workspace
   /// hides it so the sidebar is purely the conversation history.
@@ -141,15 +149,41 @@ class _ConversationListState extends ConsumerState<ConversationList> {
     }
   }
 
-  Widget _tile(Conversation convo, String? currentId) => _ConversationTile(
-        conversation: convo,
-        selected: convo.id == currentId,
-        onTap: () {
-          ref.read(chatProvider.notifier).selectConversation(convo.id);
-          if (widget.inDrawer) Navigator.of(context).pop();
-          widget.onOpenChat?.call();
-        },
+  Widget _tile(Conversation convo, String? currentId) {
+    final builder = widget.openChatBuilder;
+    // On the dashboard the tapped card morphs into the chat workspace via a
+    // container transform; elsewhere tapping just selects the chat in place.
+    if (builder != null) {
+      return OpenContainer(
+        tappable: false,
+        closedElevation: 0,
+        openElevation: 0,
+        closedColor: Colors.transparent,
+        openColor: Theme.of(context).colorScheme.surface,
+        closedShape: const RoundedRectangleBorder(),
+        transitionType: ContainerTransitionType.fadeThrough,
+        transitionDuration: const Duration(milliseconds: 350),
+        closedBuilder: (context, open) => _ConversationTile(
+          conversation: convo,
+          selected: convo.id == currentId,
+          onTap: () {
+            ref.read(chatProvider.notifier).selectConversation(convo.id);
+            open();
+          },
+        ),
+        openBuilder: (context, _) => builder(context),
       );
+    }
+    return _ConversationTile(
+      conversation: convo,
+      selected: convo.id == currentId,
+      onTap: () {
+        ref.read(chatProvider.notifier).selectConversation(convo.id);
+        if (widget.inDrawer) Navigator.of(context).pop();
+        widget.onOpenChat?.call();
+      },
+    );
+  }
 
   /// Tiles grouped under a "Pinned" heading and then by recency date.
   List<Widget> _groupedTiles(List<Conversation> conversations, String? curId) {
@@ -220,19 +254,23 @@ class _ConversationListState extends ConsumerState<ConversationList> {
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
-            child: FilledButton.icon(
-              onPressed: _newChat,
-              icon: const Icon(Icons.add),
-              label: const Text('New chat'),
+            child: PressableScale(
+              child: FilledButton.icon(
+                onPressed: _newChat,
+                icon: const Icon(Icons.add),
+                label: const Text('New chat'),
+              ),
             ),
           ),
           const SizedBox(height: 8),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: OutlinedButton.icon(
-              onPressed: () => _open(const CompareScreen()),
-              icon: const Icon(Icons.compare_arrows),
-              label: const Text('Compare models'),
+            child: PressableScale(
+              child: OutlinedButton.icon(
+                onPressed: () => _open(const CompareScreen()),
+                icon: const Icon(Icons.compare_arrows),
+                label: const Text('Compare models'),
+              ),
             ),
           ),
           const SizedBox(height: 8),

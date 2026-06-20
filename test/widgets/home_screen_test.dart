@@ -184,14 +184,15 @@ void main() {
 
     expect(find.text('Compare models'), findsOneWidget);
 
-    // Collapse via the sidebar's collapse button (issue #43).
+    // Collapse via the sidebar's collapse button (issue #43). Let the
+    // collapse animation settle so only the thin rail remains in the tree.
     await tester.tap(find.widgetWithIcon(IconButton, Icons.menu_open));
-    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pumpAndSettle();
     expect(find.text('Compare models'), findsNothing);
 
-    // The chat header now offers a button to bring the sidebar back.
+    // The collapsed rail now offers a button to bring the sidebar back.
     await tester.tap(find.widgetWithIcon(IconButton, Icons.menu_open));
-    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pumpAndSettle();
     expect(find.text('Compare models'), findsOneWidget);
   });
 }

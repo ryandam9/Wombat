@@ -7,6 +7,7 @@ import '../models/openrouter_model.dart';
 import '../providers/app_providers.dart';
 import '../providers/settings_provider.dart';
 import '../services/openrouter_service.dart';
+import '../widgets/shimmer.dart';
 import '../widgets/ui_kit.dart';
 
 enum _Sort { name, context, price, newest }
@@ -245,7 +246,7 @@ class _ModelPickerScreenState extends ConsumerState<ModelPickerScreen> {
         future: _future,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+            return const _PickerSkeleton();
           }
           if (snapshot.hasError) {
             return _ErrorView(message: '${snapshot.error}', onRetry: _reload);
@@ -1184,6 +1185,81 @@ class _ErrorView extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Loading placeholder shown while the model catalogue is fetched: a shimmering
+/// search bar over a grid of skeleton model cards.
+class _PickerSkeleton extends StatelessWidget {
+  const _PickerSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Shimmer(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const SkeletonBox(height: 48, radius: 12),
+            const SizedBox(height: 16),
+            const Row(
+              children: [
+                SkeletonBox(width: 90, height: 32, radius: 16),
+                SizedBox(width: 8),
+                SkeletonBox(width: 90, height: 32, radius: 16),
+                SizedBox(width: 8),
+                SkeletonBox(width: 90, height: 32, radius: 16),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Expanded(
+              child: GridView.builder(
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate:
+                    const SliverGridDelegateWithMaxCrossAxisExtent(
+                  maxCrossAxisExtent: 320,
+                  mainAxisExtent: 132,
+                  crossAxisSpacing: 12,
+                  mainAxisSpacing: 12,
+                ),
+                itemCount: 9,
+                itemBuilder: (context, index) => const _SkeletonCard(),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// A single placeholder card matching the rough layout of a model tile.
+class _SkeletonCard extends StatelessWidget {
+  const _SkeletonCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+      ),
+      child: const Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SkeletonBox(width: 36, height: 36, radius: 18),
+          SizedBox(height: 12),
+          SkeletonBox(height: 14),
+          SizedBox(height: 8),
+          SkeletonBox(width: 140, height: 12),
+          Spacer(),
+          SkeletonBox(width: 100, height: 12),
+        ],
       ),
     );
   }

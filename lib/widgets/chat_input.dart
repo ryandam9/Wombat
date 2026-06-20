@@ -10,6 +10,7 @@ import 'package:record/record.dart';
 import '../models/attachment.dart';
 import '../providers/chat_provider.dart';
 import '../services/wav.dart';
+import 'pressable_scale.dart';
 
 /// The message composer: attachment picker, in-app audio recorder, a growing
 /// text field, attachment previews, and a send/stop button.
@@ -244,18 +245,20 @@ class _ChatInputState extends ConsumerState<ChatInput> {
                   ),
                 ),
                 const SizedBox(width: 8),
-                isResponding
-                    ? IconButton.filledTonal(
-                        tooltip: 'Stop',
-                        icon: const Icon(Icons.stop),
-                        onPressed: () =>
-                            ref.read(chatProvider.notifier).stopResponding(),
-                      )
-                    : IconButton.filled(
-                        tooltip: 'Send',
-                        icon: const Icon(Icons.arrow_upward),
-                        onPressed: _send,
-                      ),
+                PressableScale(
+                  child: isResponding
+                      ? IconButton.filledTonal(
+                          tooltip: 'Stop',
+                          icon: const Icon(Icons.stop),
+                          onPressed: () =>
+                              ref.read(chatProvider.notifier).stopResponding(),
+                        )
+                      : IconButton.filled(
+                          tooltip: 'Send',
+                          icon: const Icon(Icons.arrow_upward),
+                          onPressed: _send,
+                        ),
+                ),
               ],
             ),
           ],

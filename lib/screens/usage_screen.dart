@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 
 import '../models/usage.dart';
 import '../providers/usage_provider.dart';
+import '../widgets/shimmer.dart';
 import '../widgets/ui_kit.dart';
 
 /// Shows OpenRouter usage accumulated during the current app session, plus the
@@ -141,10 +142,7 @@ class _AccountPanel extends ConsumerWidget {
 
     Widget body;
     if (usage.creditsLoading) {
-      body = const Padding(
-        padding: EdgeInsets.symmetric(vertical: 12),
-        child: Center(child: CircularProgressIndicator()),
-      );
+      body = const _BalanceSkeleton();
     } else if (usage.creditsError != null) {
       body = InfoBanner(
         title: 'Balance unavailable',
@@ -175,6 +173,40 @@ class _AccountPanel extends ConsumerWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Shimmering placeholder shown while the account balance is being fetched —
+/// a donut outline beside a few value rows, mirroring [_BalanceContent].
+class _BalanceSkeleton extends StatelessWidget {
+  const _BalanceSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Shimmer(
+      child: Padding(
+        padding: EdgeInsets.symmetric(vertical: 4),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            SkeletonBox(width: 130, height: 130, radius: 65),
+            SizedBox(width: 24),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  SkeletonBox(height: 16),
+                  SizedBox(height: 12),
+                  SkeletonBox(height: 16),
+                  SizedBox(height: 12),
+                  SkeletonBox(height: 16),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

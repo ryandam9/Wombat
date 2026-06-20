@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/settings_provider.dart';
 import '../widgets/chat_view.dart';
+import '../widgets/collapsible_sidebar.dart';
 import '../widgets/conversation_list.dart';
 import '../widgets/dashboard_landing.dart';
 import 'chat_workspace_screen.dart';
@@ -82,21 +83,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       return Scaffold(
         body: Row(
           children: [
-            if (!_collapsed) ...[
-              SizedBox(
-                width: _sidebarWidth,
-                child: ConversationList(
-                  selectedSection: _section,
-                  onNavigate: (s) => setState(() => _section = s),
-                  onOpenChat: _openWorkspace,
-                  onCollapse: () => setState(() => _collapsed = true),
-                ),
+            CollapsibleSidebar(
+              collapsed: _collapsed,
+              width: _sidebarWidth,
+              sidebar: ConversationList(
+                selectedSection: _section,
+                onNavigate: (s) => setState(() => _section = s),
+                onOpenChat: _openWorkspace,
+                openChatBuilder: (_) => const ChatWorkspaceScreen(),
+                onCollapse: () => setState(() => _collapsed = true),
               ),
-              _ResizableSeparator(onDrag: _resize),
-            ] else
-              _CollapsedRail(
+              rail: _CollapsedRail(
                 onExpand: () => setState(() => _collapsed = false),
               ),
+            ),
+            if (!_collapsed) _ResizableSeparator(onDrag: _resize),
             Expanded(
               child: PageTransitionSwitcher(
                 transitionBuilder: (child, primary, secondary) =>
