@@ -252,4 +252,31 @@ void main() {
     await c.read(settingsProvider.notifier).setThemeMode(ThemeMode.dark);
     expect(notified, greaterThan(0));
   });
+
+  test('reduceMotion defaults off and persists', () async {
+    final c = await createContainer(prefs: const {});
+    addTearDown(c.dispose);
+    final n = c.read(settingsProvider.notifier);
+
+    expect(c.read(settingsProvider).reduceMotion, isFalse);
+    await n.setReduceMotion(true);
+    expect(c.read(settingsProvider).reduceMotion, isTrue);
+    expect(c.read(sharedPreferencesProvider).getBool('reduce_motion'), isTrue);
+  });
+
+  test('sidebarWidth defaults and persists clamped', () async {
+    final c = await createContainer(prefs: const {});
+    addTearDown(c.dispose);
+    final n = c.read(settingsProvider.notifier);
+
+    expect(c.read(settingsProvider).sidebarWidth,
+        SettingsNotifier.defaultSidebarWidth);
+
+    // Out-of-range values are clamped to the allowed bounds.
+    await n.setSidebarWidth(9999);
+    expect(c.read(settingsProvider).sidebarWidth,
+        SettingsNotifier.maxSidebarWidth);
+    expect(c.read(sharedPreferencesProvider).getDouble('sidebar_width'),
+        SettingsNotifier.maxSidebarWidth);
+  });
 }

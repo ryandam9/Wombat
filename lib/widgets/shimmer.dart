@@ -30,6 +30,13 @@ class _ShimmerState extends State<Shimmer>
     final base = scheme.surfaceContainerHighest;
     final highlight =
         Color.alphaBlend(scheme.onSurface.withValues(alpha: 0.06), base);
+    // Static skeleton (no sweep) when motion is reduced.
+    if (MediaQuery.of(context).disableAnimations) {
+      if (_controller.isAnimating) _controller.stop();
+      return widget.child;
+    } else if (!_controller.isAnimating) {
+      _controller.repeat();
+    }
     return AnimatedBuilder(
       animation: _controller,
       builder: (context, child) {

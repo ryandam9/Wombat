@@ -29,6 +29,26 @@ const _pageTransitions = PageTransitionsTheme(
   },
 );
 
+/// No-op page transition (routes appear instantly) for reduced motion.
+class _NoTransitionsBuilder extends PageTransitionsBuilder {
+  const _NoTransitionsBuilder();
+
+  @override
+  Widget buildTransitions<T>(route, context, animation, secondaryAnimation,
+          Widget child) =>
+      child;
+}
+
+const _noPageTransitions = PageTransitionsTheme(
+  builders: {
+    TargetPlatform.android: _NoTransitionsBuilder(),
+    TargetPlatform.iOS: _NoTransitionsBuilder(),
+    TargetPlatform.linux: _NoTransitionsBuilder(),
+    TargetPlatform.macOS: _NoTransitionsBuilder(),
+    TargetPlatform.windows: _NoTransitionsBuilder(),
+  },
+);
+
 class WombatApp extends ConsumerWidget {
   const WombatApp({super.key});
 
@@ -38,21 +58,31 @@ class WombatApp extends ConsumerWidget {
     final headingFont =
         ref.watch(settingsProvider.select((s) => s.headingFont));
     final seed = ref.watch(settingsProvider.select((s) => s.seedColor));
+    final reduce = ref.watch(settingsProvider.select((s) => s.reduceMotion));
     return MaterialApp(
       title: 'Wombat',
       debugShowCheckedModeBanner: false,
-      theme: _withHeadingFont(AppTheme.lightFor(seed), headingFont),
-      darkTheme: _withHeadingFont(AppTheme.darkFor(seed), headingFont),
+      theme: _withHeadingFont(AppTheme.lightFor(seed), headingFont, reduce),
+      darkTheme: _withHeadingFont(AppTheme.darkFor(seed), headingFont, reduce),
       themeMode: themeMode,
       // Make text selectable anywhere in the app. SelectionArea needs an
       // Overlay ancestor for its selection handles/toolbar; the app's own
       // Navigator overlay is a descendant here, so we provide one above it.
       // TextFields keep their own editing selection.
+      //
+      // Also fold the "Reduce motion" setting into MediaQuery.disableAnimations
+      // so it propagates everywhere (Motion helper, shimmer, implicit anims).
       builder: (context, child) => Overlay(
         initialEntries: [
           OverlayEntry(
-            builder: (context) =>
-                SelectionArea(child: child ?? const SizedBox()),
+            builder: (context) {
+              final mq = MediaQuery.of(context);
+              return MediaQuery(
+                data: mq.copyWith(
+                    disableAnimations: mq.disableAnimations || reduce),
+                child: SelectionArea(child: child ?? const SizedBox()),
+              );
+            },
           ),
         ],
       ),
@@ -62,7 +92,7 @@ class WombatApp extends ConsumerWidget {
 
   /// Applies the chosen [font] to the display/headline/title text styles so
   /// headings use it while body text keeps its per-widget font.
-  ThemeData _withHeadingFont(ThemeData base, AppFont font) {
+  ThemeData _withHeadingFont(ThemeData base, AppFont font, bool reduce) {
     final fam = font.family;
     final t = base.textTheme;
     final headed = t.copyWith(
@@ -78,7 +108,7 @@ class WombatApp extends ConsumerWidget {
     );
     return base.copyWith(
       textTheme: headed,
-      pageTransitionsTheme: _pageTransitions,
+      pageTransitionsTheme: reduce ? _noPageTransitions : _pageTransitions,
       appBarTheme: base.appBarTheme.copyWith(
         titleTextStyle: (base.appBarTheme.titleTextStyle ?? t.titleLarge)
             ?.copyWith(fontFamily: fam),

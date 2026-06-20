@@ -41,11 +41,18 @@ class _ModelSelectorState extends ConsumerState<ModelSelector>
   /// Drives the border animation in response to model changes and the
   /// continuous-animation setting. Safe to call on every build: it only acts
   /// when something relevant actually changed.
-  void _syncAnimation(String modelId, bool continuous) {
+  void _syncAnimation(String modelId, bool continuous, bool reduce) {
     final modelChanged = modelId != _lastModelId;
     final continuousChanged = continuous != _lastContinuous;
     _lastModelId = modelId;
     _lastContinuous = continuous;
+
+    // Reduced motion: keep the border static.
+    if (reduce) {
+      if (_controller.isAnimating) _controller.stop();
+      _controller.value = 0;
+      return;
+    }
 
     if (continuous) {
       // Start (or keep) the endless spin.
@@ -78,7 +85,8 @@ class _ModelSelectorState extends ConsumerState<ModelSelector>
     final locked = current != null && current.messages.isNotEmpty;
     final continuous =
         ref.watch(settingsProvider.select((s) => s.continuousModelBorder));
-    _syncAnimation(modelId, continuous);
+    _syncAnimation(
+        modelId, continuous, MediaQuery.of(context).disableAnimations);
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
 

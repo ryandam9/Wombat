@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flex_color_picker/flex_color_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -26,6 +28,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   late final TextEditingController _userNameController;
   late final TextEditingController _aiNameController;
   bool _obscure = true;
+  bool _justSaved = false;
+  Timer? _savedTimer;
+
+  /// Briefly shows a "Saved" confirmation in the app bar after a setting
+  /// changes, so instant-apply controls give a little feedback.
+  void _flashSaved() {
+    _savedTimer?.cancel();
+    setState(() => _justSaved = true);
+    _savedTimer = Timer(const Duration(milliseconds: 1400), () {
+      if (mounted) setState(() => _justSaved = false);
+    });
+  }
 
   @override
   void initState() {
@@ -41,6 +55,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     _keyController.dispose();
     _userNameController.dispose();
     _aiNameController.dispose();
+    _savedTimer?.cancel();
     super.dispose();
   }
 
@@ -59,7 +74,35 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final wide = MediaQuery.of(context).size.width >= _wideBreakpoint;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Settings')),
+      appBar: AppBar(
+        title: const Text('Settings'),
+        actions: [
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 180),
+            transitionBuilder: (child, animation) => FadeTransition(
+              opacity: animation,
+              child: ScaleTransition(scale: animation, child: child),
+            ),
+            child: _justSaved
+                ? Padding(
+                    key: const ValueKey('saved'),
+                    padding: const EdgeInsets.only(right: 12),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.check_circle,
+                            size: 16, color: theme.colorScheme.primary),
+                        const SizedBox(width: 4),
+                        Text('Saved',
+                            style: theme.textTheme.labelMedium
+                                ?.copyWith(color: theme.colorScheme.primary)),
+                      ],
+                    ),
+                  )
+                : const SizedBox.shrink(),
+          ),
+        ],
+      ),
       // Apply the chosen settings font to this whole screen.
       body: Theme(
         data: theme.copyWith(
@@ -357,29 +400,51 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ],
           selected: {settings.themeMode},
           showSelectedIcon: false,
-          onSelectionChanged: (s) =>
-              ref.read(settingsProvider.notifier).setThemeMode(s.first),
+          onSelectionChanged: (s) {
+            ref.read(settingsProvider.notifier).setThemeMode(s.first);
+            _flashSaved();
+          },
         ),
         const SizedBox(height: 16),
         Text('ACCENT COLOR', style: Theme.of(context).textTheme.labelMedium),
         const SizedBox(height: 10),
         _AccentColorPicker(
           selected: settings.seedColor,
-          onChanged: (c) => ref.read(settingsProvider.notifier).setSeedColor(c),
+          onChanged: (c) {
+            ref.read(settingsProvider.notifier).setSeedColor(c);
+            _flashSaved();
+          },
         ),
         const SizedBox(height: 4),
         SwitchListTile(
+          value: settings.reduceMotion,
+          onChanged: (v) {
+            ref.read(settingsProvider.notifier).setReduceMotion(v);
+            _flashSaved();
+          },
+          title: const Text('Reduce motion'),
+          subtitle: const Text(
+            'Shortens or disables animations across the app.',
+          ),
+          contentPadding: EdgeInsets.zero,
+          dense: true,
+        ),
+        SwitchListTile(
           value: settings.animateModelIndicator,
-          onChanged: (v) =>
-              ref.read(settingsProvider.notifier).setAnimateModelIndicator(v),
+          onChanged: (v) {
+            ref.read(settingsProvider.notifier).setAnimateModelIndicator(v);
+            _flashSaved();
+          },
           title: const Text('Show activity indicator while replying'),
           contentPadding: EdgeInsets.zero,
           dense: true,
         ),
         SwitchListTile(
           value: settings.continuousModelBorder,
-          onChanged: (v) =>
-              ref.read(settingsProvider.notifier).setContinuousModelBorder(v),
+          onChanged: (v) {
+            ref.read(settingsProvider.notifier).setContinuousModelBorder(v);
+            _flashSaved();
+          },
           title: const Text('Continuously animate the model border'),
           subtitle: const Text(
             'Off: the border animates once when you pick a model.',
@@ -389,8 +454,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ),
         SwitchListTile(
           value: settings.replyCompleteFeedback,
-          onChanged: (v) =>
-              ref.read(settingsProvider.notifier).setReplyCompleteFeedback(v),
+          onChanged: (v) {
+            ref.read(settingsProvider.notifier).setReplyCompleteFeedback(v);
+            _flashSaved();
+          },
           title: const Text('Feedback when a reply finishes'),
           subtitle: const Text(
             'A haptic buzz on mobile, or a short sound on desktop.',
