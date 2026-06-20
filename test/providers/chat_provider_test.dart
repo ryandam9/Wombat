@@ -256,5 +256,16 @@ void main() {
       chat.renameConversation(convo.id, '   ');
       expect(convo.title, 'My chat');
     });
+
+    test('deleteAllConversations clears every chat', () async {
+      final chat = await buildChat();
+      chat.newConversation();
+      chat.newConversation();
+      expect(chat.conversations.length, 2);
+
+      await chat.deleteAllConversations();
+      expect(chat.conversations, isEmpty);
+      expect(chat.current, isNull);
+    });
   });
 }

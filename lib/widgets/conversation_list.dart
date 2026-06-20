@@ -112,6 +112,35 @@ class _ConversationListState extends ConsumerState<ConversationList> {
     }
   }
 
+  Future<void> _confirmClearAll(int count) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete all chats?'),
+        content: Text(
+          'This permanently removes all $count conversation'
+          '${count == 1 ? '' : 's'}. This cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(ctx).colorScheme.error,
+            ),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Delete all'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      ref.read(chatProvider.notifier).deleteAllConversations();
+    }
+  }
+
   Widget _tile(Conversation convo, String? currentId) => _ConversationTile(
         conversation: convo,
         selected: convo.id == currentId,
@@ -263,6 +292,7 @@ class _ConversationListState extends ConsumerState<ConversationList> {
                   const SizedBox(height: 8),
                 ],
                 _RecentHeader(
+                  title: widget.showNavigation ? 'RECENT CHATS' : 'ALL CHATS',
                   searching: _searching,
                   onToggleSearch: () => setState(() {
                     _searching = !_searching;
@@ -271,6 +301,10 @@ class _ConversationListState extends ConsumerState<ConversationList> {
                       _query = '';
                     }
                   }),
+                  // Bulk delete on the full history page only.
+                  onClearAll: (!widget.showNavigation && matches.isNotEmpty)
+                      ? () => _confirmClearAll(matches.length)
+                      : null,
                 ),
                 if (_searching)
                   Padding(
@@ -466,10 +500,19 @@ class _NavItem extends StatelessWidget {
 }
 
 class _RecentHeader extends StatelessWidget {
-  const _RecentHeader({required this.searching, required this.onToggleSearch});
+  const _RecentHeader({
+    required this.searching,
+    required this.onToggleSearch,
+    this.title = 'RECENT CHATS',
+    this.onClearAll,
+  });
 
   final bool searching;
   final VoidCallback onToggleSearch;
+  final String title;
+
+  /// When provided, shows a "delete all chats" action.
+  final VoidCallback? onClearAll;
 
   @override
   Widget build(BuildContext context) {
@@ -479,7 +522,7 @@ class _RecentHeader extends StatelessWidget {
       child: Row(
         children: [
           Text(
-            'RECENT CHATS',
+            title,
             style: theme.textTheme.labelSmall?.copyWith(
               letterSpacing: 1.2,
               color: theme.colorScheme.outline,
@@ -494,7 +537,78 @@ class _RecentHeader extends StatelessWidget {
             icon: Icon(searching ? Icons.close : Icons.search),
             onPressed: onToggleSearch,
           ),
+          if (onClearAll != null)
+            IconButton(
+              tooltip: 'Delete all chats',
+              iconSize: 18,
+              visualDensity: VisualDensity.compact,
+              color: theme.colorScheme.error,
+              icon: const Icon(Icons.delete_sweep_outlined),
+              onPressed: onClearAll,
+            ),
         ],
+      ),
+    );
+  }
+}
+
+/// Short model label: the part after the vendor slash.
+String _shortModel(String id) => id.contains('/') ? id.split('/').last : id;
+
+/// A small palette giving each vendor a distinct, consistent avatar colour.
+const List<Color> _avatarPalette = [
+  Color(0xFF5A4FCF), // indigo
+  Color(0xFF00897B), // teal
+  Color(0xFFEF6C00), // orange
+  Color(0xFFC2185B), // pink
+  Color(0xFF2E7D32), // green
+  Color(0xFF1565C0), // blue
+  Color(0xFF6A1B9A), // purple
+  Color(0xFF00838F), // cyan
+];
+
+String _vendor(String modelId) =>
+    modelId.contains('/') ? modelId.split('/').first : modelId;
+
+Color _modelColor(String modelId) {
+  final v = _vendor(modelId);
+  var hash = 0;
+  for (final c in v.codeUnits) {
+    hash = (hash * 31 + c) & 0x7fffffff;
+  }
+  return _avatarPalette[hash % _avatarPalette.length];
+}
+
+String _modelInitial(String modelId) {
+  final v = _vendor(modelId).trim();
+  return v.isEmpty ? '?' : v[0].toUpperCase();
+}
+
+/// A coloured, rounded avatar with the model vendor's initial. Same vendor →
+/// same colour, so the list reads at a glance instead of a wall of identical
+/// rows.
+class _ModelAvatar extends StatelessWidget {
+  const _ModelAvatar({required this.modelId});
+
+  final String modelId;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 38,
+      height: 38,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: _modelColor(modelId),
+        borderRadius: BorderRadius.circular(11),
+      ),
+      child: Text(
+        _modelInitial(modelId),
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.w700,
+          fontSize: 16,
+        ),
       ),
     );
   }
@@ -518,14 +632,16 @@ class _ConversationTile extends ConsumerWidget {
       selected: selected,
       selectedTileColor:
           theme.colorScheme.primaryContainer.withValues(alpha: 0.4),
-      leading: const Icon(Icons.chat_bubble_outline, size: 20),
+      leading: _ModelAvatar(modelId: conversation.modelId),
       title: Text(
         conversation.title,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
+        style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
       ),
       subtitle: Text(
-        '${conversation.modelId}  ·  ${_formatDate(conversation.updatedAt)}',
+        '${_shortModel(conversation.modelId)}  ·  '
+        '${_formatDate(conversation.updatedAt)}',
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
         style: theme.textTheme.bodySmall,

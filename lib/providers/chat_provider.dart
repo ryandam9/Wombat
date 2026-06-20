@@ -176,6 +176,14 @@ class ChatNotifier extends Notifier<ChatState> {
     await _persist();
   }
 
+  /// Removes every conversation (used by "Delete all chats").
+  Future<void> deleteAllConversations() async {
+    _conversations.clear();
+    _current = null;
+    _emit();
+    await _persist();
+  }
+
   void setModelForCurrent(String modelId, {bool? supportsImageOutput}) {
     final convo = _current;
     if (convo == null) return;
