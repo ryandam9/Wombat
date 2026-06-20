@@ -5,6 +5,7 @@ import '../providers/chat_provider.dart';
 import '../providers/settings_provider.dart';
 import '../providers/usage_provider.dart';
 import '../screens/debug_screen.dart';
+import '../screens/help_screen.dart';
 import '../screens/settings_screen.dart';
 import '../screens/usage_screen.dart';
 import 'chat_input.dart';
@@ -118,6 +119,13 @@ class _Header extends ConsumerWidget {
             else ...[
               const _UsageButton(),
               IconButton(
+                icon: const Icon(Icons.help_outline),
+                tooltip: 'Help & Troubleshoot',
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(builder: (_) => const HelpScreen()),
+                ),
+              ),
+              IconButton(
                 icon: const Icon(Icons.bug_report_outlined),
                 tooltip: 'Debug sessions',
                 onPressed: () => Navigator.of(context).push(
@@ -161,6 +169,8 @@ class _OverflowMenu extends ConsumerWidget {
         switch (value) {
           case 'usage':
             push(const UsageScreen());
+          case 'help':
+            push(const HelpScreen());
           case 'debug':
             push(const DebugScreen());
           case 'settings':
@@ -174,6 +184,15 @@ class _OverflowMenu extends ConsumerWidget {
             leading: const Icon(Icons.insights_outlined),
             title: const Text('Usage'),
             trailing: cost == null ? null : Text(cost),
+            contentPadding: EdgeInsets.zero,
+            dense: true,
+          ),
+        ),
+        const PopupMenuItem(
+          value: 'help',
+          child: ListTile(
+            leading: Icon(Icons.help_outline),
+            title: Text('Help & Troubleshoot'),
             contentPadding: EdgeInsets.zero,
             dense: true,
           ),
