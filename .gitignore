@@ -28,7 +28,7 @@ migrate_working_dir/
 .pub-cache/
 .pub/
 /build/
-pubspec.lock
+# pubspec.lock is committed for reproducible builds (this is an app, not a package).
 
 # Symbolication related
 app.*.symbols
@@ -37,11 +37,10 @@ app.*.symbols
 app.*.map.json
 
 # Android
-**/android/**/gradle-wrapper.jar
+# The Gradle wrapper (gradlew, gradlew.bat, gradle-wrapper.jar) is committed so
+# fresh clones build without regenerating the Android scaffold.
 **/android/.gradle
 **/android/captures/
-**/android/gradlew
-**/android/gradlew.bat
 **/android/local.properties
 **/android/**/GeneratedPluginRegistrant.java
 **/android/key.properties
