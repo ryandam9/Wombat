@@ -163,6 +163,28 @@ void main() {
     expect(find.byType(HighlightedCode), findsOneWidget);
   });
 
+  testWidgets('renders styled HTML (CSS/script stripped) without crashing',
+      (tester) async {
+    // Author CSS (<style>, inline style) used to crash csslib and take down the
+    // whole reply; it's now stripped before rendering.
+    await tester.pumpWidget(_wrap(
+      ChatMessage(
+        id: '1',
+        role: MessageRole.assistant,
+        content: '<style>:root{--p:#6366f1}'
+            '@keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}'
+            '.card{display:grid;width:calc(100% - 2rem)}</style>'
+            '<script>console.log(1)</script>'
+            '<div style="color:red;transform:translateY(-50%)">'
+            '<h1>Title</h1><p>Body</p></div>',
+      ),
+    ));
+    await tester.pump();
+
+    expect(tester.takeException(), isNull);
+    expect(find.byType(Html), findsOneWidget);
+  });
+
   testWidgets('renders an HTML reply with a code block without error',
       (tester) async {
     await tester.pumpWidget(_wrap(

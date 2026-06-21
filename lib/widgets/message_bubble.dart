@@ -6,6 +6,7 @@ import 'package:flutter_html/flutter_html.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:html/parser.dart' as html_parser;
 import 'package:intl/intl.dart';
 import 'package:markdown/markdown.dart' as md;
 
@@ -478,6 +479,26 @@ class _HtmlView extends StatelessWidget {
   final String html;
   final SettingsState settings;
 
+  /// Strips author CSS (`<style>` blocks, `style="…"` attributes) and
+  /// `<script>` before rendering. flutter_html runs author CSS through csslib,
+  /// which throws on CSS it can't parse and crashes the whole reply; we render
+  /// HTML for its content/structure (csslib doesn't do flexbox/grid anyway), so
+  /// dropping the CSS keeps replies readable and crash-free.
+  static String sanitize(String input) {
+    try {
+      final doc = html_parser.parse(input);
+      for (final el in doc.querySelectorAll('style, script')) {
+        el.remove();
+      }
+      for (final el in doc.querySelectorAll('*')) {
+        el.attributes.remove('style');
+      }
+      return doc.body?.innerHtml ?? input;
+    } catch (_) {
+      return input;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
@@ -485,7 +506,7 @@ class _HtmlView extends StatelessWidget {
       minScaleFactor: settings.modelFontScale,
       maxScaleFactor: settings.modelFontScale,
       child: Html(
-        data: html,
+        data: sanitize(html),
         // <pre> code blocks render with syntax highlighting; inline <code>
         // keeps a monospace style (the body font would otherwise cascade in).
         extensions: [
