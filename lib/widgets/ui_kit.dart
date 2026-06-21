@@ -143,18 +143,21 @@ class LabelValueRow extends StatelessWidget {
       child: Row(
         children: [
           Text(label.toUpperCase(), style: labelStyle),
-          const Spacer(),
-          if (trailing != null)
-            trailing!
-          else
-            Flexible(
-              child: Text(
-                value!,
-                textAlign: TextAlign.right,
-                overflow: TextOverflow.ellipsis,
-                style: valueStyle,
-              ),
-            ),
+          const SizedBox(width: 12),
+          // The value takes all remaining width and right-aligns its content,
+          // so every row's value shares the same right edge regardless of the
+          // label or value length. (A Spacer + shrink-wrapped value let the
+          // right edge drift per row.)
+          Expanded(
+            child: trailing != null
+                ? Align(alignment: Alignment.centerRight, child: trailing!)
+                : Text(
+                    value!,
+                    textAlign: TextAlign.right,
+                    overflow: TextOverflow.ellipsis,
+                    style: valueStyle,
+                  ),
+          ),
         ],
       ),
     );
