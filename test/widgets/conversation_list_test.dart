@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:wombat/models/conversation.dart';
 import 'package:wombat/models/openrouter_model.dart';
+import 'package:wombat/providers/chat_provider.dart';
 import 'package:wombat/providers/settings_provider.dart';
 import 'package:wombat/widgets/conversation_list.dart';
 
@@ -9,6 +11,41 @@ import '../helpers/fakes.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  testWidgets('no chat-count chip next to the app name (#132)', (tester) async {
+    tester.view.devicePixelRatio = 1.0;
+    tester.view.physicalSize = const Size(1000, 900);
+    addTearDown(tester.view.reset);
+
+    late ProviderContainer container;
+    await tester.runAsync(() async {
+      container = await createContainer(
+        store: FakeConversationStore(initial: [
+          Conversation(id: 'a', title: 'Alpha', modelId: 'm'),
+          Conversation(id: 'b', title: 'Beta', modelId: 'm'),
+          Conversation(id: 'c', title: 'Gamma', modelId: 'm'),
+        ]),
+      );
+      await waitUntil(() => !container.read(chatProvider.notifier).loading);
+    });
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(
+          home: Scaffold(
+            body: SizedBox(width: 320, child: ConversationList()),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // The app name is shown, but the "3" conversation-count chip is not.
+    expect(find.text('Wombat'), findsOneWidget);
+    expect(find.text('3'), findsNothing);
+  });
 
   testWidgets(
       'choosing a model from the drawer does not crash after it closes',
