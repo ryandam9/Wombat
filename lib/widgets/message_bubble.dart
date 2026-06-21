@@ -204,11 +204,20 @@ class _UserBubble extends StatelessWidget {
         decoration: BoxDecoration(
           color: theme.colorScheme.primary,
           borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(18),
-            topRight: Radius.circular(18),
-            bottomLeft: Radius.circular(18),
+            topLeft: Radius.circular(4),
+            topRight: Radius.circular(16),
+            bottomLeft: Radius.circular(16),
             bottomRight: Radius.circular(4),
           ),
+          border: Border.all(
+              color: theme.colorScheme.outline, width: 2),
+          boxShadow: [
+            BoxShadow(
+              color: theme.colorScheme.shadow,
+              offset: const Offset(4, 4),
+              blurRadius: 0,
+            ),
+          ],
         ),
         child: body,
       ),
@@ -252,14 +261,22 @@ class _AssistantBubbleState extends ConsumerState<_AssistantBubble> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           decoration: BoxDecoration(
-            color: theme.colorScheme.surfaceContainerHigh,
+            color: theme.colorScheme.surfaceContainerLow,
             borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(4),
-              topRight: Radius.circular(18),
-              bottomLeft: Radius.circular(18),
-              bottomRight: Radius.circular(18),
+              topLeft: Radius.circular(16),
+              topRight: Radius.circular(4),
+              bottomLeft: Radius.circular(4),
+              bottomRight: Radius.circular(16),
             ),
-            border: Border.all(color: theme.colorScheme.outlineVariant),
+            border: Border.all(
+                color: theme.colorScheme.outline, width: 2),
+            boxShadow: [
+              BoxShadow(
+                color: theme.colorScheme.shadow,
+                offset: const Offset(4, 4),
+                blurRadius: 0,
+              ),
+            ],
           ),
           child: _body(context, settings),
         ),
@@ -775,7 +792,15 @@ class _TypingIndicatorState extends State<_TypingIndicator>
                   offset: Offset(0, dy),
                   child: Opacity(
                     opacity: opacity.toDouble(),
-                    child: CircleAvatar(radius: 3, backgroundColor: color),
+                    // Chunky squares (Neo Brutalist) instead of soft circles.
+                    child: Container(
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: color,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
                   ),
                 ),
               );

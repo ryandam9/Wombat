@@ -72,7 +72,8 @@ void main() {
     ));
     await tester.pump(const Duration(milliseconds: 100));
 
-    expect(find.byType(CircleAvatar), findsNWidgets(3));
+    // Three chunky block dots make up the typing indicator.
+    expect(find.byType(CircleAvatar), findsNothing);
     expect(find.text('Copy'), findsNothing);
   });
 

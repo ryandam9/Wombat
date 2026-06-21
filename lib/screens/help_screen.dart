@@ -254,7 +254,14 @@ class _HelpTopic extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: theme.colorScheme.outlineVariant),
+        border: Border.all(color: theme.colorScheme.outline, width: 2),
+        boxShadow: [
+          BoxShadow(
+            color: theme.colorScheme.shadow,
+            offset: const Offset(3, 3),
+            blurRadius: 0,
+          ),
+        ],
       ),
       child: Theme(
         // Remove ExpansionTile's default top/bottom divider lines.
@@ -420,7 +427,7 @@ class _Step extends StatelessWidget {
               '$number',
               style: theme.textTheme.labelMedium?.copyWith(
                 color: theme.colorScheme.onPrimary,
-                fontWeight: FontWeight.w700,
+                fontWeight: FontWeight.w800,
               ),
             ),
           ),
@@ -458,7 +465,7 @@ class _CodeBlock extends StatelessWidget {
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerLowest,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: theme.colorScheme.outlineVariant),
+        border: Border.all(color: theme.colorScheme.outline, width: 2),
       ),
       child: SelectableText(
         code,

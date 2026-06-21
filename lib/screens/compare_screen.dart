@@ -298,7 +298,14 @@ class _ResultCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: theme.colorScheme.outlineVariant),
+        border: Border.all(color: theme.colorScheme.outline, width: 2),
+        boxShadow: [
+          BoxShadow(
+            color: theme.colorScheme.shadow,
+            offset: const Offset(4, 4),
+            blurRadius: 0,
+          ),
+        ],
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(

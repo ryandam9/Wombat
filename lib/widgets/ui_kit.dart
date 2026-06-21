@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 
-/// Small Material building blocks shared across the app. The design language
-/// is deliberately calm: hairline borders, flat surfaces, generous whitespace,
-/// and a single muted accent. No gradients, glows, or heavy elevation.
+import '../theme/app_tokens.dart';
 
-/// A titled section card with a hairline border and a quiet uppercase header.
+/// Small Neo Brutalist building blocks shared across the app. Every panel,
+/// card and chip shares the same thick outline + hard offset shadow language
+/// so the whole app reads as one designed system.
+
+/// A titled section card: thick outline, hard offset shadow, bold uppercase
+/// header on a coloured block, content below a thick divider.
 class SectionPanel extends StatelessWidget {
   const SectionPanel({super.key, required this.title, required this.child});
 
@@ -17,28 +20,41 @@ class SectionPanel extends StatelessWidget {
     final scheme = theme.colorScheme;
     return Material(
       color: scheme.surfaceContainerLow,
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(AppTokens.radiusMd),
       clipBehavior: Clip.antiAlias,
       child: DecoratedBox(
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: scheme.outlineVariant),
+          borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+          border: Border.all(color: scheme.outline, width: AppTokens.border),
+          boxShadow: [
+            BoxShadow(
+              color: scheme.shadow,
+              offset: AppTokens.shadowSm,
+              blurRadius: 0,
+            ),
+          ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
+            // Header: a coloured block with the title in bold caps.
+            Container(
+              width: double.infinity,
+              color: scheme.primary.withValues(alpha: 0.16),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               child: Text(
                 title.toUpperCase(),
-                style: theme.textTheme.labelMedium?.copyWith(
-                  letterSpacing: 1.2,
-                  fontWeight: FontWeight.w700,
-                  color: scheme.onSurfaceVariant,
+                style: theme.textTheme.labelLarge?.copyWith(
+                  letterSpacing: 1.3,
+                  fontWeight: FontWeight.w800,
+                  color: scheme.onSurface,
                 ),
               ),
             ),
-            const Divider(height: 1),
+            Container(
+              height: AppTokens.border,
+              color: scheme.outline,
+            ),
             Padding(padding: const EdgeInsets.all(16), child: child),
           ],
         ),
@@ -47,8 +63,7 @@ class SectionPanel extends StatelessWidget {
   }
 }
 
-/// A compact label/value statistic tile: a quiet label above a confident
-/// value, on a flat surface with a hairline border.
+/// A compact label/value stat tile: thick border, hard shadow, bold value.
 class StatCard extends StatelessWidget {
   const StatCard({super.key, required this.label, required this.value, this.unit});
 
@@ -60,54 +75,64 @@ class StatCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    return Container(
-      padding: const EdgeInsets.all(14),
+    return DecoratedBox(
       decoration: BoxDecoration(
         color: scheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: scheme.outlineVariant),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            label.toUpperCase(),
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: scheme.onSurfaceVariant,
-              letterSpacing: 0.8,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
-            children: [
-              Flexible(
-                child: Text(
-                  value,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -0.3,
-                    color: scheme.onSurface,
-                  ),
-                ),
-              ),
-              if (unit != null) ...[
-                const SizedBox(width: 4),
-                Text(
-                  unit!,
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: scheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ],
+        borderRadius: BorderRadius.circular(AppTokens.radiusSm),
+        border: Border.all(color: scheme.outline, width: AppTokens.border),
+        boxShadow: [
+          BoxShadow(
+            color: scheme.shadow,
+            offset: AppTokens.shadowSm,
+            blurRadius: 0,
           ),
         ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              label.toUpperCase(),
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: scheme.onSurfaceVariant,
+                letterSpacing: 1.0,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.baseline,
+              textBaseline: TextBaseline.alphabetic,
+              children: [
+                Flexible(
+                  child: Text(
+                    value,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.4,
+                      color: scheme.onSurface,
+                    ),
+                  ),
+                ),
+                if (unit != null) ...[
+                  const SizedBox(width: 4),
+                  Text(
+                    unit!,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -140,12 +165,12 @@ class LabelValueRow extends StatelessWidget {
     final scheme = theme.colorScheme;
     final labelStyle = theme.textTheme.labelSmall?.copyWith(
       color: scheme.onSurfaceVariant,
-      letterSpacing: 0.7,
-      fontWeight: FontWeight.w600,
+      letterSpacing: 0.8,
+      fontWeight: FontWeight.w800,
     );
-    final valueStyle = theme.textTheme.bodyMedium?.copyWith(
+    final valueStyle = theme.textTheme.bodyLarge?.copyWith(
       color: highlight ? scheme.primary : scheme.onSurface,
-      fontWeight: highlight ? FontWeight.w600 : FontWeight.w400,
+      fontWeight: highlight ? FontWeight.w800 : FontWeight.w500,
     );
 
     if (wrap && value != null) {
@@ -184,7 +209,7 @@ class LabelValueRow extends StatelessWidget {
   }
 }
 
-/// A small, quiet status pill.
+/// A small, bold status pill: thick border, flat colour block.
 class StatusChip extends StatelessWidget {
   const StatusChip(this.label, {super.key, this.color});
 
@@ -194,29 +219,35 @@ class StatusChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final c = color ?? theme.colorScheme.primary;
+    final scheme = theme.colorScheme;
+    final c = color ?? scheme.primary;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: c.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: c.withValues(alpha: 0.35)),
+        color: c,
+        borderRadius: BorderRadius.circular(AppTokens.radiusSm),
+        border: Border.all(color: scheme.outline, width: AppTokens.border),
       ),
       child: Text(
         label.toUpperCase(),
         style: theme.textTheme.labelSmall?.copyWith(
-          color: c,
-          fontWeight: FontWeight.w700,
+          color: _onColor(c),
+          fontWeight: FontWeight.w800,
           letterSpacing: 0.5,
         ),
       ),
     );
   }
+
+  /// Pick black or white text for max contrast on [bg].
+  static Color _onColor(Color bg) =>
+      bg.computeLuminance() > 0.5 ? WombatColors.ink : WombatColors.cream;
 }
 
 enum BannerKind { info, success, warning, error }
 
-/// An inline dismissible message banner: flat, hairlined, with a leading icon.
+/// An inline dismissible message banner: a flat colour block with a thick
+/// border and a bold leading icon.
 class InfoBanner extends StatelessWidget {
   const InfoBanner({
     super.key,
@@ -234,17 +265,17 @@ class InfoBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final (Color fg, IconData icon) = switch (kind) {
-      BannerKind.error => (scheme.error, Icons.error_outline),
-      BannerKind.warning => (scheme.tertiary, Icons.warning_amber),
-      BannerKind.success => (scheme.primary, Icons.check_circle_outline),
-      BannerKind.info => (scheme.onSurfaceVariant, Icons.info_outline),
+    final (Color bg, Color fg, IconData icon) = switch (kind) {
+      BannerKind.error => (WombatColors.coral, WombatColors.cream, Icons.error_outline),
+      BannerKind.warning => (WombatColors.yellow, WombatColors.ink, Icons.warning_amber),
+      BannerKind.success => (WombatColors.eucalyptus, WombatColors.cream, Icons.check_circle_outline),
+      BannerKind.info => (scheme.surfaceContainerHigh, scheme.onSurface, Icons.info_outline),
     };
     return Container(
       decoration: BoxDecoration(
-        color: fg.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: fg.withValues(alpha: 0.3)),
+        color: bg,
+        borderRadius: BorderRadius.circular(AppTokens.radiusSm),
+        border: Border.all(color: scheme.outline, width: AppTokens.border),
       ),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
@@ -260,12 +291,11 @@ class InfoBanner extends StatelessWidget {
                   Text(title,
                       style: TextStyle(
                           color: fg,
-                          fontWeight: FontWeight.w600,
+                          fontWeight: FontWeight.w800,
                           fontSize: 14)),
                   if (message != null) ...[
                     const SizedBox(height: 2),
-                    Text(message!,
-                        style: TextStyle(color: fg, fontSize: 13)),
+                    Text(message!, style: TextStyle(color: fg, fontSize: 13)),
                   ],
                 ],
               ),

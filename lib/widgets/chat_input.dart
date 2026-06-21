@@ -268,9 +268,17 @@ class _ChatInputState extends ConsumerState<ChatInput> {
             ),
             DecoratedBox(
               decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceContainerHigh,
-                borderRadius: BorderRadius.circular(22),
-                border: Border.all(color: theme.colorScheme.outlineVariant),
+                color: theme.colorScheme.surfaceContainerLow,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(
+                    color: theme.colorScheme.outline, width: 2),
+                boxShadow: [
+                  BoxShadow(
+                    color: theme.colorScheme.shadow,
+                    offset: const Offset(4, 4),
+                    blurRadius: 0,
+                  ),
+                ],
               ),
               child: Padding(
                 padding: const EdgeInsets.symmetric(

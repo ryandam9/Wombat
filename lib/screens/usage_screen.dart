@@ -956,18 +956,27 @@ class _SummaryTile extends StatelessWidget {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: theme.colorScheme.outlineVariant),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: theme.colorScheme.outline, width: 2),
+        boxShadow: [
+          BoxShadow(
+            color: theme.colorScheme.shadow,
+            offset: const Offset(3, 3),
+            blurRadius: 0,
+          ),
+        ],
       ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: theme.colorScheme.primary.withValues(alpha: 0.10),
-              borderRadius: BorderRadius.circular(10),
+              color: theme.colorScheme.primary,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                  color: theme.colorScheme.outline, width: 2),
             ),
-            child: Icon(icon, size: 18, color: theme.colorScheme.primary),
+            child: Icon(icon, size: 18, color: theme.colorScheme.onPrimary),
           ),
           const SizedBox(width: 10),
           Expanded(

@@ -520,37 +520,56 @@ class _NavItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final iconColor = selected ? scheme.primary : scheme.onSurfaceVariant;
-    final textColor = selected ? scheme.onPrimaryContainer : scheme.onSurface;
+    // Selected = a bold primary colour block with a hard offset shadow; the
+    // icon/label invert to onPrimary. Unselected = transparent with a subtle
+    // hover, bold weight for scannability.
+    final iconColor = selected ? scheme.onPrimary : scheme.onSurfaceVariant;
+    final textColor = selected ? scheme.onPrimary : scheme.onSurface;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       child: Material(
-        color: selected
-            ? scheme.primaryContainer.withValues(alpha: 0.55)
-            : Colors.transparent,
-        borderRadius: BorderRadius.circular(12),
+        color: selected ? scheme.primary : Colors.transparent,
+        borderRadius: BorderRadius.circular(10),
         clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onTap,
-          hoverColor: scheme.onSurface.withValues(alpha: 0.04),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-            child: Row(
-              children: [
-                Icon(icon, size: 20, color: iconColor),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Text(
-                    label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: textColor,
-                      fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(10),
+            border: selected
+                ? Border.all(color: scheme.outline, width: 2)
+                : null,
+            boxShadow: selected
+                ? [
+                    BoxShadow(
+                      color: scheme.shadow,
+                      offset: const Offset(3, 3),
+                      blurRadius: 0,
+                    ),
+                  ]
+                : null,
+          ),
+          child: InkWell(
+            onTap: onTap,
+            hoverColor: scheme.onSurface.withValues(alpha: 0.06),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+              child: Row(
+                children: [
+                  Icon(icon, size: 20, color: iconColor),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: textColor,
+                        fontWeight:
+                            selected ? FontWeight.w800 : FontWeight.w600,
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
@@ -740,51 +759,80 @@ class _ConversationTile extends ConsumerWidget {
     final scheme = theme.colorScheme;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      child: ListTile(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        selected: selected,
-        selectedTileColor: scheme.primaryContainer.withValues(alpha: 0.5),
-        hoverColor: scheme.onSurface.withValues(alpha: 0.04),
-        contentPadding: const EdgeInsets.fromLTRB(10, 4, 6, 4),
-        minVerticalPadding: 10,
-        horizontalTitleGap: 12,
-        leading: _ModelAvatar(modelId: conversation.modelId),
-        title: Text(
-          conversation.title,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: theme.textTheme.titleSmall?.copyWith(
-            fontWeight: FontWeight.w600,
-            color: selected ? scheme.onPrimaryContainer : scheme.onSurface,
+      child: Material(
+        color: selected ? scheme.primary : Colors.transparent,
+        borderRadius: BorderRadius.circular(12),
+        clipBehavior: Clip.antiAlias,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: selected
+                ? Border.all(color: scheme.outline, width: 2)
+                : null,
+            boxShadow: selected
+                ? [
+                    BoxShadow(
+                      color: scheme.shadow,
+                      offset: const Offset(3, 3),
+                      blurRadius: 0,
+                    ),
+                  ]
+                : null,
+          ),
+          child: ListTile(
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12)),
+            selected: selected,
+            selectedTileColor: Colors.transparent,
+            hoverColor: scheme.onSurface.withValues(alpha: 0.06),
+            contentPadding: const EdgeInsets.fromLTRB(10, 4, 6, 4),
+            minVerticalPadding: 10,
+            horizontalTitleGap: 12,
+            leading: _ModelAvatar(modelId: conversation.modelId),
+            title: Text(
+              conversation.title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w800,
+                color: selected ? scheme.onPrimary : scheme.onSurface,
+              ),
+            ),
+            subtitle: Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Row(
+                children: [
+                  Flexible(child: _ModelChip(modelId: conversation.modelId)),
+                  const SizedBox(width: 8),
+                  Text(
+                    _formatDate(conversation.updatedAt),
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: selected
+                          ? scheme.onPrimary.withValues(alpha: 0.8)
+                          : scheme.outline,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (conversation.pinned)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 2),
+                    child: Icon(Icons.push_pin,
+                        size: 15,
+                        color: selected
+                            ? scheme.onPrimary
+                            : scheme.primary),
+                  ),
+                _ChatMenu(conversation: conversation),
+              ],
+            ),
+            onTap: onTap,
           ),
         ),
-        subtitle: Padding(
-          padding: const EdgeInsets.only(top: 4),
-          child: Row(
-            children: [
-              Flexible(child: _ModelChip(modelId: conversation.modelId)),
-              const SizedBox(width: 8),
-              Text(
-                _formatDate(conversation.updatedAt),
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: scheme.outline,
-                ),
-              ),
-            ],
-          ),
-        ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (conversation.pinned)
-              Padding(
-                padding: const EdgeInsets.only(right: 2),
-                child: Icon(Icons.push_pin, size: 15, color: scheme.primary),
-              ),
-            _ChatMenu(conversation: conversation),
-          ],
-        ),
-        onTap: onTap,
       ),
     );
   }

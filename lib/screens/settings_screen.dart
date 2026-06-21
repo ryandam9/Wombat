@@ -749,15 +749,34 @@ class _Step extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        CircleAvatar(
-          radius: 14,
-          backgroundColor: color,
+        Container(
+          width: 32,
+          height: 32,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: color,
+            shape: BoxShape.circle,
+            border: Border.all(color: scheme.outline, width: 2),
+            boxShadow: [
+              BoxShadow(
+                color: scheme.shadow,
+                offset: const Offset(3, 3),
+                blurRadius: 0,
+              ),
+            ],
+          ),
           child: done
-              ? Icon(Icons.check, size: 16, color: fg)
-              : Text('$step', style: TextStyle(color: fg)),
+              ? Icon(Icons.check, size: 18, color: fg)
+              : Text('$step',
+                  style: TextStyle(
+                      color: fg, fontWeight: FontWeight.w800)),
         ),
         const SizedBox(height: 6),
-        Text(label, style: Theme.of(context).textTheme.labelSmall),
+        Text(label,
+            style: Theme.of(context)
+                .textTheme
+                .labelSmall
+                ?.copyWith(fontWeight: FontWeight.w700)),
       ],
     );
   }

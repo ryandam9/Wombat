@@ -109,8 +109,8 @@ class _ModelSelectorState extends ConsumerState<ModelSelector>
 
     const radius = 22.0;
     // A thicker, glowing border while the model works makes the activity
-    // obvious around the pill; the resting border stays thin and subtle.
-    final borderWidth = responding ? 2.6 : 1.6;
+    // obvious around the pill; the resting border stays bold and chunky.
+    final borderWidth = responding ? 2.6 : 2.0;
 
     return Center(
       child: AnimatedBuilder(

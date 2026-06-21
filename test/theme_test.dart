@@ -31,17 +31,17 @@ void main() {
     );
   });
 
-  test('page headings use a frosted surface header', () {
+  test('page headings use a bold Neo Brutalist header', () {
     for (final t in [AppTheme.light, AppTheme.dark]) {
       expect(t.appBarTheme.backgroundColor, t.colorScheme.surface);
       expect(t.appBarTheme.foregroundColor, t.colorScheme.onSurface);
-      expect(t.appBarTheme.titleTextStyle?.fontSize, 22);
-      expect(t.appBarTheme.titleTextStyle?.fontWeight, FontWeight.w700);
+      expect(t.appBarTheme.titleTextStyle?.fontSize, 24);
+      expect(t.appBarTheme.titleTextStyle?.fontWeight, FontWeight.w800);
     }
     // Seeded (non-default) accents get the same treatment.
     final seeded = AppTheme.lightFor(const Color(0xFF2E7D32));
     expect(seeded.appBarTheme.backgroundColor, seeded.colorScheme.surface);
-    expect(seeded.appBarTheme.titleTextStyle?.fontSize, 22);
+    expect(seeded.appBarTheme.titleTextStyle?.fontSize, 24);
   });
 
   testWidgets('renders a Material app with AppTheme', (tester) async {

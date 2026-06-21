@@ -64,7 +64,14 @@ class _HighlightedCodeState extends State<HighlightedCode> {
       decoration: BoxDecoration(
         color: background,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: scheme.outlineVariant),
+        border: Border.all(color: scheme.outline, width: 2),
+        boxShadow: [
+          BoxShadow(
+            color: scheme.shadow,
+            offset: const Offset(3, 3),
+            blurRadius: 0,
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,

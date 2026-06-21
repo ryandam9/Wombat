@@ -826,18 +826,30 @@ class _ModelCard extends StatelessWidget {
       ],
     );
 
-    // Selected cards get a primary tint + border; unselected cards stay clean
-    // with a hairline border so the grid reads calmly.
+    // Neo Brutalist cards: thick outline + hard offset shadow always; selected
+    // cards invert to a primary colour block so the choice is unmistakable.
     final BoxDecoration decoration = selected
         ? BoxDecoration(
-            color: scheme.primary.withValues(alpha: 0.08),
+            color: scheme.primary,
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: scheme.primary, width: 1.5),
+            border: Border.all(color: scheme.outline, width: 2.5),
+            boxShadow: const [
+              BoxShadow(
+                offset: Offset(4, 4),
+                blurRadius: 0,
+              ),
+            ],
           )
         : BoxDecoration(
             color: scheme.surfaceContainerLow,
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: scheme.outlineVariant),
+            border: Border.all(color: scheme.outline, width: 2),
+            boxShadow: const [
+              BoxShadow(
+                offset: Offset(3, 3),
+                blurRadius: 0,
+              ),
+            ],
           );
 
     return Material(

@@ -53,9 +53,9 @@ class DashboardLanding extends ConsumerWidget {
               const SizedBox(height: 18),
               Text(
                 'Wombat',
-                style: theme.textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: -0.5,
+                style: theme.textTheme.displaySmall?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -1,
                 ),
               ),
               const SizedBox(height: 4),
@@ -176,18 +176,26 @@ class _StepNumber extends StatelessWidget {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     return Container(
-      width: 22,
-      height: 22,
+      width: 24,
+      height: 24,
       alignment: Alignment.center,
       decoration: BoxDecoration(
+        color: scheme.primary,
         shape: BoxShape.circle,
-        border: Border.all(color: scheme.outline, width: 1.4),
+        border: Border.all(color: scheme.outline, width: 2),
+        boxShadow: [
+          BoxShadow(
+            color: scheme.shadow,
+            offset: const Offset(2, 2),
+            blurRadius: 0,
+          ),
+        ],
       ),
       child: Text(
         '$step',
         style: theme.textTheme.labelSmall?.copyWith(
-          fontWeight: FontWeight.w700,
-          color: scheme.onSurfaceVariant,
+          fontWeight: FontWeight.w800,
+          color: scheme.onPrimary,
         ),
       ),
     );
@@ -205,13 +213,21 @@ class _IconDisc extends StatelessWidget {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     return Container(
-      width: 36,
-      height: 36,
+      width: 40,
+      height: 40,
       decoration: BoxDecoration(
-        color: scheme.primary.withValues(alpha: 0.10),
+        color: scheme.primary,
         borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: scheme.outline, width: 2),
+        boxShadow: [
+          BoxShadow(
+            color: scheme.shadow,
+            offset: const Offset(3, 3),
+            blurRadius: 0,
+          ),
+        ],
       ),
-      child: Icon(icon, size: 18, color: scheme.primary),
+      child: Icon(icon, size: 20, color: scheme.onPrimary),
     );
   }
 }
