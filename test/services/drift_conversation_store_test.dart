@@ -151,6 +151,28 @@ void main() {
       expect(loaded.messages.single.id, 'u1'); // messages untouched
     });
 
+    test('loadSummaries is metadata-only; loadConversation loads messages',
+        () async {
+      await store.save([
+        Conversation(
+          id: 'c1',
+          title: 'T',
+          modelId: 'm',
+          messages: [
+            ChatMessage(id: 'm1', role: MessageRole.user, content: 'hi'),
+          ],
+        ),
+      ]);
+
+      final summaries = await store.loadSummaries();
+      expect(summaries.single.title, 'T');
+      expect(summaries.single.messages, isEmpty); // no message bodies loaded
+
+      final full = await store.loadConversation('c1');
+      expect(full!.messages.single.content, 'hi');
+      expect(await store.loadConversation('missing'), isNull);
+    });
+
     test('deleteConversation and deleteAllConversations', () async {
       await store.upsertConversation(
           Conversation(id: 'a', title: 'A', modelId: 'm'));

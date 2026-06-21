@@ -16,6 +16,14 @@ abstract class ConversationStore {
   /// responsibility to sort, but stores may return any order).
   Future<List<Conversation>> load();
 
+  /// Loads conversation metadata only (no messages/attachments), for a fast
+  /// startup. Full messages are loaded lazily via [loadConversation].
+  Future<List<Conversation>> loadSummaries();
+
+  /// Loads one conversation in full (messages + attachments), or null if it no
+  /// longer exists.
+  Future<Conversation?> loadConversation(String id);
+
   /// Persists [conversations], replacing whatever was stored before. Bulk
   /// fallback; prefer the targeted methods below.
   Future<void> save(List<Conversation> conversations);

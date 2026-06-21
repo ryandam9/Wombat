@@ -73,6 +73,85 @@ class DriftConversationStore extends ConversationStore {
   }
 
   @override
+  Future<List<Conversation>> loadSummaries() async {
+    // Metadata only — no messages/attachments — for a fast startup. Full
+    // messages are loaded lazily by [loadConversation] when a chat is opened.
+    final convRows = await (_db.select(_db.conversations)
+          ..orderBy([
+            (c) => OrderingTerm.desc(c.pinned),
+            (c) => OrderingTerm.desc(c.updatedAt),
+          ]))
+        .get();
+    return [
+      for (final c in convRows)
+        Conversation(
+          id: c.id,
+          title: c.title,
+          modelId: c.modelId,
+          supportsImageOutput: c.supportsImageOutput,
+          pinned: c.pinned,
+          createdAt: c.createdAt,
+          updatedAt: c.updatedAt,
+          messages: [],
+        ),
+    ];
+  }
+
+  @override
+  Future<Conversation?> loadConversation(String id) async {
+    final c = await (_db.select(_db.conversations)
+          ..where((t) => t.id.equals(id)))
+        .getSingleOrNull();
+    if (c == null) return null;
+
+    final msgRows = await (_db.select(_db.messages)
+          ..where((m) => m.conversationId.equals(id))
+          ..orderBy([(m) => OrderingTerm.asc(m.position)]))
+        .get();
+    final messageIds = msgRows.map((m) => m.id).toList();
+    final attRows = messageIds.isEmpty
+        ? <AttachmentRow>[]
+        : await (_db.select(_db.attachments)
+              ..where((a) => a.messageId.isIn(messageIds))
+              ..orderBy([(a) => OrderingTerm.asc(a.position)]))
+            .get();
+
+    final attByMessage = <String, List<AttachmentRow>>{};
+    for (final a in attRows) {
+      (attByMessage[a.messageId] ??= []).add(a);
+    }
+
+    return Conversation(
+      id: c.id,
+      title: c.title,
+      modelId: c.modelId,
+      supportsImageOutput: c.supportsImageOutput,
+      pinned: c.pinned,
+      createdAt: c.createdAt,
+      updatedAt: c.updatedAt,
+      messages: [
+        for (final m in msgRows)
+          ChatMessage(
+            id: m.id,
+            role: _roleFromName(m.role),
+            content: m.content,
+            createdAt: m.createdAt,
+            error: m.error,
+            attachments: [
+              for (final a in attByMessage[m.id] ?? const <AttachmentRow>[])
+                MessageAttachment(
+                  kind: _kindFromName(a.kind),
+                  mimeType: a.mimeType,
+                  base64Data: a.data,
+                  name: a.name,
+                ),
+            ],
+          ),
+      ],
+    );
+  }
+
+  @override
   Future<void> save(List<Conversation> conversations) async {
     await _db.transaction(() async {
       final keepIds = conversations.map((c) => c.id).toList();
