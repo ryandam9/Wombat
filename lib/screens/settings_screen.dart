@@ -302,7 +302,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           'Get a key at openrouter.ai/keys. Stored securely on this device and '
           'only sent to OpenRouter.',
           style: theme.textTheme.bodySmall
-              ?.copyWith(color: theme.colorScheme.outline),
+              ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
         ),
         const SizedBox(height: 12),
         Wrap(
@@ -391,7 +391,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           'Shown on chat messages. Leave blank to use "You" and the '
           "conversation's model name.",
           style: theme.textTheme.bodySmall
-              ?.copyWith(color: theme.colorScheme.outline),
+              ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
         ),
       ],
     );
@@ -506,7 +506,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           'Desktop: saved files go here (or a Save-As dialog when unset). On '
           'Android, saving opens the share sheet instead.',
           style: theme.textTheme.bodySmall
-              ?.copyWith(color: theme.colorScheme.outline),
+              ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
         ),
         const SizedBox(height: 12),
         Wrap(
@@ -591,7 +591,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         Text(
           'Scales the text size of your prompts and the model’s replies.',
           style: theme.textTheme.bodySmall
-              ?.copyWith(color: theme.colorScheme.outline),
+              ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
         ),
       ],
     );

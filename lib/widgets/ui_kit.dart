@@ -53,7 +53,7 @@ class SectionPanel extends StatelessWidget {
             ),
             Container(
               height: AppTokens.border,
-              color: scheme.outline,
+              color: scheme.onSurfaceVariant,
             ),
             Padding(padding: const EdgeInsets.all(16), child: child),
           ],

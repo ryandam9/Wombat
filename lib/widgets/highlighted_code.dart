@@ -123,7 +123,7 @@ class _HighlightedCodeState extends State<HighlightedCode> {
                 style: Theme.of(context)
                     .textTheme
                     .labelSmall
-                    ?.copyWith(color: scheme.outline),
+                    ?.copyWith(color: scheme.onSurfaceVariant),
               ),
             ],
           ),

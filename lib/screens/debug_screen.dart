@@ -119,7 +119,7 @@ class _SessionCard extends StatelessWidget {
                   ),
                   Text(DateFormat('HH:mm:ss').format(session.startedAt),
                       style: theme.textTheme.labelSmall
-                          ?.copyWith(color: scheme.outline)),
+                          ?.copyWith(color: scheme.onSurfaceVariant)),
                 ],
               ),
               const SizedBox(height: 6),
@@ -259,7 +259,7 @@ class _StatHeader extends StatelessWidget {
               const Spacer(),
               Text(session.id,
                   style: theme.textTheme.labelSmall
-                      ?.copyWith(color: scheme.outline)),
+                      ?.copyWith(color: scheme.onSurfaceVariant)),
             ],
           ),
           const SizedBox(height: 10),
@@ -303,7 +303,7 @@ class _Stat extends StatelessWidget {
       children: [
         Text(label.toUpperCase(),
             style: theme.textTheme.labelSmall
-                ?.copyWith(color: theme.colorScheme.outline)),
+                ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
         ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 240),
           child: Text(value,
@@ -348,7 +348,7 @@ class _Timeline extends StatelessWidget {
               const SizedBox(width: 8),
               Text('${session.events.length} events',
                   style: theme.textTheme.labelSmall
-                      ?.copyWith(color: theme.colorScheme.outline)),
+                      ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
             ],
           ),
         ),
@@ -371,7 +371,7 @@ class _Timeline extends StatelessWidget {
           child: events.isEmpty
               ? Center(
                   child: Text('No events',
-                      style: TextStyle(color: theme.colorScheme.outline)),
+                      style: TextStyle(color: theme.colorScheme.onSurfaceVariant)),
                 )
               : ListView.builder(
                   padding: const EdgeInsets.all(12),
@@ -419,7 +419,7 @@ class _EventTile extends StatelessWidget {
             width: 78,
             child: Text(time,
                 style: theme.textTheme.labelSmall
-                    ?.copyWith(color: scheme.outline)),
+                    ?.copyWith(color: scheme.onSurfaceVariant)),
           ),
           Expanded(
             child: Column(
@@ -496,7 +496,7 @@ class _ResponseDetail extends StatelessWidget {
         else
           Text(
             session.isLive ? 'Waiting for tokens…' : 'No content',
-            style: TextStyle(color: scheme.outline),
+            style: TextStyle(color: scheme.onSurfaceVariant),
           ),
         if (session.hasReasoning) ...[
           const SizedBox(height: 16),
@@ -735,7 +735,7 @@ class _MetaPill extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 14, color: theme.colorScheme.outline),
+        Icon(icon, size: 14, color: theme.colorScheme.onSurfaceVariant),
         const SizedBox(width: 4),
         ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 240),
@@ -784,7 +784,7 @@ class _EmptyDebug extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(Icons.bug_report_outlined,
-                size: 48, color: theme.colorScheme.outline),
+                size: 48, color: theme.colorScheme.onSurfaceVariant),
             const SizedBox(height: 12),
             Text('No sessions yet', style: theme.textTheme.titleMedium),
             const SizedBox(height: 4),
@@ -794,7 +794,7 @@ class _EmptyDebug extends StatelessWidget {
               'assembled response.',
               textAlign: TextAlign.center,
               style: theme.textTheme.bodySmall
-                  ?.copyWith(color: theme.colorScheme.outline),
+                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
             ),
           ],
         ),

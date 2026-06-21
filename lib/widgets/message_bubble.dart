@@ -102,7 +102,7 @@ class MessageBubble extends ConsumerWidget {
             final time = Text(
               DateFormat('MMM d · HH:mm').format(message.createdAt),
               style: theme.textTheme.labelSmall
-                  ?.copyWith(color: theme.colorScheme.outline),
+                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
             );
             // The assistant gets a small model-tinted orb avatar anchoring the
             // turn; the user side stays clean.
@@ -210,7 +210,7 @@ class _UserBubble extends StatelessWidget {
             bottomRight: Radius.circular(4),
           ),
           border: Border.all(
-              color: theme.colorScheme.outline, width: 2),
+              color: theme.colorScheme.onSurfaceVariant, width: 2),
           boxShadow: [
             BoxShadow(
               color: theme.colorScheme.shadow,
@@ -269,7 +269,7 @@ class _AssistantBubbleState extends ConsumerState<_AssistantBubble> {
               bottomRight: Radius.circular(16),
             ),
             border: Border.all(
-                color: theme.colorScheme.outline, width: 2),
+                color: theme.colorScheme.onSurfaceVariant, width: 2),
             boxShadow: [
               BoxShadow(
                 color: theme.colorScheme.shadow,

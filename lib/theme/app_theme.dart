@@ -48,7 +48,7 @@ class AppTheme {
       // Sand/cream surface ramp — warm, high-contrast against ink outlines.
       surface: WombatColors.sand,
       onSurface: WombatColors.ink,
-      onSurfaceVariant: const Color(0xFF4A463E),
+      onSurfaceVariant: const Color(0xFF8A8270),
       surfaceContainerLowest: WombatColors.cream,
       surfaceContainerLow: WombatColors.cream,
       surfaceContainer: WombatColors.sand,
@@ -310,7 +310,7 @@ class AppTheme {
     bool outlined = false,
   }) {
     final border = BorderSide(
-      color: scheme.outline,
+      color: scheme.onSurfaceVariant,
       width: AppTokens.border,
     );
     final shape = RoundedRectangleBorder(

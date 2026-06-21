@@ -182,7 +182,7 @@ class _AccountPanel extends ConsumerWidget {
                   child: Text(
                     'Updated ${_ago(usage.creditsFetchedAt!)}',
                     style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: Theme.of(context).colorScheme.outline),
+                        color: Theme.of(context).colorScheme.onSurfaceVariant),
                   ),
                 ),
               ],
@@ -297,7 +297,7 @@ class _BalanceContent extends StatelessWidget {
                       ?.copyWith(fontWeight: FontWeight.w700)),
               Text('Balance',
                   style: theme.textTheme.labelSmall
-                      ?.copyWith(color: theme.colorScheme.outline)),
+                      ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
             ],
           ),
         ],
@@ -394,7 +394,7 @@ class _CostByModelPanel extends StatelessWidget {
               show: true,
               drawVerticalLine: false,
               getDrawingHorizontalLine: (_) =>
-                  FlLine(color: theme.colorScheme.outlineVariant, strokeWidth: 0.5),
+                  FlLine(color: theme.colorScheme.onSurfaceVariant, strokeWidth: 0.5),
             ),
             borderData: FlBorderData(show: false),
             titlesData: FlTitlesData(
@@ -493,7 +493,7 @@ class _TokensByModelPanel extends StatelessWidget {
                   show: true,
                   drawVerticalLine: false,
                   getDrawingHorizontalLine: (_) => FlLine(
-                      color: theme.colorScheme.outlineVariant, strokeWidth: 0.5),
+                      color: theme.colorScheme.onSurfaceVariant, strokeWidth: 0.5),
                 ),
                 borderData: FlBorderData(show: false),
                 titlesData: FlTitlesData(
@@ -728,7 +728,7 @@ class _ByModelHeader extends StatelessWidget {
             t.toUpperCase(),
             textAlign: align,
             style: theme.textTheme.labelSmall
-                ?.copyWith(color: theme.colorScheme.outline),
+                ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
           ),
         );
     return Padding(
@@ -856,7 +856,7 @@ class _ByModelCard extends StatelessWidget {
                   ),
                 ),
                 StatusChip('${model.requests}×',
-                    color: theme.colorScheme.outline),
+                    color: theme.colorScheme.onSurfaceVariant),
               ],
             ),
             const SizedBox(height: 8),
@@ -974,7 +974,7 @@ class _SummaryTile extends StatelessWidget {
               color: theme.colorScheme.primary,
               borderRadius: BorderRadius.circular(8),
               border: Border.all(
-                  color: theme.colorScheme.outline, width: 2),
+                  color: theme.colorScheme.onSurfaceVariant, width: 2),
             ),
             child: Icon(icon, size: 18, color: theme.colorScheme.onPrimary),
           ),
@@ -995,7 +995,7 @@ class _SummaryTile extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.labelSmall
-                      ?.copyWith(color: theme.colorScheme.outline),
+                      ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                 ),
               ],
             ),

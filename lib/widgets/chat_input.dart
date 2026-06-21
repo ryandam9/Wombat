@@ -271,7 +271,7 @@ class _ChatInputState extends ConsumerState<ChatInput> {
                 color: theme.colorScheme.surfaceContainerLow,
                 borderRadius: BorderRadius.circular(18),
                 border: Border.all(
-                    color: theme.colorScheme.outline, width: 2),
+                    color: theme.colorScheme.onSurfaceVariant, width: 2),
                 boxShadow: [
                   BoxShadow(
                     color: theme.colorScheme.shadow,

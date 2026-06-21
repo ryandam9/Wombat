@@ -348,7 +348,7 @@ class _ModelPickerScreenState extends ConsumerState<ModelPickerScreen> {
                     '${models.length} '
                     '${models.length == 1 ? 'model' : 'models'} found',
                     style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        color: Theme.of(context).colorScheme.outline),
+                        color: Theme.of(context).colorScheme.onSurfaceVariant),
                   ),
                 ),
               ),
@@ -774,7 +774,7 @@ class _ModelCard extends StatelessWidget {
                     child: Text(
                       model.id,
                       style: theme.textTheme.bodySmall
-                          ?.copyWith(color: scheme.outline),
+                          ?.copyWith(color: scheme.onSurfaceVariant),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -990,7 +990,7 @@ class _InlineStat extends StatelessWidget {
       children: [
         Text(label,
             style: theme.textTheme.labelSmall
-                ?.copyWith(color: theme.colorScheme.outline)),
+                ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
         Text(value,
             style: theme.textTheme.labelLarge
                 ?.copyWith(fontWeight: FontWeight.w700)),
@@ -1068,7 +1068,7 @@ class _DetailPanel extends StatelessWidget {
             'Select a model to see its details.',
             textAlign: TextAlign.center,
             style: theme.textTheme.bodyMedium
-                ?.copyWith(color: theme.colorScheme.outline),
+                ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
           ),
         ),
       );
@@ -1085,7 +1085,7 @@ class _DetailPanel extends StatelessWidget {
               children: [
                 Text('Selected model',
                     style: theme.textTheme.labelMedium
-                        ?.copyWith(color: scheme.outline)),
+                        ?.copyWith(color: scheme.onSurfaceVariant)),
                 const SizedBox(height: 12),
                 Row(
                   children: [
@@ -1100,7 +1100,7 @@ class _DetailPanel extends StatelessWidget {
                                   ?.copyWith(fontWeight: FontWeight.w700)),
                           Text(m.id,
                               style: theme.textTheme.bodySmall
-                                  ?.copyWith(color: scheme.outline)),
+                                  ?.copyWith(color: scheme.onSurfaceVariant)),
                         ],
                       ),
                     ),

@@ -332,7 +332,7 @@ class _ConversationListState extends ConsumerState<ConversationList> {
                     ? 'No conversations yet'
                     : 'No chats match "$_query"',
                 style: theme.textTheme.bodyMedium
-                    ?.copyWith(color: theme.colorScheme.outline),
+                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
               ),
             ),
           ));
@@ -494,7 +494,7 @@ class _SectionLabel extends StatelessWidget {
         style: theme.textTheme.labelSmall?.copyWith(
           letterSpacing: 1.4,
           fontSize: 11,
-          color: theme.colorScheme.outline,
+          color: theme.colorScheme.onSurfaceVariant,
           fontWeight: FontWeight.w700,
         ),
       ),
@@ -604,7 +604,7 @@ class _RecentHeader extends StatelessWidget {
             title,
             style: theme.textTheme.labelSmall?.copyWith(
               letterSpacing: 1.2,
-              color: theme.colorScheme.outline,
+              color: theme.colorScheme.onSurfaceVariant,
               fontWeight: FontWeight.w600,
             ),
           ),

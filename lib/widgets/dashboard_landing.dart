@@ -148,8 +148,9 @@ class _StartStep extends StatelessWidget {
                         ?.copyWith(fontWeight: FontWeight.w600)),
                 const SizedBox(height: 2),
                 Text(description,
-                    style: theme.textTheme.bodySmall
-                        ?.copyWith(color: theme.colorScheme.outline)),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurface
+                            .withValues(alpha: 0.55))),
               ],
             ),
           ),
@@ -158,7 +159,7 @@ class _StartStep extends StatelessWidget {
           if (done)
             const Icon(Icons.check_circle, color: Color(0xFF4CAF50))
           else if (onTap != null)
-            Icon(Icons.chevron_right, color: theme.colorScheme.outline),
+            Icon(Icons.chevron_right, color: theme.colorScheme.onSurfaceVariant),
         ],
       ),
     );

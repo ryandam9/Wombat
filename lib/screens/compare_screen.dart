@@ -152,7 +152,7 @@ class _ModelBar extends StatelessWidget {
                   Text(
                     'Add models to compare (up to $max).',
                     style: theme.textTheme.bodyMedium
-                        ?.copyWith(color: theme.colorScheme.outline),
+                        ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                   ),
                 for (final m in models)
                   InputChip(
@@ -347,7 +347,7 @@ class _ResultHeader extends StatelessWidget {
                     overflow: TextOverflow.ellipsis),
                 Text(run.model.id,
                     style: theme.textTheme.labelSmall
-                        ?.copyWith(color: theme.colorScheme.outline),
+                        ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis),
               ],
@@ -415,7 +415,7 @@ class _ComparePlaceholder extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(Icons.compare_arrows,
-                size: 48, color: theme.colorScheme.outline),
+                size: 48, color: theme.colorScheme.onSurfaceVariant),
             const SizedBox(height: 12),
             Text('Compare models side by side',
                 style: theme.textTheme.titleMedium),
@@ -425,7 +425,7 @@ class _ComparePlaceholder extends StatelessWidget {
               'one responds to the same input.',
               textAlign: TextAlign.center,
               style: theme.textTheme.bodySmall
-                  ?.copyWith(color: theme.colorScheme.outline),
+                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
             ),
           ],
         ),

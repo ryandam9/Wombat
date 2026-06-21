@@ -160,7 +160,7 @@ class _ModelSelectorState extends ConsumerState<ModelSelector>
                     Icon(
                       locked ? Icons.lock_outline : Icons.smart_toy_outlined,
                       size: 18,
-                      color: locked ? scheme.outline : scheme.primary,
+                      color: locked ? scheme.onSurfaceVariant : scheme.primary,
                     ),
                     const SizedBox(width: 8),
                     Flexible(
