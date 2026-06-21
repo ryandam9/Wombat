@@ -7,6 +7,7 @@ import '../providers/settings_provider.dart';
 import '../widgets/collapsible_sidebar.dart';
 import '../widgets/conversation_list.dart';
 import '../widgets/dashboard_landing.dart';
+import '../widgets/desktop_sidebar_handle.dart';
 import '../widgets/motion.dart';
 import 'chat_workspace_screen.dart';
 import 'compare_screen.dart';
@@ -123,7 +124,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
             ),
             if (!_collapsed)
-              _ResizableSeparator(
+              ResizableSidebarHandle(
                 onDrag: _resize,
                 onDragEnd: _persistWidth,
                 onReset: _resetWidth,
@@ -343,53 +344,3 @@ class _CollapsedNavRail extends StatelessWidget {
   }
 }
 
-/// A draggable handle between the sidebar and the chat pane. Dragging resizes
-/// the sidebar; hovering highlights it; double-clicking resets the width.
-class _ResizableSeparator extends StatefulWidget {
-  const _ResizableSeparator({
-    required this.onDrag,
-    required this.onDragEnd,
-    required this.onReset,
-  });
-
-  /// Called with the horizontal drag delta (in logical pixels).
-  final void Function(double dx) onDrag;
-  final VoidCallback onDragEnd;
-  final VoidCallback onReset;
-
-  @override
-  State<_ResizableSeparator> createState() => _ResizableSeparatorState();
-}
-
-class _ResizableSeparatorState extends State<_ResizableSeparator> {
-  bool _hovering = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return MouseRegion(
-      cursor: SystemMouseCursors.resizeColumn,
-      onEnter: (_) => setState(() => _hovering = true),
-      onExit: (_) => setState(() => _hovering = false),
-      child: GestureDetector(
-        behavior: HitTestBehavior.translucent,
-        onHorizontalDragUpdate: (details) => widget.onDrag(details.delta.dx),
-        onHorizontalDragEnd: (_) => widget.onDragEnd(),
-        onDoubleTap: widget.onReset,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 120),
-          width: _hovering ? 10 : 8,
-          color: _hovering
-              ? scheme.primary.withValues(alpha: 0.08)
-              : Colors.transparent,
-          child: Center(
-            child: VerticalDivider(
-              width: 1,
-              color: _hovering ? scheme.primary : scheme.outlineVariant,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}

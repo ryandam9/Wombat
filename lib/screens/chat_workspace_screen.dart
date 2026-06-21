@@ -1,37 +1,65 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../providers/chat_provider.dart';
+import '../providers/settings_provider.dart';
 import '../widgets/chat_view.dart';
 import '../widgets/collapsible_sidebar.dart';
 import '../widgets/conversation_list.dart';
+import '../widgets/desktop_sidebar_handle.dart';
+import '../widgets/motion.dart';
 
 /// A focused, two-pane chat workspace opened from the dashboard ("Chat history"
 /// or "New chat"): the conversation history on the left and the active chat on
 /// the right. On narrow layouts the history is a drawer.
-class ChatWorkspaceScreen extends StatefulWidget {
+///
+/// Shares the dashboard's polished desktop sidebar behaviour: hover/double-click
+/// resize handle, persisted width, motion-aware collapse, and a useful
+/// collapsed rail.
+class ChatWorkspaceScreen extends ConsumerStatefulWidget {
   const ChatWorkspaceScreen({super.key});
 
   @override
-  State<ChatWorkspaceScreen> createState() => _ChatWorkspaceScreenState();
+  ConsumerState<ChatWorkspaceScreen> createState() =>
+      _ChatWorkspaceScreenState();
 }
 
-class _ChatWorkspaceScreenState extends State<ChatWorkspaceScreen> {
+class _ChatWorkspaceScreenState extends ConsumerState<ChatWorkspaceScreen> {
   static const double _wideBreakpoint = 800;
-  static const double _minSidebarWidth = 220;
-  static const double _maxSidebarWidth = 520;
 
-  double _sidebarWidth = 340;
+  double _sidebarWidth = SettingsNotifier.defaultSidebarWidth;
   bool _collapsed = false;
+  bool _widthInitialized = false;
 
   void _resize(double dx) {
     setState(() {
-      _sidebarWidth =
-          (_sidebarWidth + dx).clamp(_minSidebarWidth, _maxSidebarWidth);
+      _sidebarWidth = (_sidebarWidth + dx).clamp(
+        SettingsNotifier.minSidebarWidth,
+        SettingsNotifier.maxSidebarWidth,
+      );
     });
   }
+
+  void _persistWidth() =>
+      ref.read(settingsProvider.notifier).setSidebarWidth(_sidebarWidth);
+
+  void _resetWidth() {
+    setState(() => _sidebarWidth = SettingsNotifier.defaultSidebarWidth);
+    _persistWidth();
+  }
+
+  void _newChat() => ref.read(chatProvider.notifier).newConversation();
 
   @override
   Widget build(BuildContext context) {
     final isWide = MediaQuery.of(context).size.width >= _wideBreakpoint;
+    final settings = ref.watch(settingsProvider);
+    // Seed the sidebar width from the persisted setting once it has loaded.
+    if (!_widthInitialized && !settings.loading) {
+      _sidebarWidth = settings.sidebarWidth;
+      _widthInitialized = true;
+    }
+    final motion = Motion.of(context, ref);
 
     if (isWide) {
       return Scaffold(
@@ -40,6 +68,8 @@ class _ChatWorkspaceScreenState extends State<ChatWorkspaceScreen> {
             CollapsibleSidebar(
               collapsed: _collapsed,
               width: _sidebarWidth,
+              railWidth: 56,
+              duration: motion.medium,
               sidebar: ConversationList(
                 showNavigation: false,
                 onBack: () => Navigator.of(context).pop(),
@@ -48,9 +78,15 @@ class _ChatWorkspaceScreenState extends State<ChatWorkspaceScreen> {
               rail: _CollapsedRail(
                 onBack: () => Navigator.of(context).pop(),
                 onExpand: () => setState(() => _collapsed = false),
+                onNewChat: _newChat,
               ),
             ),
-            if (!_collapsed) _ResizableSeparator(onDrag: _resize),
+            if (!_collapsed)
+              ResizableSidebarHandle(
+                onDrag: _resize,
+                onDragEnd: _persistWidth,
+                onReset: _resetWidth,
+              ),
             const Expanded(child: ChatView(showMenuButton: false)),
           ],
         ),
@@ -74,18 +110,23 @@ class _ChatWorkspaceScreenState extends State<ChatWorkspaceScreen> {
   }
 }
 
-/// A thin rail shown when the workspace sidebar is collapsed: back + expand.
+/// The collapsed workspace sidebar: back, expand, and a New chat action.
 class _CollapsedRail extends StatelessWidget {
-  const _CollapsedRail({required this.onBack, required this.onExpand});
+  const _CollapsedRail({
+    required this.onBack,
+    required this.onExpand,
+    required this.onNewChat,
+  });
 
   final VoidCallback onBack;
   final VoidCallback onExpand;
+  final VoidCallback onNewChat;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Container(
-      width: 48,
+      width: 56,
       decoration: BoxDecoration(
         border: Border(
           right: BorderSide(color: theme.colorScheme.outlineVariant),
@@ -101,33 +142,17 @@ class _CollapsedRail extends StatelessWidget {
               onPressed: onBack,
             ),
             IconButton(
-              tooltip: 'Show sidebar',
+              tooltip: 'Show chat history',
               icon: const Icon(Icons.menu_open),
               onPressed: onExpand,
             ),
+            const Divider(indent: 12, endIndent: 12),
+            IconButton(
+              tooltip: 'New chat',
+              icon: const Icon(Icons.add_comment_outlined),
+              onPressed: onNewChat,
+            ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-/// A thin draggable handle to resize the sidebar.
-class _ResizableSeparator extends StatelessWidget {
-  const _ResizableSeparator({required this.onDrag});
-
-  final void Function(double dx) onDrag;
-
-  @override
-  Widget build(BuildContext context) {
-    return MouseRegion(
-      cursor: SystemMouseCursors.resizeColumn,
-      child: GestureDetector(
-        behavior: HitTestBehavior.translucent,
-        onHorizontalDragUpdate: (details) => onDrag(details.delta.dx),
-        child: const SizedBox(
-          width: 8,
-          child: Center(child: VerticalDivider(width: 1)),
         ),
       ),
     );
