@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,6 +10,7 @@ import 'package:wombat/models/chat_message.dart';
 import 'package:wombat/providers/settings_provider.dart';
 import 'package:wombat/theme/app_theme.dart';
 import 'package:wombat/widgets/message_bubble.dart';
+import 'package:wombat/widgets/save_button.dart';
 
 import '../helpers/fakes.dart';
 
@@ -91,6 +94,22 @@ void main() {
 
     expect(find.byType(SvgPicture), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('saves the full reply as Markdown, even for SVG content',
+      (tester) async {
+    const reply = 'Here is some art:\n\n'
+        '```svg\n<svg width="10" height="10"><rect width="10" height="10"/>'
+        '</svg>\n```';
+    await tester.pumpWidget(_wrap(
+      ChatMessage(id: '1', role: MessageRole.assistant, content: reply),
+    ));
+    await tester.pump();
+
+    final save = tester.widget<SaveButton>(find.byType(SaveButton));
+    // Don't guess the type (#126): always Markdown with the full content.
+    expect(save.mimeType, 'text/markdown');
+    expect(utf8.decode(save.bytes()), reply);
   });
 
   testWidgets('applies the user font scale to user message text',

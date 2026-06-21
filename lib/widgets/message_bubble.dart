@@ -121,22 +121,21 @@ class MessageBubble extends ConsumerWidget {
             ),
           ),
           if (!_isUser && !message.isStreaming && message.content.isNotEmpty)
-            Builder(builder: (context) {
-              // SVG replies save as a clean .svg (fences stripped), not .xml/.md.
-              final save = DownloadService.textForSave(message.content);
-              return Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _CopyButton(text: message.content),
-                  SaveButton(
-                    compact: true,
-                    bytes: () => utf8.encode(save.text),
-                    baseName: 'wombat-reply',
-                    mimeType: save.mimeType,
-                  ),
-                ],
-              );
-            }),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _CopyButton(text: message.content),
+                // Save the reply verbatim as Markdown. Don't guess the output
+                // type — a reply is not always an SVG, and assuming so produced
+                // a truncated `.svg` file instead of the full response. See #126.
+                SaveButton(
+                  compact: true,
+                  bytes: () => utf8.encode(message.content),
+                  baseName: 'wombat-reply',
+                  mimeType: 'text/markdown',
+                ),
+              ],
+            ),
         ],
       ),
     );
