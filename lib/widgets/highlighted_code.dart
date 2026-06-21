@@ -20,10 +20,22 @@ class HighlightedCode extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final dark = Theme.of(context).brightness == Brightness.dark;
+    final baseTheme = dark ? atomOneDarkTheme : atomOneLightTheme;
+
+    // Paint the editor background on the box itself (not on the tightly-sized
+    // HighlightView) so it fills the full width — a clean code block instead of
+    // a ragged background that only sits behind the text.
+    final background = baseTheme['root']?.backgroundColor ??
+        (dark ? const Color(0xFF282C34) : const Color(0xFFF6F8FA));
+    final theme = Map<String, TextStyle>.from(baseTheme);
+    theme['root'] = (baseTheme['root'] ?? const TextStyle())
+        .copyWith(backgroundColor: Colors.transparent);
+
     return Container(
       width: double.infinity,
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
+        color: background,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: scheme.outlineVariant),
       ),
@@ -32,9 +44,13 @@ class HighlightedCode extends StatelessWidget {
         child: HighlightView(
           code.trimRight(),
           language: _resolveLanguage(),
-          theme: dark ? atomOneDarkTheme : atomOneLightTheme,
+          theme: theme,
           padding: const EdgeInsets.all(12),
-          textStyle: const TextStyle(fontFamily: 'monospace', fontSize: 13),
+          textStyle: const TextStyle(
+            fontFamily: 'monospace',
+            fontSize: 13,
+            height: 1.4,
+          ),
         ),
       ),
     );
