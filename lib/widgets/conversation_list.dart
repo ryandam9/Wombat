@@ -519,23 +519,25 @@ class _NavItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final color =
-        selected ? theme.colorScheme.primary : theme.colorScheme.onSurface;
+    final scheme = theme.colorScheme;
+    final iconColor = selected ? scheme.primary : scheme.onSurfaceVariant;
+    final textColor = selected ? scheme.onPrimaryContainer : scheme.onSurface;
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       child: Material(
         color: selected
-            ? theme.colorScheme.primaryContainer.withValues(alpha: 0.4)
+            ? scheme.primaryContainer.withValues(alpha: 0.55)
             : Colors.transparent,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(12),
+        clipBehavior: Clip.antiAlias,
         child: InkWell(
-          borderRadius: BorderRadius.circular(10),
           onTap: onTap,
+          hoverColor: scheme.onSurface.withValues(alpha: 0.04),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
             child: Row(
               children: [
-                Icon(icon, size: 20, color: color),
+                Icon(icon, size: 20, color: iconColor),
                 const SizedBox(width: 14),
                 Expanded(
                   child: Text(
@@ -543,8 +545,8 @@ class _NavItem extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.bodyMedium?.copyWith(
-                      color: color,
-                      fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                      color: textColor,
+                      fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
                     ),
                   ),
                 ),
