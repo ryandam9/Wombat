@@ -145,7 +145,7 @@ class ChatNotifier extends Notifier<ChatState> {
     _current = convo;
     _error = null;
     _emit();
-    _persist();
+    _persistMeta(convo);
     return convo;
   }
 
@@ -156,7 +156,7 @@ class ChatNotifier extends Notifier<ChatState> {
     match.first.pinned = !match.first.pinned;
     _sortConversations();
     _emit();
-    _persist();
+    _persistMeta(match.first);
   }
 
   /// Renames a conversation. Empty titles are ignored.
@@ -167,7 +167,7 @@ class ChatNotifier extends Notifier<ChatState> {
     if (match.isEmpty) return;
     match.first.title = trimmed;
     _emit();
-    _persist();
+    _persistMeta(match.first);
   }
 
   Future<void> deleteConversation(String id) async {
@@ -176,7 +176,7 @@ class ChatNotifier extends Notifier<ChatState> {
       _current = _conversations.isNotEmpty ? _conversations.first : null;
     }
     _emit();
-    await _persist();
+    await _store.deleteConversation(id);
   }
 
   /// Removes every conversation (used by "Delete all chats").
@@ -184,7 +184,7 @@ class ChatNotifier extends Notifier<ChatState> {
     _conversations.clear();
     _current = null;
     _emit();
-    await _persist();
+    await _store.deleteAllConversations();
   }
 
   /// Sets the model for the current conversation. This is a no-op once the
@@ -199,7 +199,7 @@ class ChatNotifier extends Notifier<ChatState> {
       convo.supportsImageOutput = supportsImageOutput;
     }
     _emit();
-    _persist();
+    _persistMeta(convo);
   }
 
   /// Clears the current conversation's error banner.
@@ -227,12 +227,13 @@ class ChatNotifier extends Notifier<ChatState> {
 
     final convo = _current ??= newConversation();
 
-    convo.messages.add(ChatMessage(
+    final userMessage = ChatMessage(
       id: _uuid.v4(),
       role: MessageRole.user,
       content: content,
       attachments: List<MessageAttachment>.from(attachments),
-    ));
+    );
+    convo.messages.add(userMessage);
 
     if (convo.title == 'New chat') {
       final seed = content.isNotEmpty ? content : '[attachment]';
@@ -251,6 +252,12 @@ class ChatNotifier extends Notifier<ChatState> {
     _error = null;
     _sortConversations(); // updatedAt just bumped → moves to top of its group
     _emit();
+
+    // Persist the new turn up front (meta + both messages) so it survives a
+    // crash mid-stream; the assistant row is updated again at completion.
+    _persistMeta(convo);
+    _persistMessage(convo, userMessage);
+    _persistMessage(convo, assistantMsg);
 
     // Build the request history: everything except the placeholder reply and
     // any prior failed messages.
@@ -289,12 +296,12 @@ class ChatNotifier extends Notifier<ChatState> {
           assistantMsg.content = '⚠️ $e';
         }
         _error = e.toString();
-        _finish(convo);
+        _finish(convo, assistantMsg);
         if (!completer.isCompleted) completer.complete();
       },
       onDone: () {
         assistantMsg.isStreaming = false;
-        _finish(convo);
+        _finish(convo, assistantMsg);
         // Cue the user that the reply is complete (haptic on mobile, sound on
         // desktop); errors and manual stops don't fire this.
         if (ref.read(settingsProvider).replyCompleteFeedback) {
@@ -318,19 +325,27 @@ class ChatNotifier extends Notifier<ChatState> {
       if (last.role == MessageRole.assistant && last.isStreaming) {
         last.isStreaming = false;
       }
+      _persistMeta(convo);
+      _persistMessage(convo, last);
     }
     _isResponding = false;
     _endStreaming();
-    _persist();
   }
 
-  void _finish(Conversation convo) {
+  void _finish(Conversation convo, ChatMessage assistantMsg) {
     _isResponding = false;
     convo.updatedAt = DateTime.now();
     _sortConversations();
     _endStreaming();
-    _persist();
+    _persistMeta(convo);
+    _persistMessage(convo, assistantMsg);
   }
 
-  Future<void> _persist() => _store.save(_conversations);
+  // Targeted persistence: only the affected conversation/message rows are
+  // written, instead of rewriting the whole history on every change. Best
+  // effort (unawaited) on the hot path; awaited where the caller needs it.
+  void _persistMeta(Conversation c) => _store.upsertConversation(c);
+
+  void _persistMessage(Conversation c, ChatMessage m) =>
+      _store.saveMessage(c.id, m, c.messages.indexOf(m));
 }

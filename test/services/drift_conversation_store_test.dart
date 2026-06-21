@@ -90,4 +90,78 @@ void main() {
     final messages = await db.select(db.messages).get();
     expect(messages, isEmpty);
   });
+
+  group('targeted writes', () {
+    test('upsertConversation + saveMessage build a chat incrementally',
+        () async {
+      final convo = Conversation(id: 'c1', title: 'New chat', modelId: 'm');
+      await store.upsertConversation(convo);
+      expect((await store.load()).single.messages, isEmpty);
+
+      await store.saveMessage('c1',
+          ChatMessage(id: 'u1', role: MessageRole.user, content: 'hi'), 0);
+      await store.saveMessage('c1',
+          ChatMessage(id: 'a1', role: MessageRole.assistant, content: 'yo'), 1);
+
+      final loaded = await store.load();
+      expect(loaded.single.messages.map((m) => m.id), ['u1', 'a1']);
+    });
+
+    test('saveMessage updates an existing message in place', () async {
+      await store.upsertConversation(
+          Conversation(id: 'c1', title: 't', modelId: 'm'));
+      await store.saveMessage('c1',
+          ChatMessage(id: 'a1', role: MessageRole.assistant, content: ''), 0);
+
+      // Re-save the same id with grown content + an attachment.
+      await store.saveMessage(
+        'c1',
+        ChatMessage(
+          id: 'a1',
+          role: MessageRole.assistant,
+          content: 'Hello world',
+          attachments: const [
+            MessageAttachment(
+                kind: AttachmentKind.image, mimeType: 'image/png', base64Data: 'Z'),
+          ],
+        ),
+        0,
+      );
+
+      final msg = (await store.load()).single.messages.single;
+      expect(msg.content, 'Hello world');
+      expect(msg.attachments.single.base64Data, 'Z');
+      // No duplicate message rows.
+      expect((await db.select(db.messages).get()), hasLength(1));
+    });
+
+    test('upsertConversation updates metadata without touching messages',
+        () async {
+      await store.upsertConversation(
+          Conversation(id: 'c1', title: 'Old', modelId: 'm'));
+      await store.saveMessage('c1',
+          ChatMessage(id: 'u1', role: MessageRole.user, content: 'hi'), 0);
+
+      await store.upsertConversation(
+          Conversation(id: 'c1', title: 'Renamed', modelId: 'm', pinned: true));
+
+      final loaded = (await store.load()).single;
+      expect(loaded.title, 'Renamed');
+      expect(loaded.pinned, isTrue);
+      expect(loaded.messages.single.id, 'u1'); // messages untouched
+    });
+
+    test('deleteConversation and deleteAllConversations', () async {
+      await store.upsertConversation(
+          Conversation(id: 'a', title: 'A', modelId: 'm'));
+      await store.upsertConversation(
+          Conversation(id: 'b', title: 'B', modelId: 'm'));
+
+      await store.deleteConversation('a');
+      expect((await store.load()).map((c) => c.id), ['b']);
+
+      await store.deleteAllConversations();
+      expect(await store.load(), isEmpty);
+    });
+  });
 }
