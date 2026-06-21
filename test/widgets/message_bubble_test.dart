@@ -12,6 +12,7 @@ import 'package:wombat/providers/settings_provider.dart';
 import 'package:wombat/screens/debug_screen.dart';
 import 'package:wombat/services/debug_log.dart';
 import 'package:wombat/theme/app_theme.dart';
+import 'package:wombat/widgets/highlighted_code.dart';
 import 'package:wombat/widgets/message_bubble.dart';
 import 'package:wombat/widgets/save_button.dart';
 
@@ -115,6 +116,51 @@ void main() {
     expect(find.byType(Html), findsOneWidget);
     // …and not routed through the Markdown renderer.
     expect(find.byType(MarkdownBody), findsNothing);
+  });
+
+  testWidgets('syntax-highlights fenced code blocks in Markdown',
+      (tester) async {
+    await tester.pumpWidget(_wrap(
+      ChatMessage(
+        id: '1',
+        role: MessageRole.assistant,
+        content: 'Here:\n\n```dart\nvoid main() {}\n```',
+      ),
+    ));
+    await tester.pump();
+
+    expect(find.byType(HighlightedCode), findsOneWidget);
+  });
+
+  testWidgets('inline code is not turned into a highlighted block',
+      (tester) async {
+    await tester.pumpWidget(_wrap(
+      ChatMessage(
+        id: '1',
+        role: MessageRole.assistant,
+        content: 'call `print()` to log',
+      ),
+    ));
+    await tester.pump();
+
+    expect(find.byType(HighlightedCode), findsNothing);
+    expect(find.byType(MarkdownBody), findsOneWidget);
+  });
+
+  testWidgets('syntax-highlights <pre> code blocks in HTML replies',
+      (tester) async {
+    await tester.pumpWidget(_wrap(
+      ChatMessage(
+        id: '1',
+        role: MessageRole.assistant,
+        content: '<p>Example:</p>'
+            '<pre><code class="language-python">print(1)</code></pre>',
+      ),
+    ));
+    await tester.pump();
+
+    expect(find.byType(Html), findsOneWidget);
+    expect(find.byType(HighlightedCode), findsOneWidget);
   });
 
   testWidgets('renders an HTML reply with a code block without error',

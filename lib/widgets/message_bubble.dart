@@ -7,6 +7,7 @@ import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:markdown/markdown.dart' as md;
 
 import '../models/app_font.dart';
 import '../models/chat_message.dart';
@@ -15,6 +16,7 @@ import '../screens/debug_screen.dart';
 import '../services/debug_log.dart';
 import '../services/download_service.dart';
 import 'attachment_view.dart';
+import 'highlighted_code.dart';
 import 'save_button.dart';
 import 'ui_kit.dart';
 
@@ -386,6 +388,10 @@ class _AssistantBubbleState extends ConsumerState<_AssistantBubble> {
         data: data,
         selectable: false,
         imageBuilder: _markdownImage,
+        // Fenced code blocks render with syntax highlighting (HighlightedCode
+        // draws its own bordered box, so the default codeblock decoration is
+        // cleared to avoid a double border). Inline `code` keeps its styling.
+        builders: {'pre': _CodeBlockBuilder()},
         styleSheet: base.copyWith(
           p: base.p?.copyWith(color: scheme.onSurface),
           code: base.code?.copyWith(
@@ -393,11 +399,8 @@ class _AssistantBubbleState extends ConsumerState<_AssistantBubble> {
             color: scheme.onSurface,
             backgroundColor: codeBg,
           ),
-          codeblockDecoration: BoxDecoration(
-            color: codeBg,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: scheme.outlineVariant),
-          ),
+          codeblockPadding: EdgeInsets.zero,
+          codeblockDecoration: const BoxDecoration(),
           // Blockquotes otherwise default to a light-blue box, which leaves
           // light text unreadable in dark theme. Use the same on-surface scheme
           // as code, with a primary accent strip on the left.
@@ -443,6 +446,30 @@ class _AssistantBubbleState extends ConsumerState<_AssistantBubble> {
   }
 }
 
+/// A fenced Markdown code block, syntax-highlighted via [HighlightedCode]. The
+/// `<pre>` element wraps a `<code class="language-xxx">` for fenced blocks; the
+/// language (when present) drives the highlighting.
+class _CodeBlockBuilder extends MarkdownElementBuilder {
+  _CodeBlockBuilder();
+
+  @override
+  Widget? visitElementAfter(md.Element element, TextStyle? preferredStyle) {
+    String? language;
+    final children = element.children;
+    if (children != null) {
+      for (final node in children) {
+        if (node is md.Element && node.tag == 'code') {
+          final cls = node.attributes['class'];
+          if (cls != null && cls.startsWith('language-')) {
+            language = cls.substring('language-'.length);
+          }
+        }
+      }
+    }
+    return HighlightedCode(code: element.textContent, language: language);
+  }
+}
+
 /// Renders an assistant reply that is HTML, so tables/divs/spans show up
 /// instead of being dropped by the Markdown renderer.
 class _HtmlView extends StatelessWidget {
@@ -459,6 +486,28 @@ class _HtmlView extends StatelessWidget {
       maxScaleFactor: settings.modelFontScale,
       child: Html(
         data: html,
+        // <pre> code blocks render with syntax highlighting; inline <code>
+        // keeps a monospace style (the body font would otherwise cascade in).
+        extensions: [
+          TagExtension(
+            tagsToExtend: const {'pre'},
+            builder: (ec) {
+              final el = ec.element;
+              final codeEl = el?.querySelector('code');
+              final cls = codeEl?.className ?? '';
+              final langClass = cls.split(RegExp(r'\s+')).firstWhere(
+                    (c) => c.startsWith('language-'),
+                    orElse: () => '',
+                  );
+              return HighlightedCode(
+                code: (codeEl ?? el)?.text ?? '',
+                language: langClass.isEmpty
+                    ? null
+                    : langClass.substring('language-'.length),
+              );
+            },
+          ),
+        ],
         style: {
           'body': Style(
             margin: Margins.zero,
@@ -467,20 +516,11 @@ class _HtmlView extends StatelessWidget {
             fontFamily: settings.modelFont.family,
           ),
           'a': Style(color: scheme.primary),
-          // Code keeps a monospace font on a distinct, bordered background —
-          // the body font above would otherwise cascade into it.
+          // Inline code keeps a monospace font on a distinct background.
           'code': Style(
             fontFamily: 'monospace',
             backgroundColor: scheme.surfaceContainerLowest,
           ),
-          'pre': Style(
-            fontFamily: 'monospace',
-            backgroundColor: scheme.surfaceContainerLowest,
-            padding: HtmlPaddings.all(10),
-            border: Border.all(color: scheme.outlineVariant),
-          ),
-          // Avoid doubling the background when <code> is nested inside <pre>.
-          'pre code': Style(backgroundColor: Colors.transparent),
         },
       ),
     );
