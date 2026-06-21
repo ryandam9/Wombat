@@ -86,4 +86,34 @@ void main() {
 
     expect(c.read(usageProvider).creditsError, contains('API key'));
   });
+
+  test('refreshCredits caches within the TTL and force re-fetches', () async {
+    final service = _CountingCreditsService()
+      ..credits = const CreditBalance(totalCredits: 10, totalUsage: 4);
+    final c = await build(service);
+    final n = c.read(usageProvider.notifier);
+
+    await n.refreshCredits();
+    expect(service.creditsCalls, 1);
+    expect(c.read(usageProvider).creditsFetchedAt, isNotNull);
+
+    // A fresh balance is reused — no second API call.
+    await n.refreshCredits();
+    expect(service.creditsCalls, 1);
+
+    // force bypasses the cache.
+    await n.refreshCredits(force: true);
+    expect(service.creditsCalls, 2);
+  });
+}
+
+/// Counts how many times the credit balance is actually fetched.
+class _CountingCreditsService extends FakeOpenRouterService {
+  int creditsCalls = 0;
+
+  @override
+  Future<CreditBalance> fetchCredits(String apiKey) {
+    creditsCalls++;
+    return super.fetchCredits(apiKey);
+  }
 }

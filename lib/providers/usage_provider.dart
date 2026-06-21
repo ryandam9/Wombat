@@ -19,6 +19,7 @@ class UsageState {
     required this.credits,
     required this.creditsLoading,
     required this.creditsError,
+    this.creditsFetchedAt,
   }) : _byModel = byModel;
 
   final int promptTokens;
@@ -29,6 +30,9 @@ class UsageState {
   final CreditBalance? credits;
   final bool creditsLoading;
   final String? creditsError;
+
+  /// When the credit balance was last fetched (null = never).
+  final DateTime? creditsFetchedAt;
 
   int get totalTokens => promptTokens + completionTokens;
   bool get isEmpty => requests == 0;
@@ -56,6 +60,10 @@ class UsageNotifier extends Notifier<UsageState> {
   CreditBalance? _credits;
   bool _creditsLoading = false;
   String? _creditsError;
+  DateTime? _creditsFetchedAt;
+
+  /// How long a fetched balance is considered fresh.
+  static const creditsTtl = Duration(minutes: 5);
 
   @override
   UsageState build() => _snapshot();
@@ -69,7 +77,13 @@ class UsageNotifier extends Notifier<UsageState> {
         credits: _credits,
         creditsLoading: _creditsLoading,
         creditsError: _creditsError,
+        creditsFetchedAt: _creditsFetchedAt,
       );
+
+  bool get _creditsFresh {
+    final at = _creditsFetchedAt;
+    return at != null && DateTime.now().difference(at) < creditsTtl;
+  }
 
   void _emit() => state = _snapshot();
 
@@ -95,7 +109,12 @@ class UsageNotifier extends Notifier<UsageState> {
 
   /// Fetches the account credit balance. Errors (e.g. a key without credit
   /// permissions) are captured in [UsageState.creditsError] rather than thrown.
-  Future<void> refreshCredits() async {
+  ///
+  /// Skips the request when a balance was fetched within [creditsTtl], unless
+  /// [force] is set — so re-opening the Usage screen doesn't re-hit the API.
+  Future<void> refreshCredits({bool force = false}) async {
+    if (!force && (_creditsFresh || _creditsLoading)) return;
+
     final key = ref.read(settingsProvider).apiKey;
     if (key == null || key.isEmpty) {
       _creditsError = 'Add your API key in Settings first.';
@@ -107,6 +126,7 @@ class UsageNotifier extends Notifier<UsageState> {
     _emit();
     try {
       _credits = await ref.read(openRouterServiceProvider).fetchCredits(key);
+      _creditsFetchedAt = DateTime.now();
     } catch (e) {
       _creditsError = e.toString();
     } finally {

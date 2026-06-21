@@ -165,20 +165,42 @@ class _AccountPanel extends ConsumerWidget {
         children: [
           body,
           const SizedBox(height: 12),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: FilledButton.tonalIcon(
-              onPressed: usage.creditsLoading
-                  ? null
-                  : () => ref.read(usageProvider.notifier).refreshCredits(),
-              icon: const Icon(Icons.refresh),
-              label: const Text('Refresh'),
-            ),
+          Row(
+            children: [
+              FilledButton.tonalIcon(
+                onPressed: usage.creditsLoading
+                    ? null
+                    : () => ref
+                        .read(usageProvider.notifier)
+                        .refreshCredits(force: true),
+                icon: const Icon(Icons.refresh),
+                label: const Text('Refresh'),
+              ),
+              if (usage.creditsFetchedAt != null) ...[
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Updated ${_ago(usage.creditsFetchedAt!)}',
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: Theme.of(context).colorScheme.outline),
+                  ),
+                ),
+              ],
+            ],
           ),
         ],
       ),
     );
   }
+}
+
+/// A compact relative time like "just now" / "3 min ago" / "2 h ago".
+String _ago(DateTime time) {
+  final d = DateTime.now().difference(time);
+  if (d.inSeconds < 45) return 'just now';
+  if (d.inMinutes < 60) return '${d.inMinutes} min ago';
+  if (d.inHours < 24) return '${d.inHours} h ago';
+  return '${d.inDays} d ago';
 }
 
 /// Shimmering placeholder shown while the account balance is being fetched —
