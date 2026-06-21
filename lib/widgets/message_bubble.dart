@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_html/flutter_html.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -16,7 +17,9 @@ import 'save_button.dart';
 import 'ui_kit.dart';
 
 /// Renders a single chat message in a rounded bubble. Assistant replies are
-/// rendered as Markdown; user messages as plain selectable text.
+/// rendered as Markdown (or HTML, when the reply is HTML); user messages as
+/// plain selectable text. Assistant replies can be toggled to a raw "Source"
+/// view so the complete response is always visible.
 class MessageBubble extends ConsumerWidget {
   const MessageBubble({
     super.key,
@@ -100,42 +103,16 @@ class MessageBubble extends ConsumerWidget {
             );
           }),
           const SizedBox(height: 6),
-          ConstrainedBox(
-            constraints: BoxConstraints(
-              maxWidth: _isUser ? 560 : double.infinity,
-            ),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              decoration: BoxDecoration(
-                color: _isUser
-                    ? theme.colorScheme.primaryContainer
-                    : theme.colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(
-                  color: _isUser
-                      ? theme.colorScheme.primary
-                      : theme.colorScheme.outlineVariant,
-                ),
+          if (_isUser)
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 560),
+              child: _bubbleContainer(
+                theme,
+                child: _UserText(content: message.content, settings: settings),
               ),
-              child: _content(context, settings),
-            ),
-          ),
-          if (!_isUser && !message.isStreaming && message.content.isNotEmpty)
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _CopyButton(text: message.content),
-                // Save the reply verbatim as Markdown. Don't guess the output
-                // type — a reply is not always an SVG, and assuming so produced
-                // a truncated `.svg` file instead of the full response. See #126.
-                SaveButton(
-                  compact: true,
-                  bytes: () => utf8.encode(message.content),
-                  baseName: 'wombat-reply',
-                  mimeType: 'text/markdown',
-                ),
-              ],
-            ),
+            )
+          else
+            _AssistantBubble(message: message),
         ],
       ),
     );
@@ -154,7 +131,103 @@ class MessageBubble extends ConsumerWidget {
     );
   }
 
-  Widget _content(BuildContext context, SettingsState settings) {
+  Widget _bubbleContainer(ThemeData theme, {required Widget child}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.primaryContainer,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: theme.colorScheme.primary),
+      ),
+      child: child,
+    );
+  }
+}
+
+/// Plain, selectable user-message text in the user's configured font.
+class _UserText extends StatelessWidget {
+  const _UserText({required this.content, required this.settings});
+
+  final String content;
+  final SettingsState settings;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return MediaQuery.withClampedTextScaling(
+      minScaleFactor: settings.userFontScale,
+      maxScaleFactor: settings.userFontScale,
+      child: Text(
+        content,
+        style: TextStyle(
+          color: theme.colorScheme.onPrimaryContainer,
+          fontFamily: settings.userFont.family,
+        ),
+      ),
+    );
+  }
+}
+
+/// An assistant reply: the rendered (Markdown / HTML / inline SVG) body plus an
+/// action row (Copy, Save, and a Rendered ⇄ Source toggle). The Source view
+/// shows the raw response verbatim, so nothing the renderer can't display is
+/// ever lost. See #128.
+class _AssistantBubble extends ConsumerStatefulWidget {
+  const _AssistantBubble({required this.message});
+
+  final ChatMessage message;
+
+  @override
+  ConsumerState<_AssistantBubble> createState() => _AssistantBubbleState();
+}
+
+class _AssistantBubbleState extends ConsumerState<_AssistantBubble> {
+  bool _showSource = false;
+
+  ChatMessage get message => widget.message;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final settings = ref.watch(settingsProvider);
+    final canToggle = message.content.isNotEmpty && !message.isStreaming;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: theme.colorScheme.outlineVariant),
+          ),
+          child: _body(context, settings),
+        ),
+        if (canToggle)
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _CopyButton(text: message.content),
+              // Save the reply verbatim as Markdown — don't guess the output
+              // type (it isn't always an SVG). See #126.
+              SaveButton(
+                compact: true,
+                bytes: () => utf8.encode(message.content),
+                baseName: 'wombat-reply',
+                mimeType: 'text/markdown',
+              ),
+              _SourceToggle(
+                showSource: _showSource,
+                onChanged: (v) => setState(() => _showSource = v),
+              ),
+            ],
+          ),
+      ],
+    );
+  }
+
+  Widget _body(BuildContext context, SettingsState settings) {
     if (message.isStreaming &&
         message.content.isEmpty &&
         message.attachments.isEmpty) {
@@ -163,7 +236,9 @@ class MessageBubble extends ConsumerWidget {
 
     final children = <Widget>[];
     if (message.content.isNotEmpty) {
-      children.addAll(_textParts(context, settings));
+      children.add(_showSource
+          ? _SourceText(text: message.content, settings: settings)
+          : _rendered(context, settings));
     }
     for (final attachment in message.attachments) {
       children.add(Padding(
@@ -180,40 +255,52 @@ class MessageBubble extends ConsumerWidget {
     );
   }
 
-  /// The textual content of a message. For assistant replies that contain an
-  /// SVG, the SVG is rendered inline and its code stripped from the Markdown.
-  List<Widget> _textParts(BuildContext context, SettingsState settings) {
-    final theme = Theme.of(context);
+  /// The rendered view of the reply. HTML replies render as HTML; a reply that
+  /// is purely (or mostly) an SVG renders the image inline; everything else
+  /// renders as Markdown.
+  Widget _rendered(BuildContext context, SettingsState settings) {
+    final content = message.content;
 
-    if (_isUser) {
-      return [
-        MediaQuery.withClampedTextScaling(
-          minScaleFactor: settings.userFontScale,
-          maxScaleFactor: settings.userFontScale,
-          child: Text(
-            message.content,
-            style: TextStyle(
-              color: theme.colorScheme.onPrimaryContainer,
-              fontFamily: settings.userFont.family,
-            ),
-          ),
-        ),
-      ];
+    if (_looksLikeHtml(content)) {
+      return _HtmlView(html: content, settings: settings);
     }
 
-    final extracted = DownloadService.textForSave(message.content);
+    final extracted = DownloadService.textForSave(content);
     if (extracted.mimeType == 'image/svg+xml') {
-      final markdown = _stripSvg(message.content, extracted.text).trim();
-      return [
-        _SvgView(svg: extracted.text),
-        if (markdown.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.only(top: 8),
-            child: _markdown(context, settings, markdown),
-          ),
-      ];
+      final markdown = _stripSvg(content, extracted.text).trim();
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _SvgView(svg: extracted.text),
+          if (markdown.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: _markdown(context, settings, markdown),
+            ),
+        ],
+      );
     }
-    return [_markdown(context, settings, message.content)];
+    return _markdown(context, settings, content);
+  }
+
+  /// HTML-ish block/inline tags the Markdown renderer would otherwise drop.
+  /// SVG tags are deliberately excluded so SVG art still routes to [_SvgView].
+  static final _htmlTag = RegExp(
+    r'<\s*/?\s*(?:!doctype|html|head|body|table|thead|tbody|tfoot|tr|td|th|'
+    r'div|p|ul|ol|li|dl|dt|dd|h[1-6]|section|article|header|footer|nav|main|'
+    r'aside|figure|figcaption|pre|blockquote|span|a|img|br|hr|strong|em|b|i|'
+    r'u|code|button|form|input|label|select|option|caption|colgroup|col)\b',
+    caseSensitive: false,
+  );
+
+  /// Whether the reply should be rendered as HTML. Fenced/inline code is ignored
+  /// so HTML shown *as a code sample* isn't auto-rendered.
+  bool _looksLikeHtml(String content) {
+    final stripped = content
+        .replaceAll(RegExp(r'```[\s\S]*?```'), '')
+        .replaceAll(RegExp(r'`[^`]*`'), '');
+    return _htmlTag.hasMatch(stripped);
   }
 
   /// Removes fenced code blocks (and any bare occurrence) that contain the SVG,
@@ -253,27 +340,27 @@ class MessageBubble extends ConsumerWidget {
         selectable: false,
         imageBuilder: _markdownImage,
         styleSheet: base.copyWith(
-        p: base.p?.copyWith(color: scheme.onSurface),
-        code: base.code?.copyWith(
-          fontFamily: 'monospace',
-          color: scheme.onSurface,
-          backgroundColor: codeBg,
-        ),
-        codeblockDecoration: BoxDecoration(
-          color: codeBg,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: scheme.outlineVariant),
-        ),
-        // Blockquotes otherwise default to a light-blue box, which leaves
-        // light text unreadable in dark theme. Use the same on-surface scheme
-        // as code, with a primary accent strip on the left.
-        blockquote: base.blockquote?.copyWith(color: scheme.onSurface),
-        blockquoteDecoration: BoxDecoration(
-          color: scheme.surfaceContainerHighest,
-          border: Border(
-            left: BorderSide(color: scheme.primary, width: 4),
+          p: base.p?.copyWith(color: scheme.onSurface),
+          code: base.code?.copyWith(
+            fontFamily: 'monospace',
+            color: scheme.onSurface,
+            backgroundColor: codeBg,
           ),
-        ),
+          codeblockDecoration: BoxDecoration(
+            color: codeBg,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: scheme.outlineVariant),
+          ),
+          // Blockquotes otherwise default to a light-blue box, which leaves
+          // light text unreadable in dark theme. Use the same on-surface scheme
+          // as code, with a primary accent strip on the left.
+          blockquote: base.blockquote?.copyWith(color: scheme.onSurface),
+          blockquoteDecoration: BoxDecoration(
+            color: scheme.surfaceContainerHighest,
+            border: Border(
+              left: BorderSide(color: scheme.primary, width: 4),
+            ),
+          ),
         ),
       ),
     );
@@ -305,6 +392,85 @@ class MessageBubble extends ConsumerWidget {
     return ConstrainedBox(
       constraints: maxW,
       child: Image.network(uri.toString(), errorBuilder: (_, __, ___) => broken()),
+    );
+  }
+}
+
+/// Renders an assistant reply that is HTML, so tables/divs/spans show up
+/// instead of being dropped by the Markdown renderer.
+class _HtmlView extends StatelessWidget {
+  const _HtmlView({required this.html, required this.settings});
+
+  final String html;
+  final SettingsState settings;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return MediaQuery.withClampedTextScaling(
+      minScaleFactor: settings.modelFontScale,
+      maxScaleFactor: settings.modelFontScale,
+      child: Html(
+        data: html,
+        style: {
+          'body': Style(
+            margin: Margins.zero,
+            padding: HtmlPaddings.zero,
+            color: scheme.onSurface,
+            fontFamily: settings.modelFont.family,
+          ),
+          'a': Style(color: scheme.primary),
+        },
+      ),
+    );
+  }
+}
+
+/// The raw response text, shown verbatim in a monospace font.
+class _SourceText extends StatelessWidget {
+  const _SourceText({required this.text, required this.settings});
+
+  final String text;
+  final SettingsState settings;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    // selectable:false — selection is handled by the ancestor SelectionArea.
+    return MediaQuery.withClampedTextScaling(
+      minScaleFactor: settings.modelFontScale,
+      maxScaleFactor: settings.modelFontScale,
+      child: Text(
+        text,
+        style: TextStyle(
+          fontFamily: 'monospace',
+          color: scheme.onSurface,
+          height: 1.4,
+        ),
+      ),
+    );
+  }
+}
+
+/// A small toggle that flips an assistant reply between its rendered view and
+/// the raw "Source" text.
+class _SourceToggle extends StatelessWidget {
+  const _SourceToggle({required this.showSource, required this.onChanged});
+
+  final bool showSource;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextButton.icon(
+      style: TextButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        minimumSize: const Size(0, 32),
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      ),
+      icon: Icon(showSource ? Icons.visibility_outlined : Icons.code, size: 14),
+      label: Text(showSource ? 'Rendered' : 'Source'),
+      onPressed: () => onChanged(!showSource),
     );
   }
 }

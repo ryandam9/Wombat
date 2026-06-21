@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_html/flutter_html.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -94,6 +95,64 @@ void main() {
 
     expect(find.byType(SvgPicture), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('renders an HTML reply as HTML, not dropped Markdown',
+      (tester) async {
+    await tester.pumpWidget(_wrap(
+      ChatMessage(
+        id: '1',
+        role: MessageRole.assistant,
+        content: '<h1>Report</h1><p>Hello <b>world</b></p>'
+            '<table><tr><td>cell</td></tr></table>',
+      ),
+    ));
+    await tester.pump();
+
+    // The HTML is rendered (so tables/divs/spans aren't silently dropped)…
+    expect(find.byType(Html), findsOneWidget);
+    // …and not routed through the Markdown renderer.
+    expect(find.byType(MarkdownBody), findsNothing);
+  });
+
+  testWidgets('HTML shown inside a code fence is not auto-rendered',
+      (tester) async {
+    await tester.pumpWidget(_wrap(
+      ChatMessage(
+        id: '1',
+        role: MessageRole.assistant,
+        content: 'Here is some markup:\n\n```html\n<div>hi</div>\n```',
+      ),
+    ));
+    await tester.pump();
+
+    expect(find.byType(Html), findsNothing);
+    expect(find.byType(MarkdownBody), findsOneWidget);
+  });
+
+  testWidgets('the Source toggle reveals the raw reply verbatim',
+      (tester) async {
+    const raw = '<h1>Title</h1><p>Body</p>';
+    await tester.pumpWidget(_wrap(
+      ChatMessage(id: '1', role: MessageRole.assistant, content: raw),
+    ));
+    await tester.pump();
+
+    // Rendered by default.
+    expect(find.byType(Html), findsOneWidget);
+    expect(find.text(raw), findsNothing);
+
+    // Switch to Source: the complete raw text is shown verbatim.
+    await tester.tap(find.text('Source'));
+    await tester.pump();
+    expect(find.text(raw), findsOneWidget);
+    expect(find.byType(Html), findsNothing);
+
+    // And back to Rendered.
+    await tester.tap(find.text('Rendered'));
+    await tester.pump();
+    expect(find.byType(Html), findsOneWidget);
+    expect(find.text(raw), findsNothing);
   });
 
   testWidgets('saves the full reply as Markdown, even for SVG content',
