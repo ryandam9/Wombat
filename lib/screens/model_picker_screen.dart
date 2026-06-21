@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -90,10 +92,27 @@ class _ModelPickerScreenState extends ConsumerState<ModelPickerScreen> {
   _ViewMode _view = _ViewMode.grid;
   OpenRouterModel? _preview;
 
+  Timer? _queryDebounce;
+
   @override
   void initState() {
     super.initState();
     _startLoad();
+  }
+
+  @override
+  void dispose() {
+    _queryDebounce?.cancel();
+    super.dispose();
+  }
+
+  /// Debounces the search box so filtering/sorting runs after the user pauses,
+  /// not on every keystroke.
+  void _onQueryChanged(String value) {
+    _queryDebounce?.cancel();
+    _queryDebounce = Timer(const Duration(milliseconds: 250), () {
+      if (mounted) setState(() => _query = value);
+    });
   }
 
   Future<List<OpenRouterModel>> _load() {
@@ -312,7 +331,7 @@ class _ModelPickerScreenState extends ConsumerState<ModelPickerScreen> {
             children: [
               _Toolbar(
                 query: _query,
-                onQuery: (v) => setState(() => _query = v),
+                onQuery: _onQueryChanged,
                 view: _view,
                 onView: (v) => setState(() => _view = v),
                 sort: _sort,

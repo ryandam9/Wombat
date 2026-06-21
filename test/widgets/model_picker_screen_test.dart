@@ -158,4 +158,18 @@ void main() {
     expect(tools.right, lessThanOrEqualTo(420),
         reason: 'Tools chip should wrap on-screen, not run off the right edge');
   });
+
+  testWidgets('search input is debounced', (tester) async {
+    await pump(tester, size: const Size(420, 900)); // no inline detail panel
+
+    expect(find.text('Alpha'), findsWidgets);
+
+    await tester.enterText(find.byType(TextField), 'beta');
+    await tester.pump(); // before the debounce fires: still unfiltered
+    expect(find.text('Alpha'), findsWidgets);
+
+    await tester.pump(const Duration(milliseconds: 300)); // debounce fires
+    expect(find.text('Alpha'), findsNothing);
+    expect(find.text('Beta'), findsWidgets);
+  });
 }
