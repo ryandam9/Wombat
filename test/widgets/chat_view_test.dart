@@ -66,7 +66,9 @@ void main() {
 
     expect(find.byType(ModelSelector), findsOneWidget);
     expect(find.byType(ChatInput), findsOneWidget);
-    expect(find.byTooltip('New chat'), findsOneWidget);
+    // The header no longer carries a "New chat" action (#130) — it's reached
+    // from the sidebar/drawer instead.
+    expect(find.byTooltip('New chat'), findsNothing);
   });
 
   testWidgets('deleting the active chat does not crash the message list',

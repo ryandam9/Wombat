@@ -233,14 +233,9 @@ class _Header extends ConsumerWidget {
                     child: CircularProgressIndicator(strokeWidth: 2),
                   ),
                 ),
-              const SizedBox(width: 4),
-              // New chat: a one-tap action once a conversation is active.
-              IconButton(
-                icon: const Icon(Icons.add_comment_outlined),
-                tooltip: 'New chat',
-                onPressed: () =>
-                    ref.read(chatProvider.notifier).newConversation(),
-              ),
+              // "New chat" is reachable from the sidebar / collapsed rail (wide)
+              // and the conversations drawer + FAB (narrow), so it isn't
+              // duplicated in the chat header. See #130.
             ] else
               const Spacer(),
             // Secondary actions (Usage, Debug, Settings, …) live in the sidebar
