@@ -30,6 +30,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _obscure = true;
   bool _justSaved = false;
   Timer? _savedTimer;
+  Timer? _userNameDebounce;
+  Timer? _aiNameDebounce;
 
   /// Briefly shows a "Saved" confirmation in the app bar after a setting
   /// changes, so instant-apply controls give a little feedback.
@@ -38,6 +40,24 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     setState(() => _justSaved = true);
     _savedTimer = Timer(const Duration(milliseconds: 1400), () {
       if (mounted) setState(() => _justSaved = false);
+    });
+  }
+
+  /// Auto-saving text fields debounce their pref write (~400 ms), then flash
+  /// "Saved" — so we don't write on every keystroke.
+  void _onUserNameChanged(String value) {
+    _userNameDebounce?.cancel();
+    _userNameDebounce = Timer(const Duration(milliseconds: 400), () async {
+      await ref.read(settingsProvider.notifier).setUserName(value);
+      if (mounted) _flashSaved();
+    });
+  }
+
+  void _onAiNameChanged(String value) {
+    _aiNameDebounce?.cancel();
+    _aiNameDebounce = Timer(const Duration(milliseconds: 400), () async {
+      await ref.read(settingsProvider.notifier).setAiName(value);
+      if (mounted) _flashSaved();
     });
   }
 
@@ -56,6 +76,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     _userNameController.dispose();
     _aiNameController.dispose();
     _savedTimer?.cancel();
+    _userNameDebounce?.cancel();
+    _aiNameDebounce?.cancel();
     super.dispose();
   }
 
@@ -350,7 +372,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             border: OutlineInputBorder(),
             isDense: true,
           ),
-          onChanged: (v) => ref.read(settingsProvider.notifier).setUserName(v),
+          onChanged: _onUserNameChanged,
         ),
         const SizedBox(height: 12),
         TextField(
@@ -362,7 +384,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             border: OutlineInputBorder(),
             isDense: true,
           ),
-          onChanged: (v) => ref.read(settingsProvider.notifier).setAiName(v),
+          onChanged: _onAiNameChanged,
         ),
         const SizedBox(height: 8),
         Text(

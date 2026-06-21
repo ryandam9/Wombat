@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:wombat/providers/settings_provider.dart';
 import 'package:wombat/screens/settings_screen.dart';
 import 'package:wombat/theme/app_theme.dart';
 
@@ -68,5 +69,23 @@ void main() {
     expect(find.text('Roboto Condensed'), findsWidgets);
     // Default font-size selection shows on the size dropdowns.
     expect(find.text('Default'), findsWidgets);
+  });
+
+  testWidgets('the name field debounces its save and flashes "Saved"',
+      (tester) async {
+    tester.view.devicePixelRatio = 1.0;
+    tester.view.physicalSize = const Size(1200, 1600);
+    addTearDown(tester.view.reset);
+
+    await _pump(tester, container);
+
+    await tester.enterText(
+        find.widgetWithText(TextField, 'Your name').first, 'Ravi');
+    await tester.pump(); // before the debounce: not yet persisted
+    expect(container.read(settingsProvider).userName, '');
+
+    await tester.pump(const Duration(milliseconds: 500)); // debounce fires
+    expect(container.read(settingsProvider).userName, 'Ravi');
+    expect(find.text('Saved'), findsOneWidget);
   });
 }
