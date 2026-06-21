@@ -46,6 +46,29 @@ void main() {
     expect(find.byType(SingleChildScrollView), findsOneWidget);
   });
 
+  testWidgets('data-storage help reflects the SQLite + files storage', (
+    tester,
+  ) async {
+    await pump(tester);
+
+    // Summary is accurate to how data is actually persisted now…
+    expect(
+      find.text('Conversations live on your device in a local database.'),
+      findsOneWidget,
+    );
+    // …and the old "as JSON" wording is gone.
+    expect(find.textContaining('as JSON'), findsNothing);
+
+    await tester.tap(find.text('Where is my data stored?'));
+    await tester.pumpAndSettle();
+    expect(
+      find.textContaining(
+        'SQLite database, and attachment bytes are kept as files on disk',
+      ),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('expanding a topic reveals its details', (tester) async {
     await pump(tester);
 

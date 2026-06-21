@@ -109,12 +109,14 @@ class HelpScreen extends StatelessWidget {
               _HelpTopic(
                 icon: Icons.storage_outlined,
                 title: 'Where is my data stored?',
-                summary: 'Conversations live on your device as JSON.',
+                summary: 'Conversations live on your device in a local '
+                    'database.',
                 detail: _Paragraph(
-                  'Conversations (including attachments, stored as base64) are '
-                  'saved on-device as JSON and survive restarts. Requests go '
-                  'straight from your device to OpenRouter; nothing is proxied '
-                  'through a server of ours.',
+                  'Conversations and messages are saved on-device in a local '
+                  'SQLite database, and attachment bytes are kept as files on '
+                  'disk — both survive restarts. Requests go straight from '
+                  'your device to OpenRouter; nothing is proxied through a '
+                  'server of ours.',
                 ),
               ),
               _HelpTopic(
@@ -159,16 +161,23 @@ class _ResponsiveSections extends StatelessWidget {
             ],
           );
         }
-        // Distribute the sections across columns round-robin.
-        final columns = List.generate(cols, (_) => <Widget>[]);
-        for (var i = 0; i < children.length; i++) {
-          columns[i % cols].add(
-            Padding(
-              padding: const EdgeInsets.only(bottom: 20),
-              child: children[i],
-            ),
-          );
-        }
+        // Distribute the sections into contiguous, balanced columns so the
+        // reading order (top-to-bottom, then left-to-right) matches the single
+        // mobile column — the page shows the same content in the same order on
+        // desktop and mobile, only the number of columns changes. (Round-robin
+        // would scatter the sections and reorder them per breakpoint.)
+        final perColumn = (children.length / cols).ceil();
+        final columns = List.generate(cols, (c) {
+          final start = c * perColumn;
+          final end = (start + perColumn).clamp(0, children.length);
+          return [
+            for (var i = start; i < end; i++)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 20),
+                child: children[i],
+              ),
+          ];
+        });
         return SingleChildScrollView(
           padding: pad,
           child: Row(
@@ -338,10 +347,10 @@ class _VoiceMessagesDetail extends StatelessWidget {
         const _Step(
           number: 4,
           title: 'Persistence',
-          body: 'The clip is stored as base64 inside the conversation on '
-              'disk, so it survives restarts. It is not a standalone '
-              '.wav/.mp3 file — though you can export it to a .wav with the '
-              'Save button on the attachment.',
+          body: 'The clip is stored as a file on disk (with its metadata in '
+              'the local database), so it survives restarts. It is not a '
+              'standalone .wav/.mp3 in your file manager — though you can '
+              'export it to a .wav with the Save button on the attachment.',
         ),
         const SizedBox(height: 12),
         Container(
