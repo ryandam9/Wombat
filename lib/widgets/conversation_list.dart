@@ -14,7 +14,6 @@ import '../screens/model_picker_screen.dart';
 import '../screens/settings_screen.dart';
 import '../screens/usage_screen.dart';
 import 'pressable_scale.dart';
-import 'ui_kit.dart';
 
 /// The sections reachable from the sidebar navigation rail. On desktop these
 /// swap the centre pane in place; on mobile each opens as its own route.
@@ -361,7 +360,6 @@ class _ConversationListState extends ConsumerState<ConversationList> {
         children: [
           if (!widget.embedded) ...[
             _Header(
-              count: chat.conversations.length,
               onCollapse: widget.onCollapse,
               onBack: widget.onBack,
             ),
@@ -430,9 +428,8 @@ class _ConversationListState extends ConsumerState<ConversationList> {
 }
 
 class _Header extends StatelessWidget {
-  const _Header({required this.count, this.onCollapse, this.onBack});
+  const _Header({this.onCollapse, this.onBack});
 
-  final int count;
   final VoidCallback? onCollapse;
   final VoidCallback? onBack;
 
@@ -468,8 +465,6 @@ class _Header extends StatelessWidget {
               style: theme.textTheme.titleLarge,
             ),
           ),
-          const SizedBox(width: 8),
-          if (count > 0) StatusChip('$count', color: theme.colorScheme.outline),
           const Spacer(),
           if (onCollapse != null)
             IconButton(
