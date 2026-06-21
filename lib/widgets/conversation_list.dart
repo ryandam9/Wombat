@@ -805,9 +805,16 @@ class _ChatMenu extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final scheme = Theme.of(context).colorScheme;
     return PopupMenuButton<String>(
       tooltip: 'Chat actions',
       icon: const Icon(Icons.more_vert, size: 20),
+      // A softer, rounded menu surface to match the refreshed list.
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      elevation: 3,
+      color: scheme.surfaceContainerHigh,
+      clipBehavior: Clip.antiAlias,
+      position: PopupMenuPosition.under,
       onSelected: (value) {
         switch (value) {
           case 'pin':
@@ -819,35 +826,51 @@ class _ChatMenu extends ConsumerWidget {
         }
       },
       itemBuilder: (_) => [
-        PopupMenuItem(
+        _item(
+          context,
           value: 'pin',
-          child: ListTile(
-            leading: Icon(
-                conversation.pinned ? Icons.push_pin_outlined : Icons.push_pin),
-            title: Text(conversation.pinned ? 'Unpin' : 'Pin'),
-            contentPadding: EdgeInsets.zero,
-            dense: true,
-          ),
+          icon: conversation.pinned ? Icons.push_pin_outlined : Icons.push_pin,
+          label: conversation.pinned ? 'Unpin' : 'Pin',
         ),
-        const PopupMenuItem(
-          value: 'rename',
-          child: ListTile(
-            leading: Icon(Icons.edit_outlined),
-            title: Text('Rename'),
-            contentPadding: EdgeInsets.zero,
-            dense: true,
-          ),
-        ),
-        const PopupMenuItem(
+        _item(context, value: 'rename', icon: Icons.edit_outlined, label: 'Rename'),
+        _item(
+          context,
           value: 'delete',
-          child: ListTile(
-            leading: Icon(Icons.delete_outline),
-            title: Text('Delete'),
-            contentPadding: EdgeInsets.zero,
-            dense: true,
-          ),
+          icon: Icons.delete_outline,
+          label: 'Delete',
+          danger: true,
         ),
       ],
+    );
+  }
+
+  /// A compact, icon + label popup row. [danger] tints it with the error colour
+  /// for destructive actions (Delete).
+  PopupMenuItem<String> _item(
+    BuildContext context, {
+    required String value,
+    required IconData icon,
+    required String label,
+    bool danger = false,
+  }) {
+    final scheme = Theme.of(context).colorScheme;
+    final color = danger ? scheme.error : scheme.onSurface;
+    return PopupMenuItem<String>(
+      value: value,
+      height: 44,
+      child: Row(
+        children: [
+          Icon(icon, size: 19, color: color),
+          const SizedBox(width: 14),
+          Text(
+            label,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: color,
+                  fontWeight: FontWeight.w500,
+                ),
+          ),
+        ],
+      ),
     );
   }
 

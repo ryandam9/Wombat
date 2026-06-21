@@ -47,6 +47,40 @@ void main() {
     expect(find.text('3'), findsNothing);
   });
 
+  testWidgets('per-chat menu shows Pin, Rename and Delete', (tester) async {
+    tester.view.devicePixelRatio = 1.0;
+    tester.view.physicalSize = const Size(1000, 900);
+    addTearDown(tester.view.reset);
+
+    late ProviderContainer container;
+    await tester.runAsync(() async {
+      container = await createContainer(
+        store: FakeConversationStore(initial: [
+          Conversation(id: 'a', title: 'Alpha', modelId: 'openai/gpt-4o'),
+        ]),
+      );
+      await waitUntil(() => !container.read(chatProvider.notifier).loading);
+    });
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(
+          home: Scaffold(body: SizedBox(width: 320, child: ConversationList())),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Chat actions').first);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Pin'), findsOneWidget);
+    expect(find.text('Rename'), findsOneWidget);
+    expect(find.text('Delete'), findsOneWidget);
+  });
+
   testWidgets(
       'choosing a model from the drawer does not crash after it closes',
       (tester) async {
