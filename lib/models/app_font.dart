@@ -30,6 +30,7 @@ enum AppFont {
   sourceCodePro,
   ibmPlexMono,
   spaceMono,
+  overpassMono,
 }
 
 extension AppFontX on AppFont {
@@ -59,6 +60,7 @@ extension AppFontX on AppFont {
         AppFont.sourceCodePro => 'Source Code Pro',
         AppFont.ibmPlexMono => 'IBM Plex Mono',
         AppFont.spaceMono => 'Space Mono',
+        AppFont.overpassMono => 'Overpass Mono',
       };
 
   /// The Google Fonts text style (via the generated, lookup-free methods),
@@ -86,6 +88,7 @@ extension AppFontX on AppFont {
         AppFont.sourceCodePro => GoogleFonts.sourceCodePro(),
         AppFont.ibmPlexMono => GoogleFonts.ibmPlexMono(),
         AppFont.spaceMono => GoogleFonts.spaceMono(),
+        AppFont.overpassMono => GoogleFonts.overpassMono(),
         _ => null,
       };
 
@@ -97,7 +100,8 @@ extension AppFontX on AppFont {
         AppFont.firaCode ||
         AppFont.sourceCodePro ||
         AppFont.ibmPlexMono ||
-        AppFont.spaceMono =>
+        AppFont.spaceMono ||
+        AppFont.overpassMono =>
           true,
         _ => false,
       };

@@ -144,12 +144,12 @@ void main() {
         isTrue);
   });
 
-  test('monoFont defaults to JetBrains Mono and persists', () async {
+  test('monoFont defaults to Overpass Mono and persists', () async {
     final c = await createContainer(prefs: const {});
     addTearDown(c.dispose);
     final n = c.read(settingsProvider.notifier);
 
-    expect(c.read(settingsProvider).monoFont, AppFont.jetBrainsMono);
+    expect(c.read(settingsProvider).monoFont, AppFont.overpassMono);
     expect(c.read(settingsProvider).monoFont.isMonospace, isTrue);
     await n.setMonoFont(AppFont.firaCode);
     expect(c.read(settingsProvider).monoFont, AppFont.firaCode);

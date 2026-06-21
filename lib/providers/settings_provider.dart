@@ -140,8 +140,8 @@ class SettingsNotifier extends Notifier<SettingsState> {
   AppFont _userFont = AppFont.robotoCondensed;
   AppFont _modelFont = AppFont.robotoCondensed;
   AppFont _settingsFont = AppFont.robotoCondensed;
-  // JetBrains Mono is the default for code/JSON (debug panel).
-  AppFont _monoFont = AppFont.jetBrainsMono;
+  // Overpass Mono is the default for code/JSON (code blocks, debug panel).
+  AppFont _monoFont = AppFont.overpassMono;
   // Text-size multipliers for chat messages (1.0 == default size).
   double _userFontScale = 1.0;
   double _modelFontScale = 1.0;
@@ -210,7 +210,7 @@ class SettingsNotifier extends Notifier<SettingsState> {
     _settingsFont =
         AppFontX.fromIndex(_prefs.getInt(_kSettingsFont) ?? def.index);
     _monoFont = AppFontX.fromIndex(
-        _prefs.getInt(_kMonoFont) ?? AppFont.jetBrainsMono.index);
+        _prefs.getInt(_kMonoFont) ?? AppFont.overpassMono.index);
     _userFontScale = _clampScale(_prefs.getDouble(_kUserFontScale) ?? 1.0);
     _modelFontScale = _clampScale(_prefs.getDouble(_kModelFontScale) ?? 1.0);
     _favoriteModels =
