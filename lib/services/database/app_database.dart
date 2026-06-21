@@ -39,7 +39,11 @@ class Messages extends Table {
   Set<Column> get primaryKey => {id};
 }
 
-/// A binary attachment (image/audio/file) on a message, stored base64-encoded.
+/// A binary attachment (image/audio/file) on a message.
+///
+/// New attachments are stored as files on disk with [filePath] set and [data]
+/// left empty (keeps the DB small). Legacy rows keep their base64 in [data]
+/// with [filePath] null, and still load.
 @DataClassName('AttachmentRow')
 class Attachments extends Table {
   IntColumn get id => integer().autoIncrement()();
@@ -48,7 +52,13 @@ class Attachments extends Table {
   IntColumn get position => integer()();
   TextColumn get kind => text()();
   TextColumn get mimeType => text()();
+
+  /// Legacy inline base64 (empty for file-backed attachments).
   TextColumn get data => text()();
+
+  /// Path to the on-disk bytes for file-backed attachments (null = inline).
+  TextColumn get filePath => text().nullable()();
+  IntColumn get sizeBytes => integer().nullable()();
   TextColumn get name => text().nullable()();
 }
 
@@ -59,11 +69,19 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor]) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
         onCreate: (m) => m.createAll(),
+        onUpgrade: (m, from, to) async {
+          // v2: file-backed attachments. Additive only — existing base64 rows
+          // are left intact and keep working (filePath stays null).
+          if (from < 2) {
+            await m.addColumn(attachments, attachments.filePath);
+            await m.addColumn(attachments, attachments.sizeBytes);
+          }
+        },
         beforeOpen: (details) async {
           // Required for the ON DELETE CASCADE foreign keys above.
           await customStatement('PRAGMA foreign_keys = ON');

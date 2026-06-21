@@ -1,19 +1,43 @@
+import 'dart:convert';
+
 import 'package:drift/drift.dart';
 
 import '../models/attachment.dart';
 import '../models/chat_message.dart';
 import '../models/conversation.dart';
+import 'attachment_store.dart';
 import 'conversation_store.dart';
 import 'database/app_database.dart';
 
 /// SQLite-backed [ConversationStore] using drift.
 ///
-/// Conversations, their messages and attachments are stored in normalised
-/// tables.
+/// Conversations and messages live in normalised tables; attachment **bytes**
+/// live in files (via [AttachmentStore]) with only their metadata + path in the
+/// database. Legacy rows that still hold inline base64 keep working.
 class DriftConversationStore extends ConversationStore {
-  DriftConversationStore(this._db);
+  DriftConversationStore(this._db, {AttachmentStore? attachmentStore})
+      : _files = attachmentStore ?? AttachmentStore();
 
   final AppDatabase _db;
+  final AttachmentStore _files;
+
+  /// Builds an in-memory attachment from a row, reading its bytes from disk
+  /// (file-backed) or decoding inline base64 (legacy).
+  Future<MessageAttachment> _attachmentFromRow(AttachmentRow a) async {
+    String base64;
+    if (a.filePath != null) {
+      final bytes = await _files.read(a.filePath!);
+      base64 = bytes == null ? '' : base64Encode(bytes);
+    } else {
+      base64 = a.data;
+    }
+    return MessageAttachment(
+      kind: _kindFromName(a.kind),
+      mimeType: a.mimeType,
+      base64Data: base64,
+      name: a.name,
+    );
+  }
 
   @override
   Future<List<Conversation>> load() async {
@@ -39,37 +63,45 @@ class DriftConversationStore extends ConversationStore {
       (msgByConvo[m.conversationId] ??= []).add(m);
     }
 
-    return [
-      for (final c in convRows)
-        Conversation(
-          id: c.id,
-          title: c.title,
-          modelId: c.modelId,
-          supportsImageOutput: c.supportsImageOutput,
-          pinned: c.pinned,
-          createdAt: c.createdAt,
-          updatedAt: c.updatedAt,
-          messages: [
-            for (final m in msgByConvo[c.id] ?? const <MessageRow>[])
-              ChatMessage(
-                id: m.id,
-                role: _roleFromName(m.role),
-                content: m.content,
-                createdAt: m.createdAt,
-                error: m.error,
-                attachments: [
-                  for (final a in attByMessage[m.id] ?? const <AttachmentRow>[])
-                    MessageAttachment(
-                      kind: _kindFromName(a.kind),
-                      mimeType: a.mimeType,
-                      base64Data: a.data,
-                      name: a.name,
-                    ),
-                ],
-              ),
-          ],
+    final conversations = <Conversation>[];
+    for (final c in convRows) {
+      conversations.add(Conversation(
+        id: c.id,
+        title: c.title,
+        modelId: c.modelId,
+        supportsImageOutput: c.supportsImageOutput,
+        pinned: c.pinned,
+        createdAt: c.createdAt,
+        updatedAt: c.updatedAt,
+        messages: await _messagesFromRows(
+          msgByConvo[c.id] ?? const <MessageRow>[],
+          attByMessage,
         ),
-    ];
+      ));
+    }
+    return conversations;
+  }
+
+  Future<List<ChatMessage>> _messagesFromRows(
+    List<MessageRow> msgRows,
+    Map<String, List<AttachmentRow>> attByMessage,
+  ) async {
+    final messages = <ChatMessage>[];
+    for (final m in msgRows) {
+      final attachments = <MessageAttachment>[];
+      for (final a in attByMessage[m.id] ?? const <AttachmentRow>[]) {
+        attachments.add(await _attachmentFromRow(a));
+      }
+      messages.add(ChatMessage(
+        id: m.id,
+        role: _roleFromName(m.role),
+        content: m.content,
+        createdAt: m.createdAt,
+        error: m.error,
+        attachments: attachments,
+      ));
+    }
+    return messages;
   }
 
   @override
@@ -129,25 +161,7 @@ class DriftConversationStore extends ConversationStore {
       pinned: c.pinned,
       createdAt: c.createdAt,
       updatedAt: c.updatedAt,
-      messages: [
-        for (final m in msgRows)
-          ChatMessage(
-            id: m.id,
-            role: _roleFromName(m.role),
-            content: m.content,
-            createdAt: m.createdAt,
-            error: m.error,
-            attachments: [
-              for (final a in attByMessage[m.id] ?? const <AttachmentRow>[])
-                MessageAttachment(
-                  kind: _kindFromName(a.kind),
-                  mimeType: a.mimeType,
-                  base64Data: a.data,
-                  name: a.name,
-                ),
-            ],
-          ),
-      ],
+      messages: await _messagesFromRows(msgRows, attByMessage),
     );
   }
 
@@ -229,6 +243,37 @@ class DriftConversationStore extends ConversationStore {
   @override
   Future<void> saveMessage(
       String conversationId, ChatMessage m, int position) async {
+    // Clean up files from the previous version of this message (e.g. an
+    // earlier streaming save), then write the current attachments as files.
+    final old = await (_db.select(_db.attachments)
+          ..where((a) => a.messageId.equals(m.id)))
+        .get();
+    for (final a in old) {
+      if (a.filePath != null) await _files.delete(a.filePath!);
+    }
+
+    final rows = <AttachmentsCompanion>[];
+    for (var j = 0; j < m.attachments.length; j++) {
+      final a = m.attachments[j];
+      final bytes = a.bytes;
+      final path = await _files.save(
+        messageId: m.id,
+        position: j,
+        mimeType: a.mimeType,
+        bytes: bytes,
+      );
+      rows.add(AttachmentsCompanion.insert(
+        messageId: m.id,
+        position: j,
+        kind: a.kind.name,
+        mimeType: a.mimeType,
+        data: '', // bytes live in the file
+        filePath: Value(path),
+        sizeBytes: Value(bytes.length),
+        name: Value(a.name),
+      ));
+    }
+
     await _db.transaction(() async {
       await _db.into(_db.messages).insertOnConflictUpdate(
             MessagesCompanion.insert(
@@ -241,34 +286,46 @@ class DriftConversationStore extends ConversationStore {
               error: Value(m.error),
             ),
           );
-      // Replace just this message's attachments.
       await (_db.delete(_db.attachments)
             ..where((a) => a.messageId.equals(m.id)))
           .go();
-      for (var j = 0; j < m.attachments.length; j++) {
-        final a = m.attachments[j];
-        await _db.into(_db.attachments).insert(
-              AttachmentsCompanion.insert(
-                messageId: m.id,
-                position: j,
-                kind: a.kind.name,
-                mimeType: a.mimeType,
-                data: a.base64Data,
-                name: Value(a.name),
-              ),
-            );
+      for (final r in rows) {
+        await _db.into(_db.attachments).insert(r);
       }
     });
   }
 
   @override
   Future<void> deleteConversation(String id) async {
+    final paths = await _filePathsForConversation(id);
     await (_db.delete(_db.conversations)..where((c) => c.id.equals(id))).go();
+    for (final p in paths) {
+      await _files.delete(p);
+    }
   }
 
   @override
   Future<void> deleteAllConversations() async {
+    final atts = await (_db.select(_db.attachments)
+          ..where((a) => a.filePath.isNotNull()))
+        .get();
     await _db.delete(_db.conversations).go();
+    for (final a in atts) {
+      await _files.delete(a.filePath!);
+    }
+  }
+
+  /// File paths of every file-backed attachment in a conversation.
+  Future<List<String>> _filePathsForConversation(String id) async {
+    final msgRows = await (_db.select(_db.messages)
+          ..where((m) => m.conversationId.equals(id)))
+        .get();
+    final ids = msgRows.map((m) => m.id).toList();
+    if (ids.isEmpty) return const [];
+    final atts = await (_db.select(_db.attachments)
+          ..where((a) => a.messageId.isIn(ids) & a.filePath.isNotNull()))
+        .get();
+    return [for (final a in atts) a.filePath!];
   }
 
   MessageRole _roleFromName(String name) => MessageRole.values.firstWhere(

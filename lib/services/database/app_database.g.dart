@@ -828,14 +828,35 @@ class $AttachmentsTable extends Attachments
   late final GeneratedColumn<String> data = GeneratedColumn<String>(
       'data', aliasedName, false,
       type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _filePathMeta =
+      const VerificationMeta('filePath');
+  @override
+  late final GeneratedColumn<String> filePath = GeneratedColumn<String>(
+      'file_path', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _sizeBytesMeta =
+      const VerificationMeta('sizeBytes');
+  @override
+  late final GeneratedColumn<int> sizeBytes = GeneratedColumn<int>(
+      'size_bytes', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
   static const VerificationMeta _nameMeta = const VerificationMeta('name');
   @override
   late final GeneratedColumn<String> name = GeneratedColumn<String>(
       'name', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
   @override
-  List<GeneratedColumn> get $columns =>
-      [id, messageId, position, kind, mimeType, data, name];
+  List<GeneratedColumn> get $columns => [
+        id,
+        messageId,
+        position,
+        kind,
+        mimeType,
+        data,
+        filePath,
+        sizeBytes,
+        name
+      ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -879,6 +900,14 @@ class $AttachmentsTable extends Attachments
     } else if (isInserting) {
       context.missing(_dataMeta);
     }
+    if (data.containsKey('file_path')) {
+      context.handle(_filePathMeta,
+          filePath.isAcceptableOrUnknown(data['file_path']!, _filePathMeta));
+    }
+    if (data.containsKey('size_bytes')) {
+      context.handle(_sizeBytesMeta,
+          sizeBytes.isAcceptableOrUnknown(data['size_bytes']!, _sizeBytesMeta));
+    }
     if (data.containsKey('name')) {
       context.handle(
           _nameMeta, name.isAcceptableOrUnknown(data['name']!, _nameMeta));
@@ -904,6 +933,10 @@ class $AttachmentsTable extends Attachments
           .read(DriftSqlType.string, data['${effectivePrefix}mime_type'])!,
       data: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}data'])!,
+      filePath: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}file_path']),
+      sizeBytes: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}size_bytes']),
       name: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}name']),
     );
@@ -921,7 +954,13 @@ class AttachmentRow extends DataClass implements Insertable<AttachmentRow> {
   final int position;
   final String kind;
   final String mimeType;
+
+  /// Legacy inline base64 (empty for file-backed attachments).
   final String data;
+
+  /// Path to the on-disk bytes for file-backed attachments (null = inline).
+  final String? filePath;
+  final int? sizeBytes;
   final String? name;
   const AttachmentRow(
       {required this.id,
@@ -930,6 +969,8 @@ class AttachmentRow extends DataClass implements Insertable<AttachmentRow> {
       required this.kind,
       required this.mimeType,
       required this.data,
+      this.filePath,
+      this.sizeBytes,
       this.name});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -940,6 +981,12 @@ class AttachmentRow extends DataClass implements Insertable<AttachmentRow> {
     map['kind'] = Variable<String>(kind);
     map['mime_type'] = Variable<String>(mimeType);
     map['data'] = Variable<String>(data);
+    if (!nullToAbsent || filePath != null) {
+      map['file_path'] = Variable<String>(filePath);
+    }
+    if (!nullToAbsent || sizeBytes != null) {
+      map['size_bytes'] = Variable<int>(sizeBytes);
+    }
     if (!nullToAbsent || name != null) {
       map['name'] = Variable<String>(name);
     }
@@ -954,6 +1001,12 @@ class AttachmentRow extends DataClass implements Insertable<AttachmentRow> {
       kind: Value(kind),
       mimeType: Value(mimeType),
       data: Value(data),
+      filePath: filePath == null && nullToAbsent
+          ? const Value.absent()
+          : Value(filePath),
+      sizeBytes: sizeBytes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(sizeBytes),
       name: name == null && nullToAbsent ? const Value.absent() : Value(name),
     );
   }
@@ -968,6 +1021,8 @@ class AttachmentRow extends DataClass implements Insertable<AttachmentRow> {
       kind: serializer.fromJson<String>(json['kind']),
       mimeType: serializer.fromJson<String>(json['mimeType']),
       data: serializer.fromJson<String>(json['data']),
+      filePath: serializer.fromJson<String?>(json['filePath']),
+      sizeBytes: serializer.fromJson<int?>(json['sizeBytes']),
       name: serializer.fromJson<String?>(json['name']),
     );
   }
@@ -981,6 +1036,8 @@ class AttachmentRow extends DataClass implements Insertable<AttachmentRow> {
       'kind': serializer.toJson<String>(kind),
       'mimeType': serializer.toJson<String>(mimeType),
       'data': serializer.toJson<String>(data),
+      'filePath': serializer.toJson<String?>(filePath),
+      'sizeBytes': serializer.toJson<int?>(sizeBytes),
       'name': serializer.toJson<String?>(name),
     };
   }
@@ -992,6 +1049,8 @@ class AttachmentRow extends DataClass implements Insertable<AttachmentRow> {
           String? kind,
           String? mimeType,
           String? data,
+          Value<String?> filePath = const Value.absent(),
+          Value<int?> sizeBytes = const Value.absent(),
           Value<String?> name = const Value.absent()}) =>
       AttachmentRow(
         id: id ?? this.id,
@@ -1000,6 +1059,8 @@ class AttachmentRow extends DataClass implements Insertable<AttachmentRow> {
         kind: kind ?? this.kind,
         mimeType: mimeType ?? this.mimeType,
         data: data ?? this.data,
+        filePath: filePath.present ? filePath.value : this.filePath,
+        sizeBytes: sizeBytes.present ? sizeBytes.value : this.sizeBytes,
         name: name.present ? name.value : this.name,
       );
   AttachmentRow copyWithCompanion(AttachmentsCompanion data) {
@@ -1010,6 +1071,8 @@ class AttachmentRow extends DataClass implements Insertable<AttachmentRow> {
       kind: data.kind.present ? data.kind.value : this.kind,
       mimeType: data.mimeType.present ? data.mimeType.value : this.mimeType,
       data: data.data.present ? data.data.value : this.data,
+      filePath: data.filePath.present ? data.filePath.value : this.filePath,
+      sizeBytes: data.sizeBytes.present ? data.sizeBytes.value : this.sizeBytes,
       name: data.name.present ? data.name.value : this.name,
     );
   }
@@ -1023,14 +1086,16 @@ class AttachmentRow extends DataClass implements Insertable<AttachmentRow> {
           ..write('kind: $kind, ')
           ..write('mimeType: $mimeType, ')
           ..write('data: $data, ')
+          ..write('filePath: $filePath, ')
+          ..write('sizeBytes: $sizeBytes, ')
           ..write('name: $name')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, messageId, position, kind, mimeType, data, name);
+  int get hashCode => Object.hash(
+      id, messageId, position, kind, mimeType, data, filePath, sizeBytes, name);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1041,6 +1106,8 @@ class AttachmentRow extends DataClass implements Insertable<AttachmentRow> {
           other.kind == this.kind &&
           other.mimeType == this.mimeType &&
           other.data == this.data &&
+          other.filePath == this.filePath &&
+          other.sizeBytes == this.sizeBytes &&
           other.name == this.name);
 }
 
@@ -1051,6 +1118,8 @@ class AttachmentsCompanion extends UpdateCompanion<AttachmentRow> {
   final Value<String> kind;
   final Value<String> mimeType;
   final Value<String> data;
+  final Value<String?> filePath;
+  final Value<int?> sizeBytes;
   final Value<String?> name;
   const AttachmentsCompanion({
     this.id = const Value.absent(),
@@ -1059,6 +1128,8 @@ class AttachmentsCompanion extends UpdateCompanion<AttachmentRow> {
     this.kind = const Value.absent(),
     this.mimeType = const Value.absent(),
     this.data = const Value.absent(),
+    this.filePath = const Value.absent(),
+    this.sizeBytes = const Value.absent(),
     this.name = const Value.absent(),
   });
   AttachmentsCompanion.insert({
@@ -1068,6 +1139,8 @@ class AttachmentsCompanion extends UpdateCompanion<AttachmentRow> {
     required String kind,
     required String mimeType,
     required String data,
+    this.filePath = const Value.absent(),
+    this.sizeBytes = const Value.absent(),
     this.name = const Value.absent(),
   })  : messageId = Value(messageId),
         position = Value(position),
@@ -1081,6 +1154,8 @@ class AttachmentsCompanion extends UpdateCompanion<AttachmentRow> {
     Expression<String>? kind,
     Expression<String>? mimeType,
     Expression<String>? data,
+    Expression<String>? filePath,
+    Expression<int>? sizeBytes,
     Expression<String>? name,
   }) {
     return RawValuesInsertable({
@@ -1090,6 +1165,8 @@ class AttachmentsCompanion extends UpdateCompanion<AttachmentRow> {
       if (kind != null) 'kind': kind,
       if (mimeType != null) 'mime_type': mimeType,
       if (data != null) 'data': data,
+      if (filePath != null) 'file_path': filePath,
+      if (sizeBytes != null) 'size_bytes': sizeBytes,
       if (name != null) 'name': name,
     });
   }
@@ -1101,6 +1178,8 @@ class AttachmentsCompanion extends UpdateCompanion<AttachmentRow> {
       Value<String>? kind,
       Value<String>? mimeType,
       Value<String>? data,
+      Value<String?>? filePath,
+      Value<int?>? sizeBytes,
       Value<String?>? name}) {
     return AttachmentsCompanion(
       id: id ?? this.id,
@@ -1109,6 +1188,8 @@ class AttachmentsCompanion extends UpdateCompanion<AttachmentRow> {
       kind: kind ?? this.kind,
       mimeType: mimeType ?? this.mimeType,
       data: data ?? this.data,
+      filePath: filePath ?? this.filePath,
+      sizeBytes: sizeBytes ?? this.sizeBytes,
       name: name ?? this.name,
     );
   }
@@ -1134,6 +1215,12 @@ class AttachmentsCompanion extends UpdateCompanion<AttachmentRow> {
     if (data.present) {
       map['data'] = Variable<String>(data.value);
     }
+    if (filePath.present) {
+      map['file_path'] = Variable<String>(filePath.value);
+    }
+    if (sizeBytes.present) {
+      map['size_bytes'] = Variable<int>(sizeBytes.value);
+    }
     if (name.present) {
       map['name'] = Variable<String>(name.value);
     }
@@ -1149,6 +1236,8 @@ class AttachmentsCompanion extends UpdateCompanion<AttachmentRow> {
           ..write('kind: $kind, ')
           ..write('mimeType: $mimeType, ')
           ..write('data: $data, ')
+          ..write('filePath: $filePath, ')
+          ..write('sizeBytes: $sizeBytes, ')
           ..write('name: $name')
           ..write(')'))
         .toString();
@@ -1855,6 +1944,8 @@ typedef $$AttachmentsTableCreateCompanionBuilder = AttachmentsCompanion
   required String kind,
   required String mimeType,
   required String data,
+  Value<String?> filePath,
+  Value<int?> sizeBytes,
   Value<String?> name,
 });
 typedef $$AttachmentsTableUpdateCompanionBuilder = AttachmentsCompanion
@@ -1865,6 +1956,8 @@ typedef $$AttachmentsTableUpdateCompanionBuilder = AttachmentsCompanion
   Value<String> kind,
   Value<String> mimeType,
   Value<String> data,
+  Value<String?> filePath,
+  Value<int?> sizeBytes,
   Value<String?> name,
 });
 
@@ -1910,6 +2003,12 @@ class $$AttachmentsTableFilterComposer
 
   ColumnFilters<String> get data => $composableBuilder(
       column: $table.data, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get filePath => $composableBuilder(
+      column: $table.filePath, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get sizeBytes => $composableBuilder(
+      column: $table.sizeBytes, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get name => $composableBuilder(
       column: $table.name, builder: (column) => ColumnFilters(column));
@@ -1959,6 +2058,12 @@ class $$AttachmentsTableOrderingComposer
   ColumnOrderings<String> get data => $composableBuilder(
       column: $table.data, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get filePath => $composableBuilder(
+      column: $table.filePath, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get sizeBytes => $composableBuilder(
+      column: $table.sizeBytes, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<String> get name => $composableBuilder(
       column: $table.name, builder: (column) => ColumnOrderings(column));
 
@@ -2006,6 +2111,12 @@ class $$AttachmentsTableAnnotationComposer
 
   GeneratedColumn<String> get data =>
       $composableBuilder(column: $table.data, builder: (column) => column);
+
+  GeneratedColumn<String> get filePath =>
+      $composableBuilder(column: $table.filePath, builder: (column) => column);
+
+  GeneratedColumn<int> get sizeBytes =>
+      $composableBuilder(column: $table.sizeBytes, builder: (column) => column);
 
   GeneratedColumn<String> get name =>
       $composableBuilder(column: $table.name, builder: (column) => column);
@@ -2060,6 +2171,8 @@ class $$AttachmentsTableTableManager extends RootTableManager<
             Value<String> kind = const Value.absent(),
             Value<String> mimeType = const Value.absent(),
             Value<String> data = const Value.absent(),
+            Value<String?> filePath = const Value.absent(),
+            Value<int?> sizeBytes = const Value.absent(),
             Value<String?> name = const Value.absent(),
           }) =>
               AttachmentsCompanion(
@@ -2069,6 +2182,8 @@ class $$AttachmentsTableTableManager extends RootTableManager<
             kind: kind,
             mimeType: mimeType,
             data: data,
+            filePath: filePath,
+            sizeBytes: sizeBytes,
             name: name,
           ),
           createCompanionCallback: ({
@@ -2078,6 +2193,8 @@ class $$AttachmentsTableTableManager extends RootTableManager<
             required String kind,
             required String mimeType,
             required String data,
+            Value<String?> filePath = const Value.absent(),
+            Value<int?> sizeBytes = const Value.absent(),
             Value<String?> name = const Value.absent(),
           }) =>
               AttachmentsCompanion.insert(
@@ -2087,6 +2204,8 @@ class $$AttachmentsTableTableManager extends RootTableManager<
             kind: kind,
             mimeType: mimeType,
             data: data,
+            filePath: filePath,
+            sizeBytes: sizeBytes,
             name: name,
           ),
           withReferenceMapper: (p0) => p0

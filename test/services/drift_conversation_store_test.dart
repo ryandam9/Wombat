@@ -1,21 +1,33 @@
+import 'dart:io';
+
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:wombat/models/attachment.dart';
 import 'package:wombat/models/chat_message.dart';
 import 'package:wombat/models/conversation.dart';
+import 'package:wombat/services/attachment_store.dart';
 import 'package:wombat/services/database/app_database.dart';
 import 'package:wombat/services/drift_conversation_store.dart';
 
 void main() {
   late AppDatabase db;
   late DriftConversationStore store;
+  late Directory attachmentsDir;
+  late AttachmentStore files;
 
-  setUp(() {
+  setUp(() async {
     db = AppDatabase(NativeDatabase.memory());
-    store = DriftConversationStore(db);
+    attachmentsDir = await Directory.systemTemp.createTemp('wombat_att_test');
+    files = AttachmentStore(directory: attachmentsDir);
+    store = DriftConversationStore(db, attachmentStore: files);
   });
 
-  tearDown(() async => db.close());
+  tearDown(() async {
+    await db.close();
+    if (attachmentsDir.existsSync()) {
+      await attachmentsDir.delete(recursive: true);
+    }
+  });
 
   test('returns empty list for a fresh database', () async {
     expect(await store.load(), isEmpty);
@@ -122,7 +134,9 @@ void main() {
           content: 'Hello world',
           attachments: const [
             MessageAttachment(
-                kind: AttachmentKind.image, mimeType: 'image/png', base64Data: 'Z'),
+                kind: AttachmentKind.image,
+                mimeType: 'image/png',
+                base64Data: 'AAAA'),
           ],
         ),
         0,
@@ -130,7 +144,7 @@ void main() {
 
       final msg = (await store.load()).single.messages.single;
       expect(msg.content, 'Hello world');
-      expect(msg.attachments.single.base64Data, 'Z');
+      expect(msg.attachments.single.base64Data, 'AAAA');
       // No duplicate message rows.
       expect((await db.select(db.messages).get()), hasLength(1));
     });
@@ -171,6 +185,41 @@ void main() {
       final full = await store.loadConversation('c1');
       expect(full!.messages.single.content, 'hi');
       expect(await store.loadConversation('missing'), isNull);
+    });
+
+    test('attachments are stored as files (not base64 in the DB)', () async {
+      await store.upsertConversation(
+          Conversation(id: 'c1', title: 't', modelId: 'm'));
+      await store.saveMessage(
+        'c1',
+        ChatMessage(
+          id: 'm1',
+          role: MessageRole.user,
+          content: 'see image',
+          attachments: const [
+            MessageAttachment(
+                kind: AttachmentKind.image,
+                mimeType: 'image/png',
+                base64Data: 'AAAA'),
+          ],
+        ),
+        0,
+      );
+
+      // DB row holds a file path, not base64.
+      final row = (await db.select(db.attachments).get()).single;
+      expect(row.filePath, isNotNull);
+      expect(row.data, isEmpty);
+      expect(row.sizeBytes, 3); // 'AAAA' → 3 bytes
+      expect(File(row.filePath!).existsSync(), isTrue);
+
+      // Loading hydrates the bytes back from the file.
+      final att = (await store.load()).single.messages.single.attachments.single;
+      expect(att.base64Data, 'AAAA');
+
+      // Deleting the conversation removes the attachment file.
+      await store.deleteConversation('c1');
+      expect(File(row.filePath!).existsSync(), isFalse);
     });
 
     test('deleteConversation and deleteAllConversations', () async {
