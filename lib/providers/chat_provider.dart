@@ -48,6 +48,12 @@ class ChatNotifier extends Notifier<ChatState> {
   String? _error;
   StreamSubscription<String>? _sub;
 
+  // Lazy loading: conversations load as metadata-only "shells"; a chat's
+  // messages are loaded the first time it's opened. Tracks which are loaded and
+  // de-duplicates concurrent loads.
+  final Set<String> _loadedIds = {};
+  final Map<String, Future<void>> _loadingFutures = {};
+
   // Coalesces rapid streaming deltas into at most ~16 UI updates/second so the
   // Markdown body isn't re-parsed on every single token.
   Timer? _streamThrottle;
@@ -95,11 +101,33 @@ class ChatNotifier extends Notifier<ChatState> {
   String? get error => _error;
 
   Future<void> _init() async {
-    _conversations = await _store.load();
+    // Load metadata only; the first chat's messages are loaded before we clear
+    // the loading flag so the opened chat is ready, but the rest stay as shells.
+    _conversations = await _store.loadSummaries();
     _sortConversations();
-    if (_conversations.isNotEmpty) _current = _conversations.first;
+    if (_conversations.isNotEmpty) {
+      _current = _conversations.first;
+      await _ensureLoaded(_current!);
+    }
     _loading = false;
     _emit();
+  }
+
+  /// Loads [convo]'s messages from the store the first time it's opened.
+  /// Concurrent calls share a single load.
+  Future<void> _ensureLoaded(Conversation convo) {
+    if (_loadedIds.contains(convo.id)) return Future.value();
+    return _loadingFutures.putIfAbsent(convo.id, () async {
+      final full = await _store.loadConversation(convo.id);
+      if (full != null) {
+        convo.messages
+          ..clear()
+          ..addAll(full.messages);
+      }
+      _loadedIds.add(convo.id);
+      _loadingFutures.remove(convo.id);
+      if (identical(_current, convo)) _emit();
+    });
   }
 
   /// Notifies listeners at most once per [_streamInterval] during streaming.
@@ -132,6 +160,8 @@ class ChatNotifier extends Notifier<ChatState> {
     _current = match.first;
     _error = null;
     _emit();
+    // Load its messages if not already (fills in shortly after via _emit).
+    _ensureLoaded(_current!);
   }
 
   Conversation newConversation() {
@@ -144,6 +174,7 @@ class ChatNotifier extends Notifier<ChatState> {
     _sortConversations(); // place below any pinned chats
     _current = convo;
     _error = null;
+    _loadedIds.add(convo.id); // a brand-new chat owns its (empty) messages
     _emit();
     _persistMeta(convo);
     return convo;
@@ -172,16 +203,19 @@ class ChatNotifier extends Notifier<ChatState> {
 
   Future<void> deleteConversation(String id) async {
     _conversations.removeWhere((c) => c.id == id);
+    _loadedIds.remove(id);
     if (_current?.id == id) {
       _current = _conversations.isNotEmpty ? _conversations.first : null;
     }
     _emit();
     await _store.deleteConversation(id);
+    if (_current != null) _ensureLoaded(_current!);
   }
 
   /// Removes every conversation (used by "Delete all chats").
   Future<void> deleteAllConversations() async {
     _conversations.clear();
+    _loadedIds.clear();
     _current = null;
     _emit();
     await _store.deleteAllConversations();
@@ -226,6 +260,8 @@ class ChatNotifier extends Notifier<ChatState> {
     }
 
     final convo = _current ??= newConversation();
+    // Ensure prior messages are loaded before appending to this chat.
+    await _ensureLoaded(convo);
 
     final userMessage = ChatMessage(
       id: _uuid.v4(),

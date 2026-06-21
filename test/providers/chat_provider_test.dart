@@ -2,6 +2,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:wombat/models/attachment.dart';
 import 'package:wombat/models/chat_message.dart';
+import 'package:wombat/models/conversation.dart';
 import 'package:wombat/models/usage.dart';
 import 'package:wombat/providers/chat_provider.dart';
 import 'package:wombat/providers/usage_provider.dart';
@@ -33,6 +34,42 @@ void main() {
       final chat = await buildChat();
       expect(chat.conversations, isEmpty);
       expect(chat.current, isNull);
+    });
+
+    test('loads metadata shells and lazy-loads messages on open', () async {
+      final store = FakeConversationStore(initial: [
+        Conversation(
+          id: 'a',
+          title: 'A',
+          modelId: 'm',
+          updatedAt: DateTime(2021),
+          messages: [
+            ChatMessage(id: 'ma', role: MessageRole.user, content: 'A body'),
+          ],
+        ),
+        Conversation(
+          id: 'b',
+          title: 'B',
+          modelId: 'm',
+          updatedAt: DateTime(2020),
+          messages: [
+            ChatMessage(id: 'mb', role: MessageRole.user, content: 'B body'),
+          ],
+        ),
+      ]);
+      final chat = await buildChat(store: store);
+
+      // Most-recent chat is current and fully loaded on startup…
+      expect(chat.current!.id, 'a');
+      expect(chat.current!.messages.single.content, 'A body');
+      // …the other is a metadata-only shell until opened.
+      expect(chat.conversations.firstWhere((c) => c.id == 'b').messages,
+          isEmpty);
+
+      chat.selectConversation('b');
+      await waitUntil(() => chat.current?.messages.isNotEmpty ?? false);
+      expect(chat.current!.id, 'b');
+      expect(chat.current!.messages.single.content, 'B body');
     });
 
     test('newConversation creates, selects and uses default model', () async {

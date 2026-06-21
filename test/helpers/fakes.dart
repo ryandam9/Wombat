@@ -41,6 +41,30 @@ class FakeConversationStore extends ConversationStore {
   Future<List<Conversation>> load() async => _data;
 
   @override
+  Future<List<Conversation>> loadSummaries() async => [
+        // Metadata-only shells (empty messages), like the real store.
+        for (final c in _data)
+          Conversation(
+            id: c.id,
+            title: c.title,
+            modelId: c.modelId,
+            supportsImageOutput: c.supportsImageOutput,
+            pinned: c.pinned,
+            createdAt: c.createdAt,
+            updatedAt: c.updatedAt,
+            messages: [],
+          ),
+      ];
+
+  @override
+  Future<Conversation?> loadConversation(String id) async {
+    for (final c in _data) {
+      if (c.id == id) return c;
+    }
+    return null;
+  }
+
+  @override
   Future<void> save(List<Conversation> conversations) async {
     saveCount++;
     // Store a detached copy so later mutations don't retroactively change it.
