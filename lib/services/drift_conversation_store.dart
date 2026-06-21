@@ -132,6 +132,66 @@ class DriftConversationStore extends ConversationStore {
     });
   }
 
+  @override
+  Future<void> upsertConversation(Conversation c) async {
+    await _db.into(_db.conversations).insertOnConflictUpdate(
+          ConversationsCompanion.insert(
+            id: c.id,
+            title: c.title,
+            modelId: c.modelId,
+            supportsImageOutput: Value(c.supportsImageOutput),
+            pinned: Value(c.pinned),
+            createdAt: c.createdAt,
+            updatedAt: c.updatedAt,
+          ),
+        );
+  }
+
+  @override
+  Future<void> saveMessage(
+      String conversationId, ChatMessage m, int position) async {
+    await _db.transaction(() async {
+      await _db.into(_db.messages).insertOnConflictUpdate(
+            MessagesCompanion.insert(
+              id: m.id,
+              conversationId: conversationId,
+              position: position,
+              role: m.role.name,
+              content: m.content,
+              createdAt: m.createdAt,
+              error: Value(m.error),
+            ),
+          );
+      // Replace just this message's attachments.
+      await (_db.delete(_db.attachments)
+            ..where((a) => a.messageId.equals(m.id)))
+          .go();
+      for (var j = 0; j < m.attachments.length; j++) {
+        final a = m.attachments[j];
+        await _db.into(_db.attachments).insert(
+              AttachmentsCompanion.insert(
+                messageId: m.id,
+                position: j,
+                kind: a.kind.name,
+                mimeType: a.mimeType,
+                data: a.base64Data,
+                name: Value(a.name),
+              ),
+            );
+      }
+    });
+  }
+
+  @override
+  Future<void> deleteConversation(String id) async {
+    await (_db.delete(_db.conversations)..where((c) => c.id.equals(id))).go();
+  }
+
+  @override
+  Future<void> deleteAllConversations() async {
+    await _db.delete(_db.conversations).go();
+  }
+
   MessageRole _roleFromName(String name) => MessageRole.values.firstWhere(
         (r) => r.name == name,
         orElse: () => MessageRole.assistant,

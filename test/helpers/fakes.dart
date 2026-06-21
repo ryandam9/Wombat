@@ -27,12 +27,14 @@ class FakeSecureStorageService extends SecureStorageService {
   Future<void> deleteApiKey() async => _value = null;
 }
 
-/// In-memory [ConversationStore] that records every save for assertions.
+/// In-memory [ConversationStore] that records every write for assertions.
 class FakeConversationStore extends ConversationStore {
   FakeConversationStore({List<Conversation>? initial})
       : _data = initial ?? [];
 
   List<Conversation> _data;
+
+  /// Total number of persistence writes (bulk save + targeted writes).
   int saveCount = 0;
 
   @override
@@ -43,6 +45,39 @@ class FakeConversationStore extends ConversationStore {
     saveCount++;
     // Store a detached copy so later mutations don't retroactively change it.
     _data = List<Conversation>.from(conversations);
+  }
+
+  // The provider mutates the same Conversation objects we hold a reference to,
+  // so the targeted writes only need to keep the set of conversations in sync
+  // and bump the write counter.
+
+  @override
+  Future<void> upsertConversation(Conversation conversation) async {
+    saveCount++;
+    final i = _data.indexWhere((c) => c.id == conversation.id);
+    if (i >= 0) {
+      _data[i] = conversation;
+    } else {
+      _data.insert(0, conversation);
+    }
+  }
+
+  @override
+  Future<void> saveMessage(
+      String conversationId, ChatMessage message, int position) async {
+    saveCount++;
+  }
+
+  @override
+  Future<void> deleteConversation(String id) async {
+    saveCount++;
+    _data.removeWhere((c) => c.id == id);
+  }
+
+  @override
+  Future<void> deleteAllConversations() async {
+    saveCount++;
+    _data.clear();
   }
 }
 
