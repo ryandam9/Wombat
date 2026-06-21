@@ -206,27 +206,6 @@ class _ConversationListState extends ConsumerState<ConversationList> {
     );
   }
 
-  /// Tiles grouped under a "Pinned" heading and then by recency date.
-  List<Widget> _groupedTiles(List<Conversation> conversations, String? curId) {
-    final pinned = conversations.where((c) => c.pinned).toList();
-    final rest = conversations.where((c) => !c.pinned).toList();
-    final children = <Widget>[];
-    if (pinned.isNotEmpty) {
-      children.add(const _SectionLabel('Pinned'));
-      children.addAll(pinned.map((c) => _tile(c, curId)));
-    }
-    String? lastLabel;
-    for (final c in rest) {
-      final label = _dateGroup(c.updatedAt);
-      if (label != lastLabel) {
-        children.add(_SectionLabel(label));
-        lastLabel = label;
-      }
-      children.add(_tile(c, curId));
-    }
-    return children;
-  }
-
   static String _dateGroup(DateTime date) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
@@ -264,6 +243,118 @@ class _ConversationListState extends ConsumerState<ConversationList> {
     // scanning; the dashboard's short list and search results stay flat.
     final grouped = !widget.showNavigation && query.isEmpty;
 
+    final curId = chat.current?.id;
+    // A flat list of lazy row builders so the (potentially long) history is
+    // virtualized by ListView.builder rather than built all at once.
+    final rows = <Widget Function()>[];
+
+    if (widget.showNavigation) {
+      rows
+        ..add(() => const _SectionLabel('Navigation'))
+        ..add(() => _NavItem(
+            icon: Icons.history,
+            label: 'Chat history',
+            selected: _isSelected(DashboardSection.chat),
+            onTap: _openHistory))
+        ..add(() => _NavItem(
+            icon: Icons.grid_view_outlined,
+            label: 'Models',
+            selected: _isSelected(DashboardSection.models),
+            onTap: () => _navigate(DashboardSection.models, mobile: _openModels)))
+        ..add(() => _NavItem(
+            icon: Icons.insights_outlined,
+            label: 'Usage',
+            selected: _isSelected(DashboardSection.usage),
+            onTap: () => _navigate(DashboardSection.usage,
+                mobile: () => _open(const UsageScreen()))))
+        ..add(() => _NavItem(
+            icon: Icons.bug_report_outlined,
+            label: 'Debug',
+            selected: _isSelected(DashboardSection.debug),
+            onTap: () => _navigate(DashboardSection.debug,
+                mobile: () => _open(const DebugScreen()))))
+        ..add(() => _NavItem(
+            icon: Icons.settings_outlined,
+            label: 'Settings',
+            selected: _isSelected(DashboardSection.settings),
+            onTap: () => _navigate(DashboardSection.settings,
+                mobile: () => _open(const SettingsScreen()))))
+        ..add(() => _NavItem(
+            icon: Icons.help_outline,
+            label: 'Help & Troubleshoot',
+            selected: _isSelected(DashboardSection.help),
+            onTap: () => _navigate(DashboardSection.help,
+                mobile: () => _open(const HelpScreen()))))
+        ..add(() => const SizedBox(height: 8));
+    }
+
+    rows.add(() => _RecentHeader(
+          title: widget.showNavigation ? 'RECENT CHATS' : 'ALL CHATS',
+          searching: _searching,
+          onToggleSearch: () => setState(() {
+            _searching = !_searching;
+            if (!_searching) {
+              _search.clear();
+              _query = '';
+            }
+          }),
+          // Bulk delete on the full history page only.
+          onClearAll: (!widget.showNavigation && matches.isNotEmpty)
+              ? () => _confirmClearAll(matches.length)
+              : null,
+        ));
+
+    if (_searching) {
+      rows.add(() => Padding(
+            padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
+            child: TextField(
+              controller: _search,
+              autofocus: true,
+              onChanged: (v) => setState(() => _query = v),
+              decoration: InputDecoration(
+                isDense: true,
+                hintText: 'Search chats…',
+                prefixIcon: const Icon(Icons.search, size: 18),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ),
+          ));
+    }
+    rows.add(() => const Divider(height: 1));
+
+    if (conversations.isEmpty) {
+      rows.add(() => Padding(
+            padding: const EdgeInsets.symmetric(vertical: 24),
+            child: Center(
+              child: Text(
+                query.isEmpty
+                    ? 'No conversations yet'
+                    : 'No chats match "$_query"',
+                style: theme.textTheme.bodyMedium
+                    ?.copyWith(color: theme.colorScheme.outline),
+              ),
+            ),
+          ));
+    } else if (grouped) {
+      _appendGroupedRows(rows, conversations, curId);
+    } else {
+      for (final convo in conversations) {
+        rows.add(() => _tile(convo, curId));
+      }
+      if (hiddenCount > 0) {
+        rows.add(() => Padding(
+              padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
+              child: TextButton.icon(
+                onPressed: _openHistory,
+                icon: const Icon(Icons.history, size: 18),
+                label: Text('View all ($hiddenCount more)'),
+              ),
+            ));
+      }
+    }
+
     return SafeArea(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -298,124 +389,43 @@ class _ConversationListState extends ConsumerState<ConversationList> {
             const SizedBox(height: 8),
           ],
           Expanded(
-            child: ListView(
+            child: ListView.builder(
               // Leave room past the last tile for the host's New chat FAB.
               padding: widget.embedded
                   ? const EdgeInsets.only(bottom: 88)
                   : EdgeInsets.zero,
-              children: [
-                if (widget.showNavigation) ...[
-                  const _SectionLabel('Navigation'),
-                  _NavItem(
-                    icon: Icons.history,
-                    label: 'Chat history',
-                    selected: _isSelected(DashboardSection.chat),
-                    onTap: _openHistory,
-                  ),
-                  _NavItem(
-                    icon: Icons.grid_view_outlined,
-                    label: 'Models',
-                    selected: _isSelected(DashboardSection.models),
-                    onTap: () =>
-                        _navigate(DashboardSection.models, mobile: _openModels),
-                  ),
-                  _NavItem(
-                    icon: Icons.insights_outlined,
-                    label: 'Usage',
-                    selected: _isSelected(DashboardSection.usage),
-                    onTap: () => _navigate(DashboardSection.usage,
-                        mobile: () => _open(const UsageScreen())),
-                  ),
-                  _NavItem(
-                    icon: Icons.bug_report_outlined,
-                    label: 'Debug',
-                    selected: _isSelected(DashboardSection.debug),
-                    onTap: () => _navigate(DashboardSection.debug,
-                        mobile: () => _open(const DebugScreen())),
-                  ),
-                  _NavItem(
-                    icon: Icons.settings_outlined,
-                    label: 'Settings',
-                    selected: _isSelected(DashboardSection.settings),
-                    onTap: () => _navigate(DashboardSection.settings,
-                        mobile: () => _open(const SettingsScreen())),
-                  ),
-                  _NavItem(
-                    icon: Icons.help_outline,
-                    label: 'Help & Troubleshoot',
-                    selected: _isSelected(DashboardSection.help),
-                    onTap: () => _navigate(DashboardSection.help,
-                        mobile: () => _open(const HelpScreen())),
-                  ),
-                  const SizedBox(height: 8),
-                ],
-                _RecentHeader(
-                  title: widget.showNavigation ? 'RECENT CHATS' : 'ALL CHATS',
-                  searching: _searching,
-                  onToggleSearch: () => setState(() {
-                    _searching = !_searching;
-                    if (!_searching) {
-                      _search.clear();
-                      _query = '';
-                    }
-                  }),
-                  // Bulk delete on the full history page only.
-                  onClearAll: (!widget.showNavigation && matches.isNotEmpty)
-                      ? () => _confirmClearAll(matches.length)
-                      : null,
-                ),
-                if (_searching)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
-                    child: TextField(
-                      controller: _search,
-                      autofocus: true,
-                      onChanged: (v) => setState(() => _query = v),
-                      decoration: InputDecoration(
-                        isDense: true,
-                        hintText: 'Search chats…',
-                        prefixIcon: const Icon(Icons.search, size: 18),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                    ),
-                  ),
-                const Divider(height: 1),
-                if (conversations.isEmpty)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 24),
-                    child: Center(
-                      child: Text(
-                        query.isEmpty
-                            ? 'No conversations yet'
-                            : 'No chats match "$_query"',
-                        style: theme.textTheme.bodyMedium
-                            ?.copyWith(color: theme.colorScheme.outline),
-                      ),
-                    ),
-                  )
-                else if (grouped)
-                  ..._groupedTiles(conversations, chat.current?.id)
-                else ...[
-                  for (final convo in conversations)
-                    _tile(convo, chat.current?.id),
-                  if (hiddenCount > 0)
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
-                      child: TextButton.icon(
-                        onPressed: _openHistory,
-                        icon: const Icon(Icons.history, size: 18),
-                        label: Text('View all ($hiddenCount more)'),
-                      ),
-                    ),
-                ],
-              ],
+              itemCount: rows.length,
+              itemBuilder: (_, i) => rows[i](),
             ),
           ),
         ],
       ),
     );
+  }
+
+  /// Appends "Pinned" + date-grouped tile rows as lazy builders.
+  void _appendGroupedRows(
+    List<Widget Function()> rows,
+    List<Conversation> conversations,
+    String? curId,
+  ) {
+    final pinned = conversations.where((c) => c.pinned).toList();
+    final rest = conversations.where((c) => !c.pinned).toList();
+    if (pinned.isNotEmpty) {
+      rows.add(() => const _SectionLabel('Pinned'));
+      for (final c in pinned) {
+        rows.add(() => _tile(c, curId));
+      }
+    }
+    String? lastLabel;
+    for (final c in rest) {
+      final label = _dateGroup(c.updatedAt);
+      if (label != lastLabel) {
+        rows.add(() => _SectionLabel(label));
+        lastLabel = label;
+      }
+      rows.add(() => _tile(c, curId));
+    }
   }
 }
 
