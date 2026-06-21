@@ -117,6 +117,21 @@ void main() {
     expect(find.byType(MarkdownBody), findsNothing);
   });
 
+  testWidgets('renders an HTML reply with a code block without error',
+      (tester) async {
+    await tester.pumpWidget(_wrap(
+      ChatMessage(
+        id: '1',
+        role: MessageRole.assistant,
+        content: '<p>Example:</p><pre><code>&lt;div&gt;hi&lt;/div&gt;</code></pre>',
+      ),
+    ));
+    await tester.pump();
+
+    expect(find.byType(Html), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('HTML shown inside a code fence is not auto-rendered',
       (tester) async {
     await tester.pumpWidget(_wrap(

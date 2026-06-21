@@ -467,6 +467,20 @@ class _HtmlView extends StatelessWidget {
             fontFamily: settings.modelFont.family,
           ),
           'a': Style(color: scheme.primary),
+          // Code keeps a monospace font on a distinct, bordered background —
+          // the body font above would otherwise cascade into it.
+          'code': Style(
+            fontFamily: 'monospace',
+            backgroundColor: scheme.surfaceContainerLowest,
+          ),
+          'pre': Style(
+            fontFamily: 'monospace',
+            backgroundColor: scheme.surfaceContainerLowest,
+            padding: HtmlPaddings.all(10),
+            border: Border.all(color: scheme.outlineVariant),
+          ),
+          // Avoid doubling the background when <code> is nested inside <pre>.
+          'pre code': Style(backgroundColor: Colors.transparent),
         },
       ),
     );
