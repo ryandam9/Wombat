@@ -7,6 +7,7 @@ import '../models/usage.dart';
 import '../providers/usage_provider.dart';
 import '../widgets/motion.dart';
 import '../widgets/shimmer.dart';
+import '../widgets/staggered_entrance.dart';
 import '../widgets/ui_kit.dart';
 
 /// Shows OpenRouter usage accumulated during the current app session, plus the
@@ -125,7 +126,11 @@ class _CardGrid extends StatelessWidget {
           spacing: spacing,
           runSpacing: spacing,
           children: [
-            for (final card in cards) SizedBox(width: width, child: card),
+            for (final (i, card) in cards.indexed)
+              SizedBox(
+                width: width,
+                child: StaggeredEntrance(index: i, child: card),
+              ),
           ],
         );
       },

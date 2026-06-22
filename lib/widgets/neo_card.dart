@@ -1,13 +1,19 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_tokens.dart';
+import 'pressable_scale.dart';
 
 /// A Neo Brutalist card: a flat colour block with a thick dark outline and a
 /// hard offset shadow (zero blur). This is the signature look — a crisp
 /// duplicate of the card's silhouette dropped behind and to the bottom-right.
 ///
+/// When [onTap] is set the card becomes tactile: hovering lifts it (the shadow
+/// grows), pressing mashes it flat (the shadow collapses and it sinks in) — the
+/// defining Neo Brutalist interaction. Honours reduced motion.
+///
 /// Pass [shadowOffset] to tune the shadow size (defaults to [AppTokens.shadowMd]).
 /// Set [elevated] false to drop the shadow (e.g. for tightly packed grids).
+/// Pass a small [tilt] (radians) for a hand-placed, sticker-like feel.
 class NeoCard extends StatelessWidget {
   const NeoCard({
     super.key,
@@ -20,6 +26,7 @@ class NeoCard extends StatelessWidget {
     this.elevated = true,
     this.padding,
     this.onTap,
+    this.tilt = 0,
   });
 
   final Widget child;
@@ -32,24 +39,28 @@ class NeoCard extends StatelessWidget {
   final EdgeInsetsGeometry? padding;
   final VoidCallback? onTap;
 
+  /// A slight rotation (radians) for a playful, hand-placed look. Defaults to 0.
+  final double tilt;
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final fill = color ?? scheme.surfaceContainerLow;
     final outline = borderColor ?? scheme.outline;
-    final shadow = scheme.shadow;
+    final interactive = onTap != null;
 
-    // A single BoxDecoration with a zero-blur boxShadow gives the crisp hard
-    // offset shadow that defines Neo Brutalism — no second stacked box needed.
-    return DecoratedBox(
+    // The fill + border. When interactive, the (animated) shadow is cast by the
+    // wrapping PressableScale so it can grow on hover / collapse on press; for a
+    // static card the shadow lives here.
+    Widget card = DecoratedBox(
       decoration: BoxDecoration(
         color: fill,
         borderRadius: BorderRadius.circular(radius),
         border: Border.all(color: outline, width: borderWidth),
-        boxShadow: elevated
+        boxShadow: (elevated && !interactive)
             ? [
                 BoxShadow(
-                  color: shadow,
+                  color: scheme.shadow,
                   offset: shadowOffset,
                   blurRadius: 0,
                   spreadRadius: 0,
@@ -71,5 +82,19 @@ class NeoCard extends StatelessWidget {
         ),
       ),
     );
+
+    if (interactive && elevated) {
+      card = PressableScale(
+        mode: PressMode.neo,
+        shadowOffset: shadowOffset,
+        borderRadius: radius,
+        child: card,
+      );
+    }
+
+    if (tilt != 0) {
+      card = Transform.rotate(angle: tilt, child: card);
+    }
+    return card;
   }
 }

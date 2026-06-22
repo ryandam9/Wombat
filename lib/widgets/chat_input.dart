@@ -11,6 +11,7 @@ import '../models/attachment.dart';
 import '../providers/chat_provider.dart';
 import '../services/attachment_limits.dart';
 import '../services/wav.dart';
+import '../theme/app_tokens.dart';
 import 'motion.dart';
 import 'pressable_scale.dart';
 
@@ -324,6 +325,9 @@ class _ChatInputState extends ConsumerState<ChatInput> {
                   ),
                   const SizedBox(width: 4),
                   PressableScale(
+                    mode: PressMode.neo,
+                    shadowOffset: AppTokens.shadowSm,
+                    borderRadius: 24,
                     child: AnimatedSwitcher(
                       duration: motion.fast,
                       transitionBuilder: (child, animation) => ScaleTransition(

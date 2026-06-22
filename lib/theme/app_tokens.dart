@@ -35,6 +35,17 @@ class AppTokens {
   static const Duration durFast = Duration(milliseconds: 140);
   static const Duration durMed = Duration(milliseconds: 250);
   static const Duration durSlow = Duration(milliseconds: 380);
+
+  // ── Signature motion curves ───────────────────────────────────────────────
+  // A little overshoot gives the playful Neo Brutalist "snap into place" bounce.
+  static const Curve curveOvershoot = Curves.easeOutBack;
+  static const Curve curveSnap = Curves.easeOutCubic;
+
+  // ── Hover lift (desktop/web) ───────────────────────────────────────────────
+  // On hover a card rises: its hard shadow grows and the card nudges up-left.
+  static const Offset hoverLift = Offset(-1, -1); // translation on hover
+  static const double hoverShadowGrow = 2; // extra px added to the shadow offset
+
 }
 
 /// The curated Wombat palette: Australian nature, bolder. These are the raw

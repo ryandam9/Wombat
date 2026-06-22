@@ -3,6 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/settings_provider.dart';
 import '../screens/settings_screen.dart';
+import '../theme/app_tokens.dart';
+import 'dotted_background.dart';
+import 'pressable_scale.dart';
+import 'staggered_entrance.dart';
 import 'ui_kit.dart';
 
 /// The Wombat welcome dashboard: avatar, title and a getting-started
@@ -21,7 +25,8 @@ class DashboardLanding extends ConsumerWidget {
     final scheme = theme.colorScheme;
     final hasKey = ref.watch(settingsProvider.select((s) => s.hasApiKey));
 
-    return Center(
+    return DottedBackground(
+      child: Center(
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: ConstrainedBox(
@@ -67,34 +72,50 @@ class DashboardLanding extends ConsumerWidget {
               const SizedBox(height: 28),
               SectionPanel(
                 title: 'Getting started',
+                accent: WombatColors.eucalyptus,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _StartStep(
-                      step: 1,
-                      icon: Icons.key_outlined,
-                      title: hasKey ? 'API key configured' : 'Add your API key',
-                      description: hasKey
-                          ? 'Your OpenRouter API key is set and ready to use.'
-                          : 'Save your OpenRouter key in Settings to begin.',
-                      done: hasKey,
-                      onTap: hasKey ? null : () => _openSettings(context),
+                    StaggeredEntrance(
+                      index: 0,
+                      child: _StartStep(
+                        step: 1,
+                        icon: Icons.key_outlined,
+                        accent: WombatColors.clay,
+                        tilt: -0.04,
+                        title:
+                            hasKey ? 'API key configured' : 'Add your API key',
+                        description: hasKey
+                            ? 'Your OpenRouter API key is set and ready to use.'
+                            : 'Save your OpenRouter key in Settings to begin.',
+                        done: hasKey,
+                        onTap: hasKey ? null : () => _openSettings(context),
+                      ),
                     ),
                     const Divider(height: 20),
-                    const _StartStep(
-                      step: 2,
-                      icon: Icons.add_comment_outlined,
-                      title: 'Start a new chat',
-                      description:
-                          'Tap "New chat" to open a conversation.',
+                    const StaggeredEntrance(
+                      index: 1,
+                      child: _StartStep(
+                        step: 2,
+                        icon: Icons.add_comment_outlined,
+                        accent: WombatColors.skyBlue,
+                        tilt: 0.05,
+                        title: 'Start a new chat',
+                        description: 'Tap "New chat" to open a conversation.',
+                      ),
                     ),
                     const Divider(height: 20),
-                    const _StartStep(
-                      step: 3,
-                      icon: Icons.send_outlined,
-                      title: 'Pick a model and send',
-                      description: 'Choose a model in the header, then type '
-                          'your first message.',
+                    const StaggeredEntrance(
+                      index: 2,
+                      child: _StartStep(
+                        step: 3,
+                        icon: Icons.send_outlined,
+                        accent: WombatColors.coral,
+                        tilt: -0.05,
+                        title: 'Pick a model and send',
+                        description: 'Choose a model in the header, then type '
+                            'your first message.',
+                      ),
                     ),
                   ],
                 ),
@@ -103,6 +124,7 @@ class DashboardLanding extends ConsumerWidget {
             ),
           ),
         ),
+      ),
       ),
     );
   }
@@ -116,6 +138,8 @@ class _StartStep extends StatelessWidget {
     required this.icon,
     required this.title,
     required this.description,
+    this.accent,
+    this.tilt = 0,
     this.done = false,
     this.onTap,
   });
@@ -124,20 +148,28 @@ class _StartStep extends StatelessWidget {
   final IconData icon;
   final String title;
   final String description;
+
+  /// Per-step accent (a [WombatColors] hue) for the icon disc + number badge.
+  final Color? accent;
+
+  /// A playful rotation (radians) for the icon disc.
+  final double tilt;
+
   final bool done;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return InkWell(
+    final accent = this.accent ?? theme.colorScheme.primary;
+    final row = InkWell(
       borderRadius: BorderRadius.circular(10),
       onTap: onTap,
       child: Row(
         children: [
-          _StepNumber(step),
+          _StepNumber(step, accent: accent),
           const SizedBox(width: 12),
-          _IconDisc(icon: icon),
+          _IconDisc(icon: icon, accent: accent, tilt: tilt),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
@@ -162,14 +194,23 @@ class _StartStep extends StatelessWidget {
         ],
       ),
     );
+    // Tappable steps get a gentle press; static steps render as-is.
+    return onTap == null
+        ? row
+        : PressableScale(scale: 0.98, child: row);
   }
 }
 
-/// A small circular step-number badge.
+/// Black or white, whichever reads on [bg].
+Color _onAccent(Color bg) =>
+    bg.computeLuminance() > 0.5 ? WombatColors.ink : WombatColors.cream;
+
+/// A small circular step-number badge in the step's accent colour.
 class _StepNumber extends StatelessWidget {
-  const _StepNumber(this.step);
+  const _StepNumber(this.step, {required this.accent});
 
   final int step;
+  final Color accent;
 
   @override
   Widget build(BuildContext context) {
@@ -180,7 +221,7 @@ class _StepNumber extends StatelessWidget {
       height: 24,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: scheme.primary,
+        color: accent,
         shape: BoxShape.circle,
         border: Border.all(color: scheme.outline, width: 2),
         boxShadow: [
@@ -195,39 +236,44 @@ class _StepNumber extends StatelessWidget {
         '$step',
         style: theme.textTheme.labelSmall?.copyWith(
           fontWeight: FontWeight.w800,
-          color: scheme.onPrimary,
+          color: _onAccent(accent),
         ),
       ),
     );
   }
 }
 
-/// A small rounded square with a centered accent icon.
+/// A small rounded square with a centered accent icon, tilted a touch for a
+/// hand-placed, sticker-like feel.
 class _IconDisc extends StatelessWidget {
-  const _IconDisc({required this.icon});
+  const _IconDisc({required this.icon, required this.accent, this.tilt = 0});
 
   final IconData icon;
+  final Color accent;
+  final double tilt;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    return Container(
-      width: 40,
-      height: 40,
-      decoration: BoxDecoration(
-        color: scheme.primary,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: scheme.outline, width: 2),
-        boxShadow: [
-          BoxShadow(
-            color: scheme.shadow,
-            offset: const Offset(3, 3),
-            blurRadius: 0,
-          ),
-        ],
+    final scheme = Theme.of(context).colorScheme;
+    return Transform.rotate(
+      angle: tilt,
+      child: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color: accent,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: scheme.outline, width: 2),
+          boxShadow: [
+            BoxShadow(
+              color: scheme.shadow,
+              offset: const Offset(3, 3),
+              blurRadius: 0,
+            ),
+          ],
+        ),
+        child: Icon(icon, size: 20, color: _onAccent(accent)),
       ),
-      child: Icon(icon, size: 20, color: scheme.onPrimary),
     );
   }
 }

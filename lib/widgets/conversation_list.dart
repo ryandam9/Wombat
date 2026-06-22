@@ -13,7 +13,9 @@ import '../screens/help_screen.dart';
 import '../screens/model_picker_screen.dart';
 import '../screens/settings_screen.dart';
 import '../screens/usage_screen.dart';
+import '../theme/app_tokens.dart';
 import 'pressable_scale.dart';
+import 'staggered_entrance.dart';
 
 /// The sections reachable from the sidebar navigation rail. On desktop these
 /// swap the centre pane in place; on mobile each opens as its own route.
@@ -366,6 +368,8 @@ class _ConversationListState extends ConsumerState<ConversationList> {
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
               child: PressableScale(
+                mode: PressMode.neo,
+                shadowOffset: AppTokens.shadowSm,
                 child: FilledButton.icon(
                   onPressed: _newChat,
                   icon: const Icon(Icons.add),
@@ -377,6 +381,8 @@ class _ConversationListState extends ConsumerState<ConversationList> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12),
               child: PressableScale(
+                mode: PressMode.neo,
+                shadowOffset: AppTokens.shadowSm,
                 child: OutlinedButton.icon(
                   onPressed: () => _open(const CompareScreen()),
                   icon: const Icon(Icons.compare_arrows),
@@ -393,7 +399,10 @@ class _ConversationListState extends ConsumerState<ConversationList> {
                   ? const EdgeInsets.only(bottom: 88)
                   : EdgeInsets.zero,
               itemCount: rows.length,
-              itemBuilder: (_, i) => rows[i](),
+              // Cascade rows in on first build; the per-index tween settles and
+              // won't replay on later rebuilds (search, selection).
+              itemBuilder: (_, i) =>
+                  StaggeredEntrance(index: i, bounce: false, child: rows[i]()),
             ),
           ),
         ],
