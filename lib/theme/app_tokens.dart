@@ -79,3 +79,26 @@ class WombatColors {
   /// custom accent.
   static const Color defaultSeed = clay;
 }
+
+/// A version of the accent ([ColorScheme.primary]) guaranteed to read as an
+/// outline against the scheme's surface.
+///
+/// A near-white custom accent would otherwise vanish as a selection border on
+/// the light page (and a near-black one in dark theme). When the accent is too
+/// close in lightness to the surface, this pushes its lightness away — darker in
+/// light theme, lighter in dark theme — while keeping the hue. Normal accents
+/// (already distinct from the surface) are returned unchanged, and fills/text
+/// keep the raw accent so the user's colour choice is honoured.
+Color accentOutline(ColorScheme scheme) {
+  final accent = scheme.primary;
+  final surfaceLum = scheme.surface.computeLuminance();
+  final accentLum = accent.computeLuminance();
+  final hi = (surfaceLum > accentLum ? surfaceLum : accentLum) + 0.05;
+  final lo = (surfaceLum > accentLum ? accentLum : surfaceLum) + 0.05;
+  if (hi / lo >= 1.7) return accent; // already distinct enough from the surface
+  final hsl = HSLColor.fromColor(accent);
+  final target = scheme.brightness == Brightness.light
+      ? (hsl.lightness - 0.4).clamp(0.0, 1.0)
+      : (hsl.lightness + 0.4).clamp(0.0, 1.0);
+  return hsl.withLightness(target.toDouble()).toColor();
+}

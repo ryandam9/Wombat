@@ -128,6 +128,10 @@ class ModelPickerScreen extends ConsumerStatefulWidget {
 class _ModelPickerScreenState extends ConsumerState<ModelPickerScreen> {
   static const double _detailBreakpoint = 1000;
 
+  /// Below this width (phones) the catalogue is list-only — the grid's two-up
+  /// cards are cramped, so we drop the Grid/List toggle and save the space.
+  static const double _listOnlyBreakpoint = 600;
+
   final Set<String> _selected = <String>{};
   List<OpenRouterModel> _loaded = const [];
 
@@ -327,8 +331,11 @@ class _ModelPickerScreenState extends ConsumerState<ModelPickerScreen> {
     final favorites = ref.watch(settingsProvider.select((s) => s.favoriteModels));
     // The detail preview pane is for single-pick browsing; in multi-select the
     // whole area is the (tickable) grid.
-    final showDetail = !widget.multiSelect &&
-        MediaQuery.of(context).size.width >= _detailBreakpoint;
+    final width = MediaQuery.of(context).size.width;
+    final showDetail = !widget.multiSelect && width >= _detailBreakpoint;
+    // Phones: list view only (the toggle is hidden and grid is forced off).
+    final listOnly = width < _listOnlyBreakpoint;
+    final effectiveView = listOnly ? _ViewMode.list : _view;
 
     return Scaffold(
       floatingActionButton: widget.multiSelect
@@ -388,6 +395,7 @@ class _ModelPickerScreenState extends ConsumerState<ModelPickerScreen> {
                 query: _query,
                 onQuery: _onQueryChanged,
                 view: _view,
+                showViewToggle: !listOnly,
                 onView: (v) => setState(() => _view = v),
                 sort: _sort,
                 onSort: (v) => setState(() => _sort = v),
@@ -429,9 +437,9 @@ class _ModelPickerScreenState extends ConsumerState<ModelPickerScreen> {
                               child: _ModelCollection(
                                 // Cross-fade only when toggling grid⇄list, not
                                 // on every search keystroke.
-                                key: ValueKey(_view),
+                                key: ValueKey(effectiveView),
                                 models: models,
-                                view: _view,
+                                view: effectiveView,
                                 favorites: favorites,
                                 multiSelect: widget.multiSelect,
                                 selectedId: preview?.id,
@@ -486,12 +494,16 @@ class _Toolbar extends StatelessWidget {
     required this.onSort,
     required this.ascending,
     required this.onToggleDirection,
+    this.showViewToggle = true,
   });
 
   final String query;
   final ValueChanged<String> onQuery;
   final _ViewMode view;
   final ValueChanged<_ViewMode> onView;
+
+  /// Phones hide the Grid/List toggle and stay in list view to save space.
+  final bool showViewToggle;
   final _Sort sort;
   final ValueChanged<_Sort> onSort;
   final bool ascending;
@@ -523,23 +535,24 @@ class _Toolbar extends StatelessWidget {
                 onChanged: onQuery,
               ),
             ),
-          SegmentedButton<_ViewMode>(
-            segments: const [
-              ButtonSegment(
-                value: _ViewMode.grid,
-                icon: Icon(Icons.grid_view),
-                label: Text('Grid'),
-              ),
-              ButtonSegment(
-                value: _ViewMode.list,
-                icon: Icon(Icons.view_list),
-                label: Text('List'),
-              ),
-            ],
-            selected: {view},
-            showSelectedIcon: false,
-            onSelectionChanged: (s) => onView(s.first),
-          ),
+          if (showViewToggle)
+            SegmentedButton<_ViewMode>(
+              segments: const [
+                ButtonSegment(
+                  value: _ViewMode.grid,
+                  icon: Icon(Icons.grid_view),
+                  label: Text('Grid'),
+                ),
+                ButtonSegment(
+                  value: _ViewMode.list,
+                  icon: Icon(Icons.view_list),
+                  label: Text('List'),
+                ),
+              ],
+              selected: {view},
+              showSelectedIcon: false,
+              onSelectionChanged: (s) => onView(s.first),
+            ),
           ConstrainedBox(
             // Never wider than the line, so the sort controls don't overflow on
             // phones; the dropdown flexes to fit.
@@ -896,7 +909,7 @@ class _ModelCard extends StatelessWidget {
                 scheme.primary.withValues(alpha: 0.10),
                 scheme.surfaceContainerLow),
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: scheme.primary, width: 3),
+            border: Border.all(color: accentOutline(scheme), width: 3),
           )
         : BoxDecoration(
             color: scheme.surfaceContainerLow,

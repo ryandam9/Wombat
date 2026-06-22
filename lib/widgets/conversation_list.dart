@@ -848,7 +848,7 @@ class _ConversationTile extends ConsumerWidget {
               : null,
           borderRadius: BorderRadius.circular(12),
           border: selected
-              ? Border.all(color: scheme.primary, width: 2.5)
+              ? Border.all(color: accentOutline(scheme), width: 2.5)
               : null,
           boxShadow: selected
               ? [
