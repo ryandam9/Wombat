@@ -32,6 +32,13 @@ class Motion {
   Duration get fast =>
       reduced ? Duration.zero : const Duration(milliseconds: 180);
 
+  /// A non-zero floor for [AnimatedSize], which throws "RenderAnimatedSize was
+  /// mutated in its own performLayout" when handed [Duration.zero]. 1ms reads
+  /// as instant without tripping that framework assertion under reduced motion.
+  Duration get resize => reduced
+      ? const Duration(milliseconds: 1)
+      : const Duration(milliseconds: 180);
+
   /// Medium transitions (section/page crossfades, sidebar collapse).
   Duration get medium =>
       reduced ? Duration.zero : const Duration(milliseconds: 280);

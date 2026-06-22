@@ -232,7 +232,7 @@ class _ChatInputState extends ConsumerState<ChatInput> {
           children: [
             // Attachment previews grow/shrink the composer smoothly.
             AnimatedSize(
-              duration: motion.fast,
+              duration: motion.resize,
               curve: Curves.easeOutCubic,
               alignment: Alignment.topCenter,
               child: AnimatedSwitcher(
@@ -249,7 +249,7 @@ class _ChatInputState extends ConsumerState<ChatInput> {
             ),
             // A recording pill with a timer and Cancel / Use actions.
             AnimatedSize(
-              duration: motion.fast,
+              duration: motion.resize,
               curve: Curves.easeOutCubic,
               alignment: Alignment.topCenter,
               child: AnimatedSwitcher(
