@@ -9,6 +9,7 @@ import '../models/app_font.dart';
 import '../providers/settings_provider.dart';
 import '../services/debug_log.dart';
 import '../widgets/ui_kit.dart';
+import '../widgets/neo_back_button.dart';
 
 /// Debug panel. Lists API exchanges as sessions (one per prompt → response);
 /// tapping one opens a detailed view tying the model, prompt, timing, token
@@ -23,6 +24,7 @@ class DebugScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
+        leading: NeoBackButton.leading(context),
         title: const Text('Debug sessions'),
         actions: [
           Row(
@@ -189,6 +191,7 @@ class _SessionDetailScreenState extends ConsumerState<SessionDetailScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        leading: NeoBackButton.leading(context),
         title: Text(session.title, overflow: TextOverflow.ellipsis),
         actions: [
           IconButton(

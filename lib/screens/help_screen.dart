@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/neo_back_button.dart';
 
 /// A help & troubleshooting guide. Topics are grouped into sections and shown
 /// collapsed by default — each shows a short summary and expands on tap to
@@ -9,7 +10,10 @@ class HelpScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Help & Troubleshoot')),
+      appBar: AppBar(
+        leading: NeoBackButton.leading(context),
+        title: const Text('Help & Troubleshoot'),
+      ),
       body: const _ResponsiveSections(
         children: [
           _Section(

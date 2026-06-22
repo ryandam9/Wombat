@@ -6,6 +6,7 @@ import '../providers/compare_provider.dart';
 import '../providers/settings_provider.dart';
 import '../widgets/message_bubble.dart';
 import '../widgets/ui_kit.dart';
+import '../widgets/neo_back_button.dart';
 import 'debug_screen.dart';
 import 'model_picker_screen.dart';
 
@@ -80,6 +81,7 @@ class _CompareScreenState extends ConsumerState<CompareScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        leading: NeoBackButton.leading(context),
         title: const Text('Compare models'),
         actions: [
           IconButton(

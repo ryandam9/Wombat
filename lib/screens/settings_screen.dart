@@ -9,6 +9,7 @@ import '../models/openrouter_model.dart';
 import '../providers/settings_provider.dart';
 import '../services/download_service.dart';
 import '../widgets/ui_kit.dart';
+import '../widgets/neo_back_button.dart';
 import 'model_picker_screen.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -97,6 +98,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        leading: NeoBackButton.leading(context),
         title: const Text('Settings'),
         actions: [
           AnimatedSwitcher(
@@ -887,6 +889,7 @@ class _BackgroundPicker extends StatelessWidget {
   static const _sand = Color(0xFFF5EFE0);
   static const _presets = <(String, Color?)>[
     ('Default', null),
+    ('Snow', Color(0xFFFFFFFF)), // clean neutral — no warm/yellow cast
     ('Cream', Color(0xFFFBF7EC)),
     ('Sky', Color(0xFFEAF1F7)),
     ('Mint', Color(0xFFE9F3EC)),

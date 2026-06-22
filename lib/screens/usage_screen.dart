@@ -9,6 +9,7 @@ import '../widgets/motion.dart';
 import '../widgets/shimmer.dart';
 import '../widgets/staggered_entrance.dart';
 import '../widgets/ui_kit.dart';
+import '../widgets/neo_back_button.dart';
 
 /// Shows OpenRouter usage accumulated during the current app session, plus the
 /// account credit balance — with fl_chart charts for the balance and the
@@ -43,6 +44,7 @@ class _UsageScreenState extends ConsumerState<UsageScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        leading: NeoBackButton.leading(context),
         title: const Text('Session usage'),
         actions: [
           // Red to flag that this clears the session totals (destructive).

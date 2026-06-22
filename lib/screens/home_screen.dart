@@ -10,6 +10,7 @@ import '../widgets/dashboard_landing.dart';
 import '../widgets/desktop_sidebar_handle.dart';
 import '../widgets/motion.dart';
 import 'chat_workspace_screen.dart';
+import 'intro_screen.dart';
 import 'compare_screen.dart';
 import 'debug_screen.dart';
 import 'help_screen.dart';
@@ -99,6 +100,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Widget build(BuildContext context) {
     final isWide = MediaQuery.of(context).size.width >= _wideBreakpoint;
     final settings = ref.watch(settingsProvider);
+    // First launch: show the three-page intro before the app proper.
+    if (!settings.loading && !settings.seenIntro) {
+      return IntroScreen(
+        onDone: () =>
+            ref.read(settingsProvider.notifier).setSeenIntro(true),
+      );
+    }
     // Seed the sidebar width from the persisted setting once it has loaded.
     if (!_widthInitialized && !settings.loading) {
       _sidebarWidth = settings.sidebarWidth;

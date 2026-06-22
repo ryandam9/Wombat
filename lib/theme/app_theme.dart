@@ -37,6 +37,14 @@ class AppTheme {
 
   static ColorScheme _lightScheme(Color seed, [Color? background]) {
     final brand = _isDefault(seed) ? WombatColors.clay : seed;
+    // A chosen background tint becomes the panel/tile colour; the scaffold and
+    // elevated surfaces are derived a touch darker so the warm default's gentle
+    // depth is preserved for any tint (a neutral white included). When no tint
+    // is set the original warm sand/cream ramp is used unchanged.
+    Color sink(Color c, double t) => Color.lerp(c, const Color(0xFF000000), t)!;
+    final panel = background ?? WombatColors.cream;
+    final scaffold =
+        background == null ? WombatColors.sand : sink(background, 0.045);
     return ColorScheme.fromSeed(seedColor: brand, brightness: Brightness.light)
         .copyWith(
       primary: brand,
@@ -51,19 +59,22 @@ class AppTheme {
       onTertiary: WombatColors.cream,
       tertiaryContainer: WombatColors.wombatBrown.withValues(alpha: 0.18),
       onTertiaryContainer: WombatColors.ink,
-      // Sand/cream surface ramp — warm, high-contrast against ink outlines.
-      // A curated background tint, when chosen, re-tints the scaffold surface
-      // while the cream panels (surfaceContainerLow) stay put for contrast.
-      surface: background ?? WombatColors.sand,
+      // Surface ramp: panels/tiles take the chosen tint (or cream by default),
+      // the scaffold + elevated surfaces sit a step darker.
+      surface: scaffold,
       onSurface: WombatColors.ink,
       // Muted secondary tone, darkened to clear WCAG AA (≈5:1) on the cream/sand
       // surfaces — the old #8A8270 only reached ~3.5:1 and read as faint.
       onSurfaceVariant: const Color(0xFF6E6856),
-      surfaceContainerLowest: WombatColors.cream,
-      surfaceContainerLow: WombatColors.cream,
-      surfaceContainer: WombatColors.sand,
-      surfaceContainerHigh: const Color(0xFFEFE8D6),
-      surfaceContainerHighest: const Color(0xFFE9E1CD),
+      surfaceContainerLowest: panel,
+      surfaceContainerLow: panel,
+      surfaceContainer: scaffold,
+      surfaceContainerHigh: background == null
+          ? const Color(0xFFEFE8D6)
+          : sink(background, 0.09),
+      surfaceContainerHighest: background == null
+          ? const Color(0xFFE9E1CD)
+          : sink(background, 0.14),
       outline: WombatColors.ink,
       outlineVariant: const Color(0xFFB8AE96),
       shadow: WombatColors.ink,

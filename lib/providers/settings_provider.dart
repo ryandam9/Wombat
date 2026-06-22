@@ -37,6 +37,7 @@ class SettingsState {
     required this.aiName,
     required this.reduceMotion,
     required this.sidebarWidth,
+    this.seenIntro = false,
   });
 
   final bool loading;
@@ -82,6 +83,9 @@ class SettingsState {
   /// Persisted width of the desktop sidebar.
   final double sidebarWidth;
 
+  /// Whether the first-run intro has been shown.
+  final bool seenIntro;
+
   bool get hasApiKey => apiKey != null && apiKey!.isNotEmpty;
 
   /// Name of the environment variable consulted for the API key.
@@ -101,6 +105,7 @@ class SettingsNotifier extends Notifier<SettingsState> {
   static const _kThemeMode = 'theme_mode';
   static const _kSeedColor = 'seed_color';
   static const _kBgColor = 'bg_color';
+  static const _kSeenIntro = 'seen_intro';
   static const _kDownloadDir = 'download_dir';
   static const _kAnimateModelIndicator = 'animate_model_indicator';
   static const _kContinuousModelBorder = 'continuous_model_border';
@@ -137,6 +142,7 @@ class SettingsNotifier extends Notifier<SettingsState> {
   ThemeMode _themeMode = ThemeMode.system;
   Color _seedColor = AppTheme.defaultSeed;
   Color? _bgColor;
+  bool _seenIntro = false;
   String? _downloadDir;
   bool _animateModelIndicator = false;
   bool _continuousModelBorder = false;
@@ -175,6 +181,7 @@ class SettingsNotifier extends Notifier<SettingsState> {
         themeMode: _themeMode,
         seedColor: _seedColor,
         bgColor: _bgColor,
+        seenIntro: _seenIntro,
         downloadDir: _downloadDir,
         animateModelIndicator: _animateModelIndicator,
         continuousModelBorder: _continuousModelBorder,
@@ -237,6 +244,7 @@ class SettingsNotifier extends Notifier<SettingsState> {
     if (seed != null) _seedColor = Color(seed);
     final bg = _prefs.getInt(_kBgColor);
     if (bg != null) _bgColor = Color(bg);
+    _seenIntro = _prefs.getBool(_kSeenIntro) ?? false;
     _loading = false;
     _emit();
   }
@@ -413,6 +421,13 @@ class SettingsNotifier extends Notifier<SettingsState> {
     } else {
       await _prefs.setInt(_kBgColor, color.toARGB32());
     }
+    _emit();
+  }
+
+  /// Records that the first-run intro has been shown.
+  Future<void> setSeenIntro(bool value) async {
+    _seenIntro = value;
+    await _prefs.setBool(_kSeenIntro, value);
     _emit();
   }
 }

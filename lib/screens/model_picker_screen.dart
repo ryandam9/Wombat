@@ -14,6 +14,7 @@ import '../widgets/motion.dart';
 import '../widgets/pressable_scale.dart';
 import '../widgets/shimmer.dart';
 import '../widgets/ui_kit.dart';
+import '../widgets/neo_back_button.dart';
 
 /// Shared [Hero] tag connecting the chat header's model pill to the picker, so
 /// tapping the pill flies it into this screen (and back on return).
@@ -344,6 +345,7 @@ class _ModelPickerScreenState extends ConsumerState<ModelPickerScreen> {
             )
           : null,
       appBar: AppBar(
+        leading: NeoBackButton.leading(context),
         // Single-select gets a pill title that is the landing point of the
         // chat header's model-pill Hero flight.
         title: widget.multiSelect

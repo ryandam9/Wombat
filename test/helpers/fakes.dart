@@ -177,7 +177,11 @@ class FakeOpenRouterService extends OpenRouterService {
 /// Callers should `addTearDown(container.dispose)`.
 Future<ProviderContainer> createContainer({
   String? apiKey = 'test-key',
-  Map<String, Object> prefs = const {'default_model': 'test/model'},
+  // seen_intro defaults true so tests land on the app, not the first-run intro.
+  Map<String, Object> prefs = const {
+    'default_model': 'test/model',
+    'seen_intro': true,
+  },
   Map<String, String> environment = const {},
   OpenRouterService? service,
   ConversationStore? store,
