@@ -113,7 +113,11 @@ class _ModelSelectorState extends ConsumerState<ModelSelector>
     final borderWidth = responding ? 2.6 : 2.0;
 
     return Center(
-      child: AnimatedBuilder(
+      child: Hero(
+        tag: modelPickerHeroTag,
+        // During the flight the destination pill is shown; keep this child as
+        // the resting chat-header pill.
+        child: AnimatedBuilder(
         animation: _controller,
         builder: (context, child) {
           return Container(
@@ -181,6 +185,7 @@ class _ModelSelectorState extends ConsumerState<ModelSelector>
           ),
         ),
       ),
+        ),
     );
   }
 }

@@ -9,9 +9,57 @@ import '../models/openrouter_model.dart';
 import '../providers/app_providers.dart';
 import '../providers/settings_provider.dart';
 import '../services/openrouter_service.dart';
+import '../theme/app_tokens.dart';
 import '../widgets/motion.dart';
+import '../widgets/pressable_scale.dart';
 import '../widgets/shimmer.dart';
 import '../widgets/ui_kit.dart';
+
+/// Shared [Hero] tag connecting the chat header's model pill to the picker, so
+/// tapping the pill flies it into this screen (and back on return).
+const String modelPickerHeroTag = 'model-picker-hero';
+
+/// The picker's pill-shaped title — the landing point of the model-pill Hero.
+/// A bordered, rounded block mirroring the chat header pill so the flight reads
+/// as the same element growing into place.
+class _PickerHeroTitle extends StatelessWidget {
+  const _PickerHeroTitle();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    return Material(
+      color: scheme.surfaceContainerLow,
+      borderRadius: BorderRadius.circular(AppTokens.radiusPill),
+      clipBehavior: Clip.antiAlias,
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(AppTokens.radiusPill),
+          border: Border.all(color: scheme.outline, width: AppTokens.border),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.smart_toy_outlined, size: 18, color: scheme.primary),
+            const SizedBox(width: 8),
+            // Flexible so the pill ellipsizes within the (narrow) AppBar title
+            // slot instead of overflowing on small screens.
+            Flexible(
+              child: Text(
+                'Choose a model',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.titleSmall,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
 enum _Sort { name, context, price, newest }
 
@@ -296,7 +344,14 @@ class _ModelPickerScreenState extends ConsumerState<ModelPickerScreen> {
             )
           : null,
       appBar: AppBar(
-        title: Text(widget.multiSelect ? 'Add models' : 'Choose a model'),
+        // Single-select gets a pill title that is the landing point of the
+        // chat header's model-pill Hero flight.
+        title: widget.multiSelect
+            ? const Text('Add models')
+            : const Hero(
+                tag: modelPickerHeroTag,
+                child: _PickerHeroTitle(),
+              ),
         actions: [
           IconButton(
             icon: const Icon(Icons.keyboard),
@@ -828,84 +883,80 @@ class _ModelCard extends StatelessWidget {
 
     // Neo Brutalist cards: thick outline + hard offset shadow always; selected
     // cards invert to a primary colour block so the choice is unmistakable.
+    // The shadow is cast by the wrapping PressableScale so it can lift on hover
+    // and collapse flat on press.
+    final shadowOffset = selected ? const Offset(4, 4) : const Offset(3, 3);
     final BoxDecoration decoration = selected
         ? BoxDecoration(
             color: scheme.primary,
             borderRadius: BorderRadius.circular(14),
             border: Border.all(color: scheme.outline, width: 2.5),
-            boxShadow: const [
-              BoxShadow(
-                offset: Offset(4, 4),
-                blurRadius: 0,
-              ),
-            ],
           )
         : BoxDecoration(
             color: scheme.surfaceContainerLow,
             borderRadius: BorderRadius.circular(14),
             border: Border.all(color: scheme.outline, width: 2),
-            boxShadow: const [
-              BoxShadow(
-                offset: Offset(3, 3),
-                blurRadius: 0,
-              ),
-            ],
           );
 
-    return Material(
-      color: Colors.transparent,
-      borderRadius: BorderRadius.circular(14),
-      child: InkWell(
-        onTap: onTap,
+    return PressableScale(
+      mode: PressMode.neo,
+      shadowOffset: shadowOffset,
+      borderRadius: 14,
+      child: Material(
+        color: Colors.transparent,
         borderRadius: BorderRadius.circular(14),
-        child: Ink(
-          decoration: decoration,
-          child: Padding(
-            padding: const EdgeInsets.all(14),
-            child: dense
-              ? Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    header,
-                    const SizedBox(height: 10),
-                    Row(
-                      children: [
-                        Expanded(child: tags),
-                        const SizedBox(width: 12),
-                        _InlineStat(
-                          label: 'Context',
-                          value: _compactTokens(model.contextLength),
-                        ),
-                        const SizedBox(width: 16),
-                        _InlineStat(
-                          label: 'Input',
-                          value:
-                              _pricePerM(model.promptPricePerM, model.isFree),
-                        ),
-                      ],
-                    ),
-                  ],
-                )
-              : Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    header,
-                    const SizedBox(height: 10),
-                    // Flexible, clipped so wrapping tags never overflow the
-                    // fixed-height grid cell.
-                    Expanded(
-                      child: ClipRect(
-                        child: Align(
-                          alignment: Alignment.topLeft,
-                          child: tags,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(14),
+          child: Ink(
+            decoration: decoration,
+            child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: dense
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      header,
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          Expanded(child: tags),
+                          const SizedBox(width: 12),
+                          _InlineStat(
+                            label: 'Context',
+                            value: _compactTokens(model.contextLength),
+                          ),
+                          const SizedBox(width: 16),
+                          _InlineStat(
+                            label: 'Input',
+                            value:
+                                _pricePerM(model.promptPricePerM, model.isFree),
+                          ),
+                        ],
+                      ),
+                    ],
+                  )
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      header,
+                      const SizedBox(height: 10),
+                      // Flexible, clipped so wrapping tags never overflow the
+                      // fixed-height grid cell.
+                      Expanded(
+                        child: ClipRect(
+                          child: Align(
+                            alignment: Alignment.topLeft,
+                            child: tags,
+                          ),
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                    stats,
-                  ],
-                ),
+                      const SizedBox(height: 8),
+                      stats,
+                    ],
+                  ),
+            ),
           ),
         ),
       ),
