@@ -325,7 +325,23 @@ class _AssistantBubbleState extends ConsumerState<_AssistantBubble> {
                 ),
               ],
             ),
-            child: _body(context, settings),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _body(context, settings),
+                // A failed reply shows the OpenRouter error inline (where the
+                // reply would be) rather than an empty bubble. See #error.
+                if (message.error != null) ...[
+                  if (message.content.isNotEmpty) const SizedBox(height: 8),
+                  InfoBanner(
+                    title: 'Reply failed',
+                    message: message.error,
+                    kind: BannerKind.error,
+                  ),
+                ],
+              ],
+            ),
           ),
           if (canToggle)
             AnimatedOpacity(

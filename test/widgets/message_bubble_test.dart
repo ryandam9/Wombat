@@ -85,6 +85,21 @@ void main() {
     expect(find.text('Copy'), findsNothing);
   });
 
+  testWidgets('a failed reply shows the error inline', (tester) async {
+    await tester.pumpWidget(_wrap(
+      ChatMessage(
+        id: '1',
+        role: MessageRole.assistant,
+        content: '',
+        error: 'rate limited by upstream provider',
+      ),
+    ));
+
+    // The OpenRouter error is rendered in the bubble, not a blank box.
+    expect(find.text('Reply failed'), findsOneWidget);
+    expect(find.text('rate limited by upstream provider'), findsOneWidget);
+  });
+
   testWidgets('renders inline SVG from an assistant reply', (tester) async {
     await tester.pumpWidget(_wrap(
       ChatMessage(

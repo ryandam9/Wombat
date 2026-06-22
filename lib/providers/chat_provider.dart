@@ -326,12 +326,11 @@ class ChatNotifier extends Notifier<ChatState> {
         _notifyStreaming();
       },
       onError: (Object e) {
+        // The reply itself carries the error so it renders inline in the failed
+        // bubble (see MessageBubble); _error also raises the dismissible banner.
         assistantMsg
           ..isStreaming = false
           ..error = e.toString();
-        if (assistantMsg.content.isEmpty) {
-          assistantMsg.content = '⚠️ $e';
-        }
         _error = e.toString();
         _finish(convo, assistantMsg);
         if (!completer.isCompleted) completer.complete();

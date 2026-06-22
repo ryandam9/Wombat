@@ -177,6 +177,31 @@ void main() {
       expect(chunks, ['ok']);
     });
 
+    test('surfaces an error object sent inside a 200 stream', () async {
+      // OpenRouter can fail mid-generation: a 200 response whose SSE body
+      // carries an `error` frame. It must become an OpenRouterException
+      // (not a silent, empty reply) so the UI can show it.
+      final client = MockClient.streaming((request, bodyStream) async {
+        return sse([
+          'data: {"choices":[{"delta":{"content":"Par"}}]}',
+          'data: {"error":{"message":"upstream provider error","code":502}}',
+          'data: [DONE]',
+        ]);
+      });
+
+      final stream = OpenRouterService(client: client)
+          .streamChat(apiKey: 'k', model: 'm', messages: []);
+
+      await expectLater(
+        stream,
+        emitsInOrder([
+          'Par', // partial content delivered before the error
+          emitsError(isA<OpenRouterException>().having(
+              (e) => e.message, 'message', 'upstream provider error')),
+        ]),
+      );
+    });
+
     test('throws with API message on non-200 stream', () async {
       final client = MockClient.streaming((request, bodyStream) async {
         return http.StreamedResponse(

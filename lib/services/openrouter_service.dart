@@ -178,6 +178,18 @@ class OpenRouterService {
       if (data == '[DONE]') break;
       try {
         final json = jsonDecode(data) as Map<String, dynamic>;
+        // OpenRouter can report a failure as an `error` object inside an
+        // otherwise-200 SSE stream (a provider error, content filter or rate
+        // limit hit part-way through). Surface it instead of ending with an
+        // empty, silent reply.
+        final streamError = json['error'];
+        if (streamError is Map<String, dynamic>) {
+          final raw = (streamError['message'] as String?)?.trim();
+          final message =
+              (raw == null || raw.isEmpty) ? 'The model returned an error.' : raw;
+          log?.fail(session, message);
+          throw OpenRouterException(message);
+        }
         final usage = json['usage'];
         if (usage is Map<String, dynamic>) {
           final u = TokenUsage.fromJson(usage);
@@ -229,6 +241,8 @@ class OpenRouterService {
             ));
           }
         }
+      } on OpenRouterException {
+        rethrow; // a deliberate mid-stream error — propagate to the caller
       } catch (_) {
         // Skip malformed frames rather than killing the whole stream, but
         // still record the raw frame for debugging.

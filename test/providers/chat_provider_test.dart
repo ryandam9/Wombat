@@ -302,8 +302,10 @@ void main() {
       await chat.sendMessage('hi');
 
       final assistant = chat.current!.messages.last;
+      // The error is carried on the message (rendered inline by MessageBubble)
+      // rather than injected into the reply content.
       expect(assistant.error, contains('server exploded'));
-      expect(assistant.content, contains('server exploded'));
+      expect(assistant.content, isEmpty);
       expect(assistant.isStreaming, isFalse);
       expect(chat.isResponding, isFalse);
       expect(chat.error, isNotNull);
