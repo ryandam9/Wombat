@@ -30,16 +30,29 @@ class FakeSecureStorageService extends SecureStorageService {
 /// A [SecureStorageService] whose reads throw [SecureStorageReadException]
 /// while [failReads] is true (a stored key that can't be unlocked), then
 /// recover. Writes/deletes always succeed.
+///
+/// When [recoverAfter] is set, the first [recoverAfter] reads throw and every
+/// read after that succeeds — regardless of [failReads] — modelling a store
+/// that unlocks on its own after a moment.
 class FlakySecureStorageService extends SecureStorageService {
-  FlakySecureStorageService({String? initial, this.failReads = true})
-      : _value = initial;
+  FlakySecureStorageService({
+    String? initial,
+    this.failReads = true,
+    this.recoverAfter,
+  }) : _value = initial;
 
   String? _value;
   bool failReads;
+  int? recoverAfter;
+  int _reads = 0;
 
   @override
   Future<String?> readApiKey() async {
-    if (failReads) throw SecureStorageReadException('locked');
+    final n = _reads++;
+    final transientFail = recoverAfter != null && n < recoverAfter!;
+    if (transientFail || (recoverAfter == null && failReads)) {
+      throw SecureStorageReadException('locked');
+    }
     return _value;
   }
 
