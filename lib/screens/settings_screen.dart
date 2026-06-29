@@ -8,6 +8,7 @@ import '../models/app_font.dart';
 import '../models/openrouter_model.dart';
 import '../providers/settings_provider.dart';
 import '../services/download_service.dart';
+import '../theme/app_tokens.dart';
 import '../widgets/ui_kit.dart';
 import '../widgets/neo_back_button.dart';
 import 'model_picker_screen.dart';
@@ -789,14 +790,9 @@ class _Step extends StatelessWidget {
           decoration: BoxDecoration(
             color: color,
             shape: BoxShape.circle,
-            border: Border.all(color: scheme.outline, width: 2),
-            boxShadow: [
-              BoxShadow(
-                color: scheme.shadow,
-                offset: const Offset(3, 3),
-                blurRadius: 0,
-              ),
-            ],
+            border: Border.all(
+                color: scheme.outlineVariant, width: AppTokens.border),
+            boxShadow: AppTokens.softShadow(scheme, level: 1),
           ),
           child: done
               ? Icon(Icons.check, size: 18, color: fg)
@@ -886,7 +882,7 @@ class _ColorDot extends StatelessWidget {
           shape: BoxShape.circle,
           border: Border.all(
             color: selected ? scheme.onSurface : scheme.outlineVariant,
-            width: selected ? 3 : 1,
+            width: selected ? AppTokens.borderThick : AppTokens.border,
           ),
         ),
         child: selected
@@ -969,8 +965,8 @@ class _BgDot extends StatelessWidget {
             // A bold outline so the subtle light tints stay distinguishable
             // from the page behind them.
             border: Border.all(
-              color: selected ? scheme.onSurface : scheme.outline,
-              width: selected ? 3 : 2,
+              color: selected ? scheme.onSurface : scheme.outlineVariant,
+              width: selected ? AppTokens.borderThick : AppTokens.border,
             ),
           ),
           // Dark check so it's visible on the light swatch.
@@ -1036,7 +1032,7 @@ class _CustomColorDot extends StatelessWidget {
           ]),
           border: Border.all(
             color: selected ? scheme.onSurface : scheme.outlineVariant,
-            width: selected ? 3 : 1,
+            width: selected ? AppTokens.borderThick : AppTokens.border,
           ),
         ),
         child: Icon(selected ? Icons.check : Icons.tune,

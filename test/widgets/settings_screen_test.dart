@@ -61,10 +61,11 @@ void main() {
     expect(tester.takeException(), isNull);
 
     // Every section card renders at once (no nav/detail split), including the
-    // new Font size card. SectionPanel renders titles upper-cased.
-    expect(find.text('SETUP'), findsOneWidget);
-    expect(find.text('FONTS'), findsOneWidget);
-    expect(find.text('FONT SIZE'), findsOneWidget);
+    // new Font size card. SectionPanel renders titles in their natural case;
+    // field labels (HEADING) stay upper-cased.
+    expect(find.text('Setup'), findsOneWidget);
+    expect(find.text('Fonts'), findsOneWidget);
+    expect(find.text('Font size'), findsOneWidget);
     expect(find.text('HEADING'), findsOneWidget);
     expect(find.text('Roboto Condensed'), findsWidgets);
     // Default font-size selection shows on the size dropdowns.

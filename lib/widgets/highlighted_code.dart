@@ -4,6 +4,8 @@ import 'package:flutter_highlight/themes/atom-one-dark.dart';
 import 'package:flutter_highlight/themes/atom-one-light.dart';
 import 'package:highlight/highlight.dart' show highlight;
 
+import '../theme/app_tokens.dart';
+
 /// A syntax-highlighted code block: the code coloured by language on an
 /// editor-style background, in a bordered, horizontally scrollable box.
 ///
@@ -63,15 +65,9 @@ class _HighlightedCodeState extends State<HighlightedCode> {
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: background,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: scheme.outline, width: 2),
-        boxShadow: [
-          BoxShadow(
-            color: scheme.shadow,
-            offset: const Offset(3, 3),
-            blurRadius: 0,
-          ),
-        ],
+        borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+        border: Border.all(color: scheme.outlineVariant, width: AppTokens.border),
+        boxShadow: AppTokens.softShadow(scheme, level: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,

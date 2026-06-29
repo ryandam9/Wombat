@@ -5,13 +5,11 @@ import '../theme/app_tokens.dart';
 
 /// Tactile press feedback. Two modes:
 ///
-/// * [PressMode.scale] (default): the child scales down slightly — the original
-///   behaviour, good for generic taps.
-/// * [PressMode.neo]: the child translates down by the shadow offset and the
-///   hard offset shadow collapses — the signature Neo Brutalist "button being
-///   mashed flat" effect. On a pointer device, hovering instead *lifts* the
-///   child (the shadow grows and it nudges up-left). Pair with [NeoCard] /
-///   bordered buttons.
+/// * [PressMode.scale] (default): the child scales down slightly — good for
+///   generic taps.
+/// * [PressMode.neo]: a soft elevation card. At rest it carries a gentle
+///   diffused shadow; hovering with a pointer lifts it a touch (the shadow
+///   deepens); pressing eases it back down. Pair with [NeoCard].
 ///
 /// Uses a [Listener] so it never steals the child's own tap handling (buttons,
 /// InkWells, etc. keep working). Honours reduced motion via [Motion] — when
@@ -77,16 +75,13 @@ class _PressableScaleState extends State<PressableScale> {
 
     if (widget.mode == PressMode.neo) {
       final scheme = Theme.of(context).colorScheme;
-      // Resting → pressed collapses the shadow to zero and drops the child into
-      // it. Hovering (pointer only) grows the shadow and lifts the child.
-      final base = widget.shadowOffset;
+      // A soft elevation card: resting carries a gentle shadow; hovering lifts
+      // it (deeper shadow, nudged up); pressing settles it back down.
+      final base = widget.shadowOffset.dy >= 6 ? 2 : 1;
       final hovering = _hovered && !pressed && widget.hoverLift && !reduce;
-      final grow = hovering ? AppTokens.hoverShadowGrow : 0.0;
-      final shadowOff = pressed
-          ? Offset.zero
-          : Offset(base.dx + grow, base.dy + grow);
+      final level = pressed ? 0 : (hovering ? base + 1 : base);
       final translate = pressed
-          ? Offset(base.dx, base.dy) // sink into where the shadow was
+          ? Offset.zero
           : (hovering ? AppTokens.hoverLift : Offset.zero);
 
       final body = AnimatedContainer(
@@ -95,13 +90,7 @@ class _PressableScaleState extends State<PressableScale> {
         transform: Matrix4.translationValues(translate.dx, translate.dy, 0),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(widget.borderRadius),
-          boxShadow: [
-            BoxShadow(
-              color: scheme.shadow,
-              offset: shadowOff,
-              blurRadius: 0,
-            ),
-          ],
+          boxShadow: AppTokens.softShadow(scheme, level: level),
         ),
         child: widget.child,
       );

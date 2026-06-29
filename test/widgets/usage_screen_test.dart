@@ -50,8 +50,8 @@ void main() {
     // LabelValueRow renders labels uppercase.
     expect(find.text('REMAINING'), findsOneWidget);
     // Section headers and the new usage-summary recap.
-    expect(find.text('BY MODEL'), findsOneWidget);
-    expect(find.text('USAGE SUMMARY'), findsOneWidget);
+    expect(find.text('By model'), findsOneWidget);
+    expect(find.text('Usage summary'), findsOneWidget);
     expect(find.text('AVG COST / REQUEST'), findsOneWidget);
   });
 }

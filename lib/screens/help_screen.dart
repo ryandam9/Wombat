@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/app_tokens.dart';
 import '../widgets/neo_back_button.dart';
 
 /// A help & troubleshooting guide. Topics are grouped into sections and shown
@@ -263,14 +264,9 @@ class _HelpTopic extends StatelessWidget {
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: theme.colorScheme.outline, width: 2),
-        boxShadow: [
-          BoxShadow(
-            color: theme.colorScheme.shadow,
-            offset: const Offset(3, 3),
-            blurRadius: 0,
-          ),
-        ],
+        border: Border.all(
+            color: theme.colorScheme.outlineVariant, width: AppTokens.border),
+        boxShadow: AppTokens.softShadow(theme.colorScheme, level: 1),
       ),
       child: Material(
         color: Colors.transparent,
@@ -478,8 +474,9 @@ class _CodeBlock extends StatelessWidget {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerLowest,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: theme.colorScheme.outline, width: 2),
+        borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+        border: Border.all(
+            color: theme.colorScheme.outlineVariant, width: AppTokens.border),
       ),
       child: SelectableText(
         code,

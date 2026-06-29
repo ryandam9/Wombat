@@ -202,13 +202,7 @@ class _IntroPageView extends StatelessWidget {
                     borderRadius: BorderRadius.circular(AppTokens.radiusLg),
                     border: Border.all(
                         color: scheme.outline, width: AppTokens.borderThick),
-                    boxShadow: [
-                      BoxShadow(
-                        color: scheme.shadow,
-                        offset: AppTokens.shadowLg,
-                        blurRadius: 0,
-                      ),
-                    ],
+                    boxShadow: AppTokens.softShadow(scheme, level: 2),
                   ),
                   clipBehavior: Clip.antiAlias,
                   child: page.image != null

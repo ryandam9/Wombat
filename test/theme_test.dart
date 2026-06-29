@@ -31,7 +31,7 @@ void main() {
     );
   });
 
-  test('page headings use a bold Neo Brutalist header', () {
+  test('page headings use a bold app-bar header', () {
     for (final t in [AppTheme.light, AppTheme.dark]) {
       expect(t.appBarTheme.backgroundColor, t.colorScheme.surface);
       expect(t.appBarTheme.foregroundColor, t.colorScheme.onSurface);

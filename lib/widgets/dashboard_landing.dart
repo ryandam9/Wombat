@@ -285,14 +285,8 @@ class _StepNumber extends StatelessWidget {
       decoration: BoxDecoration(
         color: accent,
         shape: BoxShape.circle,
-        border: Border.all(color: scheme.outline, width: 2),
-        boxShadow: [
-          BoxShadow(
-            color: scheme.shadow,
-            offset: const Offset(2, 2),
-            blurRadius: 0,
-          ),
-        ],
+        border: Border.all(color: scheme.outlineVariant, width: AppTokens.border),
+        boxShadow: AppTokens.softShadow(scheme, level: 1),
       ),
       child: Text(
         '$step',
@@ -325,14 +319,8 @@ class _IconDisc extends StatelessWidget {
         decoration: BoxDecoration(
           color: accent,
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: scheme.outline, width: 2),
-          boxShadow: [
-            BoxShadow(
-              color: scheme.shadow,
-              offset: const Offset(3, 3),
-              blurRadius: 0,
-            ),
-          ],
+          border: Border.all(color: scheme.outlineVariant, width: AppTokens.border),
+          boxShadow: AppTokens.softShadow(scheme, level: 1),
         ),
         child: Icon(icon, size: 20, color: _onAccent(accent)),
       ),

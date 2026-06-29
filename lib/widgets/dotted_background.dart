@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 
-/// A subtle dot-grid backdrop — a hallmark of modern Neo Brutalism. Paints a
-/// regularly spaced grid of small dots in a very low-contrast tone so it reads
-/// as texture, not noise, behind content. Cheap: a single [CustomPaint].
+/// A calm backdrop wash: a soft, barely-there gradient that lifts a plain
+/// surface with gentle warmth and depth (a faint accent glow near the top
+/// fading into the scaffold). Cheap — a single gradient, no per-frame paint.
+///
+/// Replaces the old Neo Brutalist dot-grid. The legacy [spacing]/[radius]/
+/// [color] parameters are kept for source compatibility but no longer used.
 class DottedBackground extends StatelessWidget {
   const DottedBackground({
     super.key,
@@ -20,38 +23,21 @@ class DottedBackground extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    // Lean on the muted outline tone; keep it whisper-quiet in both themes.
-    final dot = (color ?? scheme.onSurfaceVariant)
-        .withValues(alpha: scheme.brightness == Brightness.dark ? 0.07 : 0.10);
-    return CustomPaint(
-      painter: _DotGridPainter(spacing: spacing, radius: radius, color: dot),
+    final dark = scheme.brightness == Brightness.dark;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Color.alphaBlend(
+                scheme.primary.withValues(alpha: dark ? 0.06 : 0.05),
+                scheme.surface),
+            scheme.surface,
+          ],
+        ),
+      ),
       child: child,
     );
   }
-}
-
-class _DotGridPainter extends CustomPainter {
-  _DotGridPainter({
-    required this.spacing,
-    required this.radius,
-    required this.color,
-  });
-
-  final double spacing;
-  final double radius;
-  final Color color;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()..color = color;
-    for (double y = spacing / 2; y < size.height; y += spacing) {
-      for (double x = spacing / 2; x < size.width; x += spacing) {
-        canvas.drawCircle(Offset(x, y), radius, paint);
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(_DotGridPainter old) =>
-      old.spacing != spacing || old.radius != radius || old.color != color;
 }

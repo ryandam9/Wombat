@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/openrouter_model.dart';
 import '../providers/compare_provider.dart';
 import '../providers/settings_provider.dart';
+import '../theme/app_tokens.dart';
 import '../widgets/message_bubble.dart';
 import '../widgets/ui_kit.dart';
 import '../widgets/neo_back_button.dart';
@@ -299,15 +300,10 @@ class _ResultCard extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: theme.colorScheme.outline, width: 2),
-        boxShadow: [
-          BoxShadow(
-            color: theme.colorScheme.shadow,
-            offset: const Offset(4, 4),
-            blurRadius: 0,
-          ),
-        ],
+        borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+        border: Border.all(
+            color: theme.colorScheme.outlineVariant, width: AppTokens.border),
+        boxShadow: AppTokens.softShadow(theme.colorScheme, level: 1),
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(

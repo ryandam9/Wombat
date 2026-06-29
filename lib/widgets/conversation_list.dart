@@ -546,17 +546,11 @@ class _NavItem extends StatelessWidget {
             color: selected ? scheme.primary : Colors.transparent,
             borderRadius: BorderRadius.circular(10),
             border: selected
-                ? Border.all(color: scheme.outline, width: 2)
+                ? Border.all(
+                    color: accentOutline(scheme), width: AppTokens.borderThick)
                 : null,
-            boxShadow: selected
-                ? [
-                    BoxShadow(
-                      color: scheme.shadow,
-                      offset: const Offset(3, 3),
-                      blurRadius: 0,
-                    ),
-                  ]
-                : null,
+            boxShadow:
+                selected ? AppTokens.softShadow(scheme, level: 2) : null,
           ),
           child: InkWell(
             onTap: onTap,
@@ -698,14 +692,9 @@ class _ModelAvatar extends StatelessWidget {
       decoration: BoxDecoration(
         color: color,
         borderRadius: BorderRadius.circular(AppTokens.radiusSm),
-        border: Border.all(color: scheme.outline, width: AppTokens.border),
-        boxShadow: [
-          BoxShadow(
-            color: scheme.shadow,
-            offset: AppTokens.shadowSm,
-            blurRadius: 0,
-          ),
-        ],
+        border:
+            Border.all(color: scheme.outlineVariant, width: AppTokens.border),
+        boxShadow: AppTokens.softShadow(scheme, level: 1),
       ),
       child: Text(
         _modelInitial(modelId),
@@ -788,17 +777,11 @@ class _ConversationTile extends ConsumerWidget {
               : null,
           borderRadius: BorderRadius.circular(12),
           border: selected
-              ? Border.all(color: accentOutline(scheme), width: 2.5)
+              ? Border.all(
+                  color: accentOutline(scheme), width: AppTokens.borderThick)
               : null,
-          boxShadow: selected
-              ? [
-                  BoxShadow(
-                    color: scheme.shadow,
-                    offset: const Offset(3, 3),
-                    blurRadius: 0,
-                  ),
-                ]
-              : null,
+          boxShadow:
+              selected ? AppTokens.softShadow(scheme, level: 2) : null,
         ),
         child: Material(
           color: Colors.transparent,

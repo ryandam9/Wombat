@@ -3,9 +3,8 @@ import 'package:flutter/material.dart';
 import '../theme/app_tokens.dart';
 import 'pressable_scale.dart';
 
-/// A chunky, playful "back" control: a bordered, accent-tinted Neo button whose
-/// arrow springs left on hover and mashes flat on press — more characterful
-/// than a bare arrow icon.
+/// A soft "back" control: a gently accent-tinted rounded button whose arrow
+/// slides left on hover — a touch more characterful than a bare arrow icon.
 ///
 /// Used both in the chat sidebar header and as the [AppBar.leading] of pushed
 /// screens (via [NeoBackButton.leading]). [onTap] defaults to popping the
@@ -46,32 +45,26 @@ class _NeoBackButtonState extends State<NeoBackButton> {
         onEnter: (_) => setState(() => _hover = true),
         onExit: (_) => setState(() => _hover = false),
         child: PressableScale(
-          mode: PressMode.neo,
-          shadowOffset: AppTokens.shadowSm,
-          borderRadius: AppTokens.radiusSm,
+          scale: 0.94,
           child: Material(
             color: Color.alphaBlend(
-                scheme.primary.withValues(alpha: 0.16),
+                scheme.primary.withValues(alpha: _hover ? 0.18 : 0.12),
                 scheme.surfaceContainerLow),
-            borderRadius: BorderRadius.circular(AppTokens.radiusSm),
+            borderRadius: BorderRadius.circular(AppTokens.radiusMd),
             clipBehavior: Clip.antiAlias,
             child: InkWell(
               onTap: widget.onTap ?? () => Navigator.of(context).maybePop(),
-              child: Container(
+              child: SizedBox(
                 width: 42,
-                height: 36,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(AppTokens.radiusSm),
-                  border:
-                      Border.all(color: scheme.outline, width: AppTokens.border),
-                ),
-                child: AnimatedSlide(
-                  duration: reduce ? Duration.zero : AppTokens.durFast,
-                  curve: Curves.easeOutBack,
-                  offset: Offset(_hover && !reduce ? -0.16 : 0, 0),
-                  child: Icon(Icons.arrow_back_rounded,
-                      size: 20, color: scheme.primary),
+                height: 38,
+                child: Center(
+                  child: AnimatedSlide(
+                    duration: reduce ? Duration.zero : AppTokens.durFast,
+                    curve: AppTokens.curveSnap,
+                    offset: Offset(_hover && !reduce ? -0.14 : 0, 0),
+                    child: Icon(Icons.arrow_back_rounded,
+                        size: 20, color: scheme.primary),
+                  ),
                 ),
               ),
             ),

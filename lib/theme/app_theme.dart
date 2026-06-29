@@ -2,12 +2,13 @@ import 'package:flutter/material.dart';
 
 import 'app_tokens.dart';
 
-/// Wombat's Neo Brutalist Material 3 themes.
+/// Wombat's Soft Modern Material 3 themes.
 ///
-/// Visual language: thick dark outlines, hard offset shadows (no blur), flat
-/// colour blocks, bold typography, and a curated Australian palette (clay,
-/// eucalyptus, sand, charcoal). Material 3 remains the engineering base, but
-/// the component themes push it firmly into Neo Brutalist territory.
+/// Visual language: generous rounding, soft diffused elevation, hairline
+/// outlines, calm surfaces, confident-but-friendly typography, and a curated
+/// warm Australian palette (clay, eucalyptus, sand, charcoal). Material 3 is the
+/// engineering base; the component themes tune it toward a calm, contemporary
+/// app feel.
 ///
 /// Both light and dark themes are built from the same accent ([seed]). The
 /// default seed is [WombatColors.clay]; a user-chosen accent re-tints the
@@ -49,22 +50,22 @@ class AppTheme {
         .copyWith(
       primary: brand,
       onPrimary: _onAccent(brand),
-      primaryContainer: brand.withValues(alpha: 0.18),
+      primaryContainer: brand.withValues(alpha: 0.14),
       onPrimaryContainer: WombatColors.ink,
       secondary: WombatColors.eucalyptus,
       onSecondary: WombatColors.cream,
-      secondaryContainer: WombatColors.eucalyptus.withValues(alpha: 0.18),
+      secondaryContainer: WombatColors.eucalyptus.withValues(alpha: 0.14),
       onSecondaryContainer: WombatColors.ink,
       tertiary: WombatColors.wombatBrown,
       onTertiary: WombatColors.cream,
-      tertiaryContainer: WombatColors.wombatBrown.withValues(alpha: 0.18),
+      tertiaryContainer: WombatColors.wombatBrown.withValues(alpha: 0.14),
       onTertiaryContainer: WombatColors.ink,
       // Surface ramp: panels/tiles take the chosen tint (or cream by default),
       // the scaffold + elevated surfaces sit a step darker.
       surface: scaffold,
       onSurface: WombatColors.ink,
-      // Muted secondary tone, darkened to clear WCAG AA (≈5:1) on the cream/sand
-      // surfaces — the old #8A8270 only reached ~3.5:1 and read as faint.
+      // Muted secondary tone, dark enough to clear WCAG AA (≈5:1) on the
+      // cream/sand surfaces.
       onSurfaceVariant: const Color(0xFF6E6856),
       surfaceContainerLowest: panel,
       surfaceContainerLow: panel,
@@ -75,9 +76,10 @@ class AppTheme {
       surfaceContainerHighest: background == null
           ? const Color(0xFFE9E1CD)
           : sink(background, 0.14),
-      outline: WombatColors.ink,
-      outlineVariant: const Color(0xFFB8AE96),
-      shadow: WombatColors.ink,
+      // Hairline outlines — soft warm greys, not the old heavy ink stroke.
+      outline: const Color(0xFFD7CEBB),
+      outlineVariant: const Color(0xFFE7DFCD),
+      shadow: const Color(0xFF5C4A2E),
       inverseSurface: WombatColors.ink,
       onInverseSurface: WombatColors.cream,
     );
@@ -99,8 +101,8 @@ class AppTheme {
       onTertiary: WombatColors.charcoal,
       tertiaryContainer: WombatColors.skyBlue.withValues(alpha: 0.20),
       onTertiaryContainer: WombatColors.cream,
-      // Charcoal surface ramp — deep, with bright bone outlines. A chosen
-      // background tint is blended faintly over the charcoal so it stays dark.
+      // Charcoal surface ramp — deep and calm. A chosen background tint is
+      // blended faintly over the charcoal so it stays dark.
       surface: background == null
           ? WombatColors.charcoal
           : Color.alphaBlend(
@@ -112,8 +114,8 @@ class AppTheme {
       surfaceContainer: WombatColors.charcoalPanel,
       surfaceContainerHigh: const Color(0xFF2E2E38),
       surfaceContainerHighest: const Color(0xFF36363F),
-      outline: WombatColors.bone,
-      outlineVariant: const Color(0xFF54545E),
+      outline: const Color(0xFF3C3C46),
+      outlineVariant: const Color(0xFF2C2C34),
       shadow: Colors.black,
       inverseSurface: WombatColors.cream,
       onInverseSurface: WombatColors.ink,
@@ -124,13 +126,12 @@ class AppTheme {
 
   static ThemeData _compose(ColorScheme scheme, Brightness brightness) {
     final isDark = brightness == Brightness.dark;
-    final outline = scheme.outline;
+    final hairline = scheme.outlineVariant;
 
     return ThemeData(
       useMaterial3: true,
       colorScheme: scheme,
       scaffoldBackgroundColor: scheme.surface,
-      splashFactory: NoSplash.splashFactory, // hard edges, no ink bleed
       visualDensity: VisualDensity.standard,
       materialTapTargetSize: MaterialTapTargetSize.padded,
       appBarTheme: AppBarTheme(
@@ -148,7 +149,7 @@ class AppTheme {
           height: 1.1,
         ),
         shape: Border(
-          bottom: BorderSide(color: outline, width: AppTokens.border),
+          bottom: BorderSide(color: hairline, width: AppTokens.border),
         ),
       ),
       textTheme: _typography(scheme),
@@ -156,32 +157,35 @@ class AppTheme {
         elevation: 0,
         margin: EdgeInsets.zero,
         clipBehavior: Clip.antiAlias,
+        color: scheme.surfaceContainerLow,
+        surfaceTintColor: Colors.transparent,
+        shadowColor: scheme.shadow,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-          side: BorderSide(color: outline, width: AppTokens.border),
+          side: BorderSide(color: hairline, width: AppTokens.border),
         ),
       ),
       dividerTheme: DividerThemeData(
-        color: outline,
+        color: hairline,
         thickness: AppTokens.border,
         space: AppTokens.border,
       ),
       inputDecorationTheme: _inputDecoration(scheme, isDark),
       filledButtonTheme: FilledButtonThemeData(
-        style: _neoButtonStyle(scheme, filled: true),
+        style: _softButtonStyle(scheme, filled: true),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
-        style: _neoButtonStyle(scheme, filled: false),
+        style: _softButtonStyle(scheme, filled: false),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
-        style: _neoButtonStyle(scheme, outlined: true),
+        style: _softButtonStyle(scheme, outlined: true),
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppTokens.radiusSm),
           ),
-          textStyle: const TextStyle(fontWeight: FontWeight.w700),
+          textStyle: const TextStyle(fontWeight: FontWeight.w600),
         ),
       ),
       iconButtonTheme: IconButtonThemeData(
@@ -193,28 +197,30 @@ class AppTheme {
       ),
       chipTheme: ChipThemeData(
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppTokens.radiusSm),
-          side: BorderSide(color: outline, width: AppTokens.border),
+          borderRadius: BorderRadius.circular(AppTokens.radiusPill),
+          side: BorderSide(color: hairline, width: AppTokens.border),
         ),
-        side: BorderSide(color: outline, width: AppTokens.border),
-        // An explicit label colour: without one, unselected chip labels fell
-        // back to a near-invisible default (filter chips, debug event-stream).
+        side: BorderSide(color: hairline, width: AppTokens.border),
+        backgroundColor: scheme.surfaceContainerLow,
+        selectedColor: scheme.primaryContainer,
+        showCheckmark: false,
         labelStyle: TextStyle(
-          fontWeight: FontWeight.w700,
+          fontWeight: FontWeight.w600,
           color: scheme.onSurface,
         ),
       ),
       dialogTheme: DialogThemeData(
         elevation: 0,
-        backgroundColor: scheme.surface,
+        backgroundColor: scheme.surfaceContainerLow,
+        surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppTokens.radiusLg),
-          side: BorderSide(color: outline, width: AppTokens.borderThick),
+          side: BorderSide(color: hairline, width: AppTokens.border),
         ),
         titleTextStyle: TextStyle(
           color: scheme.onSurface,
           fontSize: 20,
-          fontWeight: FontWeight.w800,
+          fontWeight: FontWeight.w700,
         ),
         contentTextStyle: TextStyle(
           color: scheme.onSurfaceVariant,
@@ -223,12 +229,11 @@ class AppTheme {
       ),
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
-        elevation: 0,
+        elevation: 3,
         backgroundColor: scheme.inverseSurface,
         contentTextStyle: TextStyle(color: scheme.onInverseSurface),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppTokens.radiusSm),
-          side: BorderSide(color: outline, width: AppTokens.border),
+          borderRadius: BorderRadius.circular(AppTokens.radiusMd),
         ),
         insetPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
       ),
@@ -237,42 +242,44 @@ class AppTheme {
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         height: 72,
+        indicatorColor: scheme.primaryContainer,
         indicatorShape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppTokens.radiusSm),
-          side: BorderSide(color: outline, width: AppTokens.border),
+          borderRadius: BorderRadius.circular(AppTokens.radiusPill),
         ),
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           final selected = states.contains(WidgetState.selected);
           return TextStyle(
             fontSize: 12,
-            fontWeight: FontWeight.w800,
+            fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
             color: selected ? scheme.onSurface : scheme.onSurfaceVariant,
           );
         }),
       ),
       navigationRailTheme: NavigationRailThemeData(
         backgroundColor: scheme.surfaceContainerLow,
+        indicatorColor: scheme.primaryContainer,
         indicatorShape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppTokens.radiusSm),
+          borderRadius: BorderRadius.circular(AppTokens.radiusPill),
         ),
       ),
       floatingActionButtonTheme: FloatingActionButtonThemeData(
-        elevation: 0,
+        elevation: 2,
+        focusElevation: 3,
+        hoverElevation: 4,
+        highlightElevation: 1,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-          side: BorderSide(color: outline, width: AppTokens.borderThick),
+          borderRadius: BorderRadius.circular(AppTokens.radiusLg),
         ),
       ),
       listTileTheme: ListTileThemeData(
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppTokens.radiusSm),
+          borderRadius: BorderRadius.circular(AppTokens.radiusMd),
         ),
       ),
       tooltipTheme: TooltipThemeData(
         decoration: BoxDecoration(
           color: scheme.inverseSurface,
           borderRadius: BorderRadius.circular(AppTokens.radiusSm),
-          border: Border.all(color: outline, width: AppTokens.border),
         ),
         textStyle: TextStyle(color: scheme.onInverseSurface, fontSize: 12),
         waitDuration: const Duration(milliseconds: 400),
@@ -280,45 +287,45 @@ class AppTheme {
       progressIndicatorTheme: ProgressIndicatorThemeData(
         color: scheme.primary,
         linearTrackColor: scheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.zero,
+        borderRadius: BorderRadius.circular(AppTokens.radiusPill),
       ),
       sliderTheme: SliderThemeData(
         activeTrackColor: scheme.primary,
         inactiveTrackColor: scheme.surfaceContainerHighest,
         thumbColor: scheme.primary,
         overlayColor: scheme.primary.withValues(alpha: 0.12),
-        trackHeight: 6,
+        trackHeight: 5,
       ),
       switchTheme: SwitchThemeData(
-        // A thick outline + a contrasting thumb so the control always reads as
-        // a toggle (the old off-state was a faint light pill with a near-
-        // invisible light thumb), and the on/off state is obvious.
         thumbColor: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) return scheme.onPrimary;
-          return scheme.outline; // dark knob on the light off-track
+          return scheme.outline;
         }),
         trackColor: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) return scheme.primary;
           return scheme.surfaceContainerHighest;
         }),
-        trackOutlineColor: WidgetStateProperty.all(outline),
+        trackOutlineColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) return Colors.transparent;
+          return scheme.outline;
+        }),
         trackOutlineWidth: WidgetStateProperty.all(AppTokens.border),
       ),
       popupMenuTheme: PopupMenuThemeData(
-        color: scheme.surface,
+        color: scheme.surfaceContainerLow,
         surfaceTintColor: Colors.transparent,
-        elevation: 0,
+        elevation: 3,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppTokens.radiusSm),
-          side: BorderSide(color: outline, width: AppTokens.borderThick),
+          borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+          side: BorderSide(color: scheme.outlineVariant, width: AppTokens.border),
         ),
       ),
-      // Chunky bordered segmented control: a flat primary block marks the
-      // selection instead of the soft Material pill.
+      // A soft tonal segmented control: the selected segment fills with the
+      // accent, the rest stay on a low surface.
       segmentedButtonTheme: SegmentedButtonThemeData(
         style: ButtonStyle(
           side: WidgetStateProperty.all(
-              BorderSide(color: outline, width: AppTokens.border)),
+              BorderSide(color: scheme.outline, width: AppTokens.border)),
           shape: WidgetStateProperty.all(RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppTokens.radiusSm),
           )),
@@ -331,22 +338,22 @@ class AppTheme {
                   ? scheme.onPrimary
                   : scheme.onSurface),
           overlayColor: WidgetStateProperty.all(
-              scheme.primary.withValues(alpha: 0.12)),
+              scheme.primary.withValues(alpha: 0.10)),
           // Keep the default label size so segment text ("System") doesn't wrap
-          // in narrow panels; the chunky block + border carry the Neo look.
+          // in narrow panels.
           padding: WidgetStateProperty.all(
-              const EdgeInsets.symmetric(horizontal: 6)),
+              const EdgeInsets.symmetric(horizontal: 8)),
         ),
       ),
-      // A bordered, flat dropdown menu surface to match the panel system.
       dropdownMenuTheme: DropdownMenuThemeData(
         menuStyle: MenuStyle(
           surfaceTintColor: WidgetStateProperty.all(Colors.transparent),
-          backgroundColor: WidgetStateProperty.all(scheme.surface),
-          elevation: WidgetStateProperty.all(0),
+          backgroundColor: WidgetStateProperty.all(scheme.surfaceContainerLow),
+          elevation: WidgetStateProperty.all(3),
           shape: WidgetStateProperty.all(RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppTokens.radiusSm),
-            side: BorderSide(color: outline, width: AppTokens.border),
+            borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+            side: BorderSide(
+                color: scheme.outlineVariant, width: AppTokens.border),
           )),
         ),
       ),
@@ -354,39 +361,34 @@ class AppTheme {
         indicatorColor: scheme.primary,
         labelColor: scheme.primary,
         unselectedLabelColor: scheme.onSurfaceVariant,
-        labelStyle: const TextStyle(fontWeight: FontWeight.w800),
+        labelStyle: const TextStyle(fontWeight: FontWeight.w700),
         unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600),
         indicatorSize: TabBarIndicatorSize.label,
         dividerColor: Colors.transparent,
         indicator: UnderlineTabIndicator(
-          borderSide: BorderSide(color: scheme.primary, width: AppTokens.borderThick),
+          borderSide:
+              BorderSide(color: scheme.primary, width: AppTokens.borderThick),
         ),
       ),
       textSelectionTheme: TextSelectionThemeData(
-        selectionColor: scheme.primary.withValues(alpha: 0.30),
+        selectionColor: scheme.primary.withValues(alpha: 0.28),
         cursorColor: scheme.primary,
         selectionHandleColor: scheme.primary,
       ),
     ).copyWith(textTheme: _typography(scheme));
   }
 
-  /// Chunky Neo Brutalist button: thick border, hard offset shadow that lives
-  /// behind the button. (The press-compress effect is applied by the widget
-  /// wrapping the button — see [PressableScale] / [NeoButton].)
-  static ButtonStyle _neoButtonStyle(
+  /// A soft, rounded button: gentle elevation (no border) when filled, a
+  /// hairline outline when outlined, calm typography throughout.
+  static ButtonStyle _softButtonStyle(
     ColorScheme scheme, {
     bool filled = false,
     bool outlined = false,
   }) {
-    final border = BorderSide(
-      color: scheme.onSurfaceVariant,
-      width: AppTokens.border,
-    );
     final shape = RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(AppTokens.radiusSm),
-      side: border,
+      borderRadius: BorderRadius.circular(AppTokens.radiusMd),
     );
-    final bg = filled ? scheme.primary : scheme.surface;
+    final bg = filled ? scheme.primary : scheme.surfaceContainerLow;
     final fg = filled ? scheme.onPrimary : scheme.onSurface;
     return ButtonStyle(
       minimumSize: WidgetStateProperty.all(const Size(0, 48)),
@@ -406,12 +408,24 @@ class AppTheme {
         }
         return fg;
       }),
-      elevation: WidgetStateProperty.all(0),
-      shadowColor: WidgetStateProperty.all(Colors.transparent),
-      textStyle: WidgetStateProperty.all(
-        const TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
+      overlayColor: WidgetStateProperty.all(
+        (filled ? scheme.onPrimary : scheme.primary).withValues(alpha: 0.10),
       ),
-      side: outlined ? WidgetStateProperty.all(border) : null,
+      elevation: WidgetStateProperty.resolveWith((states) {
+        if (!filled) return 0;
+        if (states.contains(WidgetState.disabled)) return 0;
+        if (states.contains(WidgetState.pressed)) return 1;
+        if (states.contains(WidgetState.hovered)) return 3;
+        return 2;
+      }),
+      shadowColor: WidgetStateProperty.all(scheme.shadow),
+      textStyle: WidgetStateProperty.all(
+        const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+      ),
+      side: outlined
+          ? WidgetStateProperty.all(
+              BorderSide(color: scheme.outline, width: AppTokens.borderInput))
+          : null,
     );
   }
 
@@ -420,52 +434,55 @@ class AppTheme {
     return InputDecorationTheme(
       filled: true,
       fillColor: scheme.surfaceContainerLow,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       hintStyle: TextStyle(color: scheme.onSurfaceVariant),
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(AppTokens.radiusSm),
+        borderRadius: BorderRadius.circular(AppTokens.radiusMd),
         borderSide: border,
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(AppTokens.radiusSm),
+        borderRadius: BorderRadius.circular(AppTokens.radiusMd),
         borderSide: border,
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(AppTokens.radiusSm),
-        borderSide: BorderSide(color: scheme.primary, width: AppTokens.borderThick),
+        borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+        borderSide:
+            BorderSide(color: scheme.primary, width: AppTokens.borderThick),
       ),
       errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(AppTokens.radiusSm),
+        borderRadius: BorderRadius.circular(AppTokens.radiusMd),
         borderSide: BorderSide(color: scheme.error, width: AppTokens.border),
       ),
       focusedErrorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(AppTokens.radiusSm),
-        borderSide: BorderSide(color: scheme.error, width: AppTokens.borderThick),
+        borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+        borderSide:
+            BorderSide(color: scheme.error, width: AppTokens.borderThick),
       ),
     );
   }
 
-  /// Bold display/headline weights and tight tracking for a confident hierarchy.
+  /// Confident-but-friendly hierarchy: bold headings, semibold titles, regular
+  /// body. Softer than the old all-w800 treatment.
   static TextTheme _typography(ColorScheme scheme) {
     final base = ThemeData(
       useMaterial3: true,
       colorScheme: scheme,
     ).textTheme;
-    TextStyle heavy(TextStyle? s, {FontWeight w = FontWeight.w800}) =>
+    TextStyle weight(TextStyle? s, FontWeight w) =>
         (s ?? const TextStyle()).copyWith(fontWeight: w);
     return base.copyWith(
-      displayLarge: heavy(base.displayLarge),
-      displayMedium: heavy(base.displayMedium),
-      displaySmall: heavy(base.displaySmall),
-      headlineLarge: heavy(base.headlineLarge),
-      headlineMedium: heavy(base.headlineMedium),
-      headlineSmall: heavy(base.headlineSmall),
-      titleLarge: heavy(base.titleLarge),
-      titleMedium: heavy(base.titleMedium, w: FontWeight.w700),
-      titleSmall: heavy(base.titleSmall, w: FontWeight.w700),
-      labelLarge: heavy(base.labelLarge, w: FontWeight.w700),
-      labelMedium: heavy(base.labelMedium, w: FontWeight.w700),
-      labelSmall: heavy(base.labelSmall, w: FontWeight.w700),
+      displayLarge: weight(base.displayLarge, FontWeight.w700),
+      displayMedium: weight(base.displayMedium, FontWeight.w700),
+      displaySmall: weight(base.displaySmall, FontWeight.w700),
+      headlineLarge: weight(base.headlineLarge, FontWeight.w700),
+      headlineMedium: weight(base.headlineMedium, FontWeight.w700),
+      headlineSmall: weight(base.headlineSmall, FontWeight.w700),
+      titleLarge: weight(base.titleLarge, FontWeight.w700),
+      titleMedium: weight(base.titleMedium, FontWeight.w600),
+      titleSmall: weight(base.titleSmall, FontWeight.w600),
+      labelLarge: weight(base.labelLarge, FontWeight.w600),
+      labelMedium: weight(base.labelMedium, FontWeight.w600),
+      labelSmall: weight(base.labelSmall, FontWeight.w600),
     );
   }
 }

@@ -8,6 +8,7 @@ import '../providers/usage_provider.dart';
 import '../widgets/motion.dart';
 import '../widgets/shimmer.dart';
 import '../widgets/staggered_entrance.dart';
+import '../theme/app_tokens.dart';
 import '../widgets/ui_kit.dart';
 import '../widgets/neo_back_button.dart';
 
@@ -963,15 +964,10 @@ class _SummaryTile extends StatelessWidget {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: theme.colorScheme.outline, width: 2),
-        boxShadow: [
-          BoxShadow(
-            color: theme.colorScheme.shadow,
-            offset: const Offset(3, 3),
-            blurRadius: 0,
-          ),
-        ],
+        borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+        border: Border.all(
+            color: theme.colorScheme.outlineVariant, width: AppTokens.border),
+        boxShadow: AppTokens.softShadow(theme.colorScheme, level: 1),
       ),
       child: Row(
         children: [
@@ -981,7 +977,8 @@ class _SummaryTile extends StatelessWidget {
               color: theme.colorScheme.primary,
               borderRadius: BorderRadius.circular(8),
               border: Border.all(
-                  color: theme.colorScheme.onSurfaceVariant, width: 2),
+                  color: theme.colorScheme.outlineVariant,
+                  width: AppTokens.border),
             ),
             child: Icon(icon, size: 18, color: theme.colorScheme.onPrimary),
           ),

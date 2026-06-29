@@ -12,6 +12,7 @@ import 'package:markdown/markdown.dart' as md;
 
 import '../models/app_font.dart';
 import '../models/chat_message.dart';
+import '../theme/app_tokens.dart';
 import '../providers/settings_provider.dart';
 import '../screens/debug_screen.dart';
 import '../services/debug_log.dart';
@@ -200,24 +201,16 @@ class _UserBubble extends StatelessWidget {
     return ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: 560),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
           color: theme.colorScheme.primary,
           borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(4),
-            topRight: Radius.circular(16),
-            bottomLeft: Radius.circular(16),
-            bottomRight: Radius.circular(4),
+            topLeft: Radius.circular(20),
+            topRight: Radius.circular(20),
+            bottomLeft: Radius.circular(20),
+            bottomRight: Radius.circular(6),
           ),
-          border: Border.all(
-              color: theme.colorScheme.onSurfaceVariant, width: 2),
-          boxShadow: [
-            BoxShadow(
-              color: theme.colorScheme.shadow,
-              offset: const Offset(4, 4),
-              blurRadius: 0,
-            ),
-          ],
+          boxShadow: AppTokens.softShadow(theme.colorScheme, level: 1),
         ),
         child: body,
       ),
@@ -310,20 +303,15 @@ class _AssistantBubbleState extends ConsumerState<_AssistantBubble> {
             decoration: BoxDecoration(
               color: theme.colorScheme.surfaceContainerLow,
               borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(16),
-                topRight: Radius.circular(4),
-                bottomLeft: Radius.circular(4),
-                bottomRight: Radius.circular(16),
+                topLeft: Radius.circular(20),
+                topRight: Radius.circular(20),
+                bottomLeft: Radius.circular(6),
+                bottomRight: Radius.circular(20),
               ),
               border: Border.all(
-                  color: theme.colorScheme.onSurfaceVariant, width: 2),
-              boxShadow: [
-                BoxShadow(
-                  color: theme.colorScheme.shadow,
-                  offset: const Offset(4, 4),
-                  blurRadius: 0,
-                ),
-              ],
+                  color: theme.colorScheme.outlineVariant,
+                  width: AppTokens.border),
+              boxShadow: AppTokens.softShadow(theme.colorScheme, level: 1),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -842,13 +830,12 @@ class _TypingIndicatorState extends State<_TypingIndicator>
                   offset: Offset(0, dy),
                   child: Opacity(
                     opacity: opacity.toDouble(),
-                    // Chunky squares (Neo Brutalist) instead of soft circles.
                     child: Container(
                       width: 8,
                       height: 8,
                       decoration: BoxDecoration(
                         color: color,
-                        borderRadius: BorderRadius.circular(2),
+                        shape: BoxShape.circle,
                       ),
                     ),
                   ),
