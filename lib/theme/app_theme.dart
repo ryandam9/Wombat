@@ -43,9 +43,12 @@ class AppTheme {
     // depth is preserved for any tint (a neutral white included). When no tint
     // is set the original warm sand/cream ramp is used unchanged.
     Color sink(Color c, double t) => Color.lerp(c, const Color(0xFF000000), t)!;
-    final panel = background ?? WombatColors.cream;
+    // Neutral, cool-leaning surfaces by default — white cards on a soft grey
+    // page — so the app no longer reads as warm/yellow. A user-chosen
+    // background tint (Settings → Appearance → Background) still overrides this.
+    final panel = background ?? WombatColors.paper;
     final scaffold =
-        background == null ? WombatColors.sand : sink(background, 0.045);
+        background == null ? WombatColors.mist : sink(background, 0.045);
     return ColorScheme.fromSeed(seedColor: brand, brightness: Brightness.light)
         .copyWith(
       primary: brand,
@@ -65,21 +68,21 @@ class AppTheme {
       surface: scaffold,
       onSurface: WombatColors.ink,
       // Muted secondary tone, dark enough to clear WCAG AA (≈5:1) on the
-      // cream/sand surfaces.
-      onSurfaceVariant: const Color(0xFF6E6856),
+      // neutral surfaces.
+      onSurfaceVariant: const Color(0xFF5C5F67),
       surfaceContainerLowest: panel,
       surfaceContainerLow: panel,
       surfaceContainer: scaffold,
       surfaceContainerHigh: background == null
-          ? const Color(0xFFEFE8D6)
+          ? const Color(0xFFE9EBEF)
           : sink(background, 0.09),
       surfaceContainerHighest: background == null
-          ? const Color(0xFFE9E1CD)
+          ? const Color(0xFFE1E4E9)
           : sink(background, 0.14),
-      // Hairline outlines — soft warm greys, not the old heavy ink stroke.
-      outline: const Color(0xFFD7CEBB),
-      outlineVariant: const Color(0xFFE7DFCD),
-      shadow: const Color(0xFF5C4A2E),
+      // Hairline outlines — soft neutral greys.
+      outline: const Color(0xFFD4D7DD),
+      outlineVariant: const Color(0xFFE6E8EC),
+      shadow: const Color(0xFF3B3F47),
       inverseSurface: WombatColors.ink,
       onInverseSurface: WombatColors.cream,
     );

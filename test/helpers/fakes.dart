@@ -39,12 +39,17 @@ class FlakySecureStorageService extends SecureStorageService {
     String? initial,
     this.failReads = true,
     this.recoverAfter,
+    this.failWrites = false,
   }) : _value = initial;
 
   String? _value;
   bool failReads;
   int? recoverAfter;
   int _reads = 0;
+
+  /// When true, writes throw — modelling a store that can't be written to (the
+  /// user must still be able to use the key for the session).
+  bool failWrites;
 
   @override
   Future<String?> readApiKey() async {
@@ -58,6 +63,7 @@ class FlakySecureStorageService extends SecureStorageService {
 
   @override
   Future<void> writeApiKey(String value) async {
+    if (failWrites) throw Exception('store is locked');
     _value = value;
     failReads = false;
   }

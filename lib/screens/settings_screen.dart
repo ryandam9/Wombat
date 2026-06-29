@@ -86,10 +86,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Future<void> _save() async {
-    await ref.read(settingsProvider.notifier).setApiKey(_keyController.text);
+    final persisted =
+        await ref.read(settingsProvider.notifier).setApiKey(_keyController.text);
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('API key saved')),
+      SnackBar(
+        content: Text(persisted
+            ? 'API key saved'
+            : "Key applied for this session, but the secure store couldn't be "
+                "written — it won't persist after a restart until the store is "
+                'unlocked.'),
+        duration: const Duration(seconds: 3),
+      ),
     );
   }
 
@@ -959,8 +967,8 @@ class _BackgroundPicker extends StatelessWidget {
   final Color? selected;
   final ValueChanged<Color?> onChanged;
 
-  // Shown for the "Default" swatch (matches the light theme's sand surface).
-  static const _sand = Color(0xFFF5EFE0);
+  // Shown for the "Default" swatch (matches the light theme's neutral surface).
+  static const _sand = Color(0xFFF2F3F5);
   static const _presets = <(String, Color?)>[
     ('Default', null),
     ('Snow', Color(0xFFFFFFFF)), // clean neutral — no warm/yellow cast

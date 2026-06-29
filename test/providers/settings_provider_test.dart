@@ -155,10 +155,10 @@ void main() {
       final c = await createContainer(secureStorage: storage);
       addTearDown(c.dispose);
 
-      // The first read (at load) failed, so the banner state is up and a
-      // background recovery is already in flight.
+      // The first read (at load) failed, so the banner state is up. Background
+      // recovery runs silently (no persistent spinner).
       expect(c.read(settingsProvider).apiKeyReadFailed, isTrue);
-      expect(c.read(settingsProvider).apiKeyRetrying, isTrue);
+      expect(c.read(settingsProvider).apiKeyRetrying, isFalse);
 
       // Without any user action the background retry (first attempt ~400ms in)
       // picks the key back up.
@@ -166,6 +166,27 @@ void main() {
       final s = c.read(settingsProvider);
       expect(s.apiKey, 'stored-key');
       expect(s.hasApiKey, isTrue);
+      expect(s.apiKeyReadFailed, isFalse);
+      expect(s.apiKeyRetrying, isFalse);
+    });
+
+    test('setApiKey applies the key even when the store write fails', () async {
+      // A store that throws on write (e.g. locked). The user must not be blocked.
+      final storage = FlakySecureStorageService(
+          initial: null, failReads: false, failWrites: true);
+      final c = await createContainer(secureStorage: storage);
+      addTearDown(c.dispose);
+
+      final persisted =
+          await c.read(settingsProvider.notifier).setApiKey('sk-or-new');
+
+      // Write failed → reported as not persisted…
+      expect(persisted, isFalse);
+      // …but the key is live for this session and the UI reflects it.
+      final s = c.read(settingsProvider);
+      expect(s.apiKey, 'sk-or-new');
+      expect(s.hasApiKey, isTrue);
+      expect(s.apiKeyReadFailed, isFalse);
       expect(s.apiKeyRetrying, isFalse);
     });
 

@@ -306,42 +306,46 @@ class SettingsNotifier extends Notifier<SettingsState> {
     Duration(seconds: 12),
   ];
 
-  /// Re-attempts the secure-store read on a backoff until the key is recovered,
-  /// the attempts are exhausted, or the loop is superseded (manual retry, the
-  /// user saving/clearing a key, or disposal). Keeps [apiKeyRetrying] up for the
-  /// duration so the UI can show a live "unlocking…" state.
+  /// Silently re-attempts the secure-store read on a backoff until the key is
+  /// recovered, the attempts are exhausted, or the loop is superseded (a manual
+  /// retry, the user saving/clearing a key, or disposal). Deliberately does NOT
+  /// drive [apiKeyRetrying] — a long-running background loop must never freeze a
+  /// spinner on screen; it only emits when it actually recovers the key.
   Future<void> _autoRecoverApiKey() async {
     final gen = ++_recoveryGen;
-    _apiKeyRetrying = true;
-    _emit();
     for (final delay in _recoveryBackoff) {
       await Future<void>.delayed(delay);
       if (gen != _recoveryGen || _disposed) return; // superseded
-      if (!_apiKeyReadFailed) break; // recovered elsewhere
+      if (!_apiKeyReadFailed) return; // recovered elsewhere
       await _readStoredApiKey();
       if (gen != _recoveryGen || _disposed) return;
-      if (_hasApiKey) break; // recovered
+      if (_hasApiKey) {
+        _emit(); // recovered on its own — surface it
+        return;
+      }
     }
-    _apiKeyRetrying = false;
-    _emit();
   }
 
   /// Re-attempts reading the stored key after a prior read failure (the "Retry"
-  /// action in Settings). Cancels any background recovery, makes one immediate
-  /// attempt, and — if it's still locked — resumes background recovery. Returns
-  /// true when a key was recovered.
+  /// action in Settings). Shows the brief [apiKeyRetrying] state for the single
+  /// read, and — if it's still locked — resumes silent background recovery.
+  /// Returns true when a key was recovered.
   Future<bool> reloadApiKey() async {
     final gen = ++_recoveryGen; // take ownership; cancel the background loop
     _apiKeyRetrying = true;
     _emit();
-    await _readStoredApiKey();
-    if (gen != _recoveryGen || _disposed) return _hasApiKey;
-    if (_apiKeyReadFailed) {
-      // Still locked — keep the indicator up and keep trying in the background.
+    try {
+      await _readStoredApiKey();
+    } finally {
+      // Always clear the spinner (unless a newer owner already took over).
+      if (gen == _recoveryGen && !_disposed) {
+        _apiKeyRetrying = false;
+        _emit();
+      }
+    }
+    // Still locked → keep trying quietly in the background.
+    if (gen == _recoveryGen && !_disposed && _apiKeyReadFailed) {
       _autoRecoverApiKey();
-    } else {
-      _apiKeyRetrying = false;
-      _emit();
     }
     return _hasApiKey;
   }
@@ -356,32 +360,51 @@ class SettingsNotifier extends Notifier<SettingsState> {
     _emit();
   }
 
-  Future<void> setApiKey(String key) async {
+  /// Stores (or, for an empty value, clears) the API key. Returns true when the
+  /// value was persisted to the secure store.
+  ///
+  /// A failing/locked secure store must never block the user: the key is always
+  /// applied in memory for this session and the state is emitted regardless, so
+  /// "Save" works even when the store can't be written. A persistence failure is
+  /// reported (false) so the UI can warn that it won't survive a restart.
+  Future<bool> setApiKey(String key) async {
     _recoveryGen++; // a user-provided key supersedes any background recovery
     _apiKeyRetrying = false;
     final trimmed = key.trim();
+    var persisted = true;
     if (trimmed.isNotEmpty) {
-      // An explicitly entered key is stored on the device and overrides any
-      // environment value.
+      // Apply immediately so the user is never blocked, even if the write below
+      // throws (the key still works for this session).
       _apiKey = trimmed;
       _apiKeyFromEnv = false;
       _apiKeyReadFailed = false;
-      await _secureStorage.writeApiKey(trimmed);
+      try {
+        await _secureStorage.writeApiKey(trimmed);
+      } catch (_) {
+        persisted = false;
+      }
     } else {
       // Saving an empty key clears the stored one; fall back to the env value.
-      await _secureStorage.deleteApiKey();
+      try {
+        await _secureStorage.deleteApiKey();
+      } catch (_) {
+        persisted = false;
+      }
       _apiKey = null;
       _apiKeyFromEnv = false;
       _apiKeyReadFailed = false;
       _applyEnvFallback();
     }
     _emit();
+    return persisted;
   }
 
   Future<void> clearApiKey() async {
     _recoveryGen++; // clearing the key supersedes any background recovery
     _apiKeyRetrying = false;
-    await _secureStorage.deleteApiKey();
+    try {
+      await _secureStorage.deleteApiKey();
+    } catch (_) {/* best effort — still clear it from memory below */}
     _apiKey = null;
     _apiKeyFromEnv = false;
     _apiKeyReadFailed = false;

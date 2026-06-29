@@ -38,9 +38,8 @@ class AppTokens {
   /// everywhere — pass a [ColorScheme] so the shadow tone follows the theme.
   static List<BoxShadow> softShadow(ColorScheme scheme, {int level = 1}) {
     final dark = scheme.brightness == Brightness.dark;
-    // A warm-grey cast in light theme keeps shadows from looking cold against
-    // the sand/cream surfaces; near-black in dark theme.
-    final tint = dark ? const Color(0xFF000000) : const Color(0xFF5C4A2E);
+    // A soft neutral-grey cast in light theme; near-black in dark theme.
+    final tint = dark ? const Color(0xFF000000) : const Color(0xFF3B3F47);
     double a(double light, double darkA) => dark ? darkA : light;
     switch (level) {
       case 0:
@@ -110,8 +109,12 @@ class WombatColors {
   WombatColors._();
 
   // ── Core surfaces ────────────────────────────────────────────────────────
-  static const Color sand = Color(0xFFF5EFE0); // light scaffold
-  static const Color cream = Color(0xFFFBF7EC); // lightest surface / cards
+  // Default light surfaces are neutral (white cards on a soft cool-grey page).
+  static const Color paper = Color(0xFFFFFFFF); // light cards / panels
+  static const Color mist = Color(0xFFF2F3F5); // light scaffold (soft grey)
+  // Warm tones kept as selectable background presets (Settings → Appearance).
+  static const Color sand = Color(0xFFF5EFE0);
+  static const Color cream = Color(0xFFFBF7EC);
   static const Color charcoal = Color(0xFF1E1E24); // dark scaffold
   static const Color charcoalPanel = Color(0xFF26262E); // dark card
   static const Color ink = Color(0xFF16161C); // darkest text
