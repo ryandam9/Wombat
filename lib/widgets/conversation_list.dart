@@ -539,18 +539,20 @@ class _NavItem extends StatelessWidget {
         color: Colors.transparent,
         borderRadius: BorderRadius.circular(10),
         clipBehavior: Clip.antiAlias,
-        child: DecoratedBox(
+        child: AnimatedContainer(
+          duration: MediaQuery.of(context).disableAnimations
+              ? Duration.zero
+              : AppTokens.durFast,
+          curve: AppTokens.curveSnap,
           decoration: BoxDecoration(
-            // Fill in the same decoration as the hard shadow so it isn't
-            // painted over (see SectionPanel).
             color: selected ? scheme.primary : Colors.transparent,
             borderRadius: BorderRadius.circular(10),
-            border: selected
-                ? Border.all(
-                    color: accentOutline(scheme), width: AppTokens.borderThick)
-                : null,
+            border: Border.all(
+              color: selected ? accentOutline(scheme) : Colors.transparent,
+              width: AppTokens.borderThick,
+            ),
             boxShadow:
-                selected ? AppTokens.softShadow(scheme, level: 2) : null,
+                selected ? AppTokens.softShadow(scheme, level: 2) : const [],
           ),
           child: InkWell(
             onTap: onTap,
@@ -764,7 +766,14 @@ class _ConversationTile extends ConsumerWidget {
       // a transparent Material inside that the ListTile paints its ink onto —
       // ListTile asserts if a coloured DecoratedBox sits between it and its
       // Material ancestor.
-      child: DecoratedBox(
+      // The selection highlight (tint + border + soft shadow) fades in and out
+      // smoothly. A constant-width transparent border in the unselected state
+      // keeps the content from shifting as selection toggles.
+      child: AnimatedContainer(
+        duration: MediaQuery.of(context).disableAnimations
+            ? Duration.zero
+            : AppTokens.durMed,
+        curve: AppTokens.curveSnap,
         decoration: BoxDecoration(
           // Selected keeps a readable surface (faint primary tint) + a bold
           // primary border, rather than flooding with the accent — a dark or
@@ -774,14 +783,14 @@ class _ConversationTile extends ConsumerWidget {
               ? Color.alphaBlend(
                   scheme.primary.withValues(alpha: 0.12),
                   scheme.surfaceContainerLow)
-              : null,
+              : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
-          border: selected
-              ? Border.all(
-                  color: accentOutline(scheme), width: AppTokens.borderThick)
-              : null,
+          border: Border.all(
+            color: selected ? accentOutline(scheme) : Colors.transparent,
+            width: AppTokens.borderThick,
+          ),
           boxShadow:
-              selected ? AppTokens.softShadow(scheme, level: 2) : null,
+              selected ? AppTokens.softShadow(scheme, level: 2) : const [],
         ),
         child: Material(
           color: Colors.transparent,

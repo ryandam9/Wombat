@@ -9,6 +9,7 @@ import '../models/openrouter_model.dart';
 import '../providers/settings_provider.dart';
 import '../services/download_service.dart';
 import '../theme/app_tokens.dart';
+import '../widgets/staggered_entrance.dart';
 import '../widgets/ui_kit.dart';
 import '../widgets/neo_back_button.dart';
 import 'model_picker_screen.dart';
@@ -148,10 +149,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        for (final s in sections)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 16),
-            child: SectionPanel(title: s.title, child: s.content),
+        // Panels cascade in on open. ListView with explicit children builds
+        // them once, so the entrance doesn't replay while scrolling.
+        for (final (i, s) in sections.indexed)
+          StaggeredEntrance(
+            index: i,
+            bounce: false,
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: SectionPanel(title: s.title, child: s.content),
+            ),
           ),
       ],
     );
@@ -871,10 +878,13 @@ class _ColorDot extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final reduce = MediaQuery.of(context).disableAnimations;
     return InkResponse(
       onTap: onTap,
       radius: 26,
-      child: Container(
+      child: AnimatedContainer(
+        duration: reduce ? Duration.zero : AppTokens.durFast,
+        curve: AppTokens.curveSnap,
         width: 40,
         height: 40,
         decoration: BoxDecoration(
@@ -884,10 +894,14 @@ class _ColorDot extends StatelessWidget {
             color: selected ? scheme.onSurface : scheme.outlineVariant,
             width: selected ? AppTokens.borderThick : AppTokens.border,
           ),
+          boxShadow: selected ? AppTokens.softShadow(scheme, level: 1) : null,
         ),
-        child: selected
-            ? const Icon(Icons.check, color: Colors.white, size: 20)
-            : null,
+        child: AnimatedScale(
+          scale: selected ? 1 : 0,
+          duration: reduce ? Duration.zero : AppTokens.durMed,
+          curve: AppTokens.curveOvershoot,
+          child: const Icon(Icons.check, color: Colors.white, size: 20),
+        ),
       ),
     );
   }
@@ -951,12 +965,15 @@ class _BgDot extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final reduce = MediaQuery.of(context).disableAnimations;
     return Tooltip(
       message: label,
       child: InkResponse(
         onTap: onTap,
         radius: 26,
-        child: Container(
+        child: AnimatedContainer(
+          duration: reduce ? Duration.zero : AppTokens.durFast,
+          curve: AppTokens.curveSnap,
           width: 40,
           height: 40,
           decoration: BoxDecoration(
@@ -968,11 +985,15 @@ class _BgDot extends StatelessWidget {
               color: selected ? scheme.onSurface : scheme.outlineVariant,
               width: selected ? AppTokens.borderThick : AppTokens.border,
             ),
+            boxShadow: selected ? AppTokens.softShadow(scheme, level: 1) : null,
           ),
           // Dark check so it's visible on the light swatch.
-          child: selected
-              ? Icon(Icons.check, color: scheme.onSurface, size: 20)
-              : null,
+          child: AnimatedScale(
+            scale: selected ? 1 : 0,
+            duration: reduce ? Duration.zero : AppTokens.durMed,
+            curve: AppTokens.curveOvershoot,
+            child: Icon(Icons.check, color: scheme.onSurface, size: 20),
+          ),
         ),
       ),
     );

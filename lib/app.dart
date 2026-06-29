@@ -68,6 +68,12 @@ class WombatApp extends ConsumerWidget {
       darkTheme: _withHeadingFont(
           AppTheme.darkFor(seed, background: bg), headingFont, reduce),
       themeMode: themeMode,
+      // A gentle crossfade when the theme, accent or background tint changes
+      // (light⇄dark, picking an accent) rather than an instant snap. Honours
+      // reduced motion.
+      themeAnimationDuration:
+          reduce ? Duration.zero : const Duration(milliseconds: 350),
+      themeAnimationCurve: Curves.easeInOut,
       // Fold the "Reduce motion" setting into MediaQuery.disableAnimations so
       // it propagates everywhere (Motion helper, shimmer, implicit anims).
       //

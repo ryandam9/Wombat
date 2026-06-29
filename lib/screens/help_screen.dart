@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_tokens.dart';
 import '../widgets/neo_back_button.dart';
+import '../widgets/staggered_entrance.dart';
 
 /// A help & troubleshooting guide. Topics are grouped into sections and shown
 /// collapsed by default — each shows a short summary and expands on tap to
@@ -161,8 +162,13 @@ class _ResponsiveSections extends StatelessWidget {
           return ListView(
             padding: pad,
             children: [
-              for (final s in children)
-                Padding(padding: const EdgeInsets.only(bottom: 20), child: s),
+              for (final (i, s) in children.indexed)
+                StaggeredEntrance(
+                  index: i,
+                  bounce: false,
+                  child: Padding(
+                      padding: const EdgeInsets.only(bottom: 20), child: s),
+                ),
             ],
           );
         }
@@ -177,9 +183,13 @@ class _ResponsiveSections extends StatelessWidget {
           final end = (start + perColumn).clamp(0, children.length);
           return [
             for (var i = start; i < end; i++)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 20),
-                child: children[i],
+              StaggeredEntrance(
+                index: i,
+                bounce: false,
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 20),
+                  child: children[i],
+                ),
               ),
           ];
         });

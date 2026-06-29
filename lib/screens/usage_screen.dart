@@ -702,20 +702,27 @@ class _ByModelPanel extends StatelessWidget {
                 return Column(
                   children: [
                     if (wide) const _ByModelHeader(),
-                    for (final m in models)
-                      wide
-                          ? _ByModelRow(
-                              model: m,
-                              totalCost: totalCost,
-                              money: money,
-                              intFmt: intFmt,
-                            )
-                          : _ByModelCard(
-                              model: m,
-                              totalCost: totalCost,
-                              money: money,
-                              intFmt: intFmt,
-                            ),
+                    // Rows/cards cascade in. This Column builds them all once
+                    // (it isn't a recycling list), so the entrance plays only
+                    // on first reveal, not on scroll.
+                    for (final (i, m) in models.indexed)
+                      StaggeredEntrance(
+                        index: i,
+                        bounce: false,
+                        child: wide
+                            ? _ByModelRow(
+                                model: m,
+                                totalCost: totalCost,
+                                money: money,
+                                intFmt: intFmt,
+                              )
+                            : _ByModelCard(
+                                model: m,
+                                totalCost: totalCost,
+                                money: money,
+                                intFmt: intFmt,
+                              ),
+                      ),
                   ],
                 );
               },
