@@ -148,6 +148,44 @@ void main() {
       expect(s.apiKeyReadFailed, isFalse);
     });
 
+    test('auto-recovers the key in the background after a transient lock',
+        () async {
+      final storage =
+          FlakySecureStorageService(initial: 'stored-key', recoverAfter: 1);
+      final c = await createContainer(secureStorage: storage);
+      addTearDown(c.dispose);
+
+      // The first read (at load) failed, so the banner state is up and a
+      // background recovery is already in flight.
+      expect(c.read(settingsProvider).apiKeyReadFailed, isTrue);
+      expect(c.read(settingsProvider).apiKeyRetrying, isTrue);
+
+      // Without any user action the background retry (first attempt ~400ms in)
+      // picks the key back up.
+      await Future<void>.delayed(const Duration(milliseconds: 700));
+      final s = c.read(settingsProvider);
+      expect(s.apiKey, 'stored-key');
+      expect(s.hasApiKey, isTrue);
+      expect(s.apiKeyRetrying, isFalse);
+    });
+
+    test('reloadApiKey reports whether the key was recovered', () async {
+      final storage =
+          FlakySecureStorageService(initial: 'stored-key', failReads: true);
+      final c = await createContainer(secureStorage: storage);
+      addTearDown(c.dispose);
+
+      // Still locked → false.
+      expect(
+          await c.read(settingsProvider.notifier).reloadApiKey(), isFalse);
+
+      // Store unlocks → true, and the retry/failure flags are cleared.
+      storage.failReads = false;
+      expect(await c.read(settingsProvider.notifier).reloadApiKey(), isTrue);
+      expect(c.read(settingsProvider).apiKeyReadFailed, isFalse);
+      expect(c.read(settingsProvider).apiKeyRetrying, isFalse);
+    });
+
     test('saving a key clears the read-failure flag', () async {
       final c = await createContainer(
         secureStorage:

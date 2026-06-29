@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flex_color_picker/flex_color_picker.dart';
+import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -294,11 +295,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ],
         if (settings.apiKeyReadFailed && !settings.hasApiKey) ...[
           const SizedBox(height: 12),
-          const InfoBanner(
+          InfoBanner(
             title: "Couldn't unlock your saved key",
             message: 'Your API key is still saved on this device, but the '
                 'secure store could not be read just now (it may have been '
-                'temporarily locked). Tap Retry, or re-enter your key below to '
+                'temporarily locked).${_unlockHint()} Wombat keeps retrying in '
+                'the background — or tap Retry, or re-enter your key below to '
                 'overwrite it.',
             kind: BannerKind.warning,
           ),
@@ -306,10 +308,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           Align(
             alignment: Alignment.centerLeft,
             child: OutlinedButton.icon(
-              onPressed: () =>
-                  ref.read(settingsProvider.notifier).reloadApiKey(),
-              icon: const Icon(Icons.refresh),
-              label: const Text('Retry'),
+              onPressed: settings.apiKeyRetrying ? null : _retryUnlock,
+              icon: settings.apiKeyRetrying
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.refresh),
+              label: Text(settings.apiKeyRetrying ? 'Unlocking…' : 'Retry'),
             ),
           ),
         ],
@@ -358,6 +365,42 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ),
       ],
     );
+  }
+
+  /// Manual "Retry" for a locked secure store: re-reads the key and, if it's
+  /// still unreadable, tells the user it's still locked (background retries
+  /// continue regardless).
+  Future<void> _retryUnlock() async {
+    final recovered =
+        await ref.read(settingsProvider.notifier).reloadApiKey();
+    if (!recovered && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+              "Still couldn't read the secure store — Wombat will keep trying."),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  /// A short, platform-specific cause/fix appended to the "couldn't unlock"
+  /// banner. Empty on platforms with no useful hint.
+  String _unlockHint() {
+    switch (defaultTargetPlatform) {
+      case TargetPlatform.android:
+        return ' This often happens right after a reboot — unlock your device, '
+            'then it should recover.';
+      case TargetPlatform.linux:
+        return ' Make sure your keyring (gnome-keyring / KWallet) is running '
+            'and unlocked.';
+      case TargetPlatform.macOS:
+      case TargetPlatform.iOS:
+        return ' Unlock your device once so the Keychain is available.';
+      case TargetPlatform.windows:
+      case TargetPlatform.fuchsia:
+        return '';
+    }
   }
 
   Widget _defaultModel(SettingsState settings) {

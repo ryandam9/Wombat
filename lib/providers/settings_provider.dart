@@ -18,6 +18,7 @@ class SettingsState {
     required this.apiKey,
     required this.apiKeyFromEnvironment,
     this.apiKeyReadFailed = false,
+    this.apiKeyRetrying = false,
     required this.defaultModel,
     required this.themeMode,
     required this.seedColor,
@@ -52,6 +53,11 @@ class SettingsState {
   /// read this session (e.g. it was temporarily locked). The key is NOT gone —
   /// the UI should offer a retry rather than treat it as missing.
   final bool apiKeyReadFailed;
+
+  /// True while a re-read of the secure store is in flight — either the manual
+  /// Retry action or the automatic background recovery. The UI shows a progress
+  /// indicator and disables Retry so the attempt reads as live.
+  final bool apiKeyRetrying;
   final String defaultModel;
   final ThemeMode themeMode;
 
@@ -145,6 +151,13 @@ class SettingsNotifier extends Notifier<SettingsState> {
   String? _apiKey;
   bool _apiKeyFromEnv = false;
   bool _apiKeyReadFailed = false;
+  bool _apiKeyRetrying = false;
+
+  /// Monotonic token used to cancel an in-flight background recovery loop when
+  /// it is superseded (a manual retry, the user saving/clearing a key, or the
+  /// notifier being disposed).
+  int _recoveryGen = 0;
+  bool _disposed = false;
   String _defaultModel = 'openai/gpt-4o-mini';
   ThemeMode _themeMode = ThemeMode.system;
   Color _seedColor = AppTheme.defaultSeed;
@@ -176,6 +189,12 @@ class SettingsNotifier extends Notifier<SettingsState> {
     _secureStorage = ref.read(secureStorageProvider);
     _prefs = ref.read(sharedPreferencesProvider);
     _environment = ref.read(environmentProvider);
+    // Stop any in-flight recovery loop and block emits once disposed, so a late
+    // background retry never writes to a torn-down notifier.
+    ref.onDispose(() {
+      _disposed = true;
+      _recoveryGen++;
+    });
     _load();
     return _snapshot();
   }
@@ -185,6 +204,7 @@ class SettingsNotifier extends Notifier<SettingsState> {
         apiKey: _apiKey,
         apiKeyFromEnvironment: _apiKeyFromEnv,
         apiKeyReadFailed: _apiKeyReadFailed,
+        apiKeyRetrying: _apiKeyRetrying,
         defaultModel: _defaultModel,
         themeMode: _themeMode,
         seedColor: _seedColor,
@@ -208,7 +228,10 @@ class SettingsNotifier extends Notifier<SettingsState> {
         sidebarWidth: _sidebarWidth,
       );
 
-  void _emit() => state = _snapshot();
+  void _emit() {
+    if (_disposed) return;
+    state = _snapshot();
+  }
 
   bool get _hasApiKey => _apiKey != null && _apiKey!.isNotEmpty;
 
@@ -249,6 +272,11 @@ class SettingsNotifier extends Notifier<SettingsState> {
     _seenIntro = _prefs.getBool(_kSeenIntro) ?? false;
     _loading = false;
     _emit();
+    // A locked store at launch is usually transient (Keystore warming up after
+    // boot, the keyring not yet unlocked). Quietly keep trying in the
+    // background so the key reappears on its own, without the user tapping
+    // Retry.
+    if (_apiKeyReadFailed) _autoRecoverApiKey();
   }
 
   /// Reads the stored key into [_apiKey], distinguishing "no key saved" (null)
@@ -268,11 +296,54 @@ class SettingsNotifier extends Notifier<SettingsState> {
     if (!_hasApiKey && !_apiKeyReadFailed) _applyEnvFallback();
   }
 
-  /// Re-attempts reading the stored key after a prior read failure (the "Retry"
-  /// action in Settings).
-  Future<void> reloadApiKey() async {
-    await _readStoredApiKey();
+  /// Backoff schedule for automatic secure-store recovery after a failed read.
+  /// Short at first (most locks clear within a second or two), then spaced out.
+  static const List<Duration> _recoveryBackoff = [
+    Duration(milliseconds: 400),
+    Duration(milliseconds: 1200),
+    Duration(seconds: 3),
+    Duration(seconds: 6),
+    Duration(seconds: 12),
+  ];
+
+  /// Re-attempts the secure-store read on a backoff until the key is recovered,
+  /// the attempts are exhausted, or the loop is superseded (manual retry, the
+  /// user saving/clearing a key, or disposal). Keeps [apiKeyRetrying] up for the
+  /// duration so the UI can show a live "unlocking…" state.
+  Future<void> _autoRecoverApiKey() async {
+    final gen = ++_recoveryGen;
+    _apiKeyRetrying = true;
     _emit();
+    for (final delay in _recoveryBackoff) {
+      await Future<void>.delayed(delay);
+      if (gen != _recoveryGen || _disposed) return; // superseded
+      if (!_apiKeyReadFailed) break; // recovered elsewhere
+      await _readStoredApiKey();
+      if (gen != _recoveryGen || _disposed) return;
+      if (_hasApiKey) break; // recovered
+    }
+    _apiKeyRetrying = false;
+    _emit();
+  }
+
+  /// Re-attempts reading the stored key after a prior read failure (the "Retry"
+  /// action in Settings). Cancels any background recovery, makes one immediate
+  /// attempt, and — if it's still locked — resumes background recovery. Returns
+  /// true when a key was recovered.
+  Future<bool> reloadApiKey() async {
+    final gen = ++_recoveryGen; // take ownership; cancel the background loop
+    _apiKeyRetrying = true;
+    _emit();
+    await _readStoredApiKey();
+    if (gen != _recoveryGen || _disposed) return _hasApiKey;
+    if (_apiKeyReadFailed) {
+      // Still locked — keep the indicator up and keep trying in the background.
+      _autoRecoverApiKey();
+    } else {
+      _apiKeyRetrying = false;
+      _emit();
+    }
+    return _hasApiKey;
   }
 
   Future<void> setDownloadDir(String? dir) async {
@@ -286,6 +357,8 @@ class SettingsNotifier extends Notifier<SettingsState> {
   }
 
   Future<void> setApiKey(String key) async {
+    _recoveryGen++; // a user-provided key supersedes any background recovery
+    _apiKeyRetrying = false;
     final trimmed = key.trim();
     if (trimmed.isNotEmpty) {
       // An explicitly entered key is stored on the device and overrides any
@@ -306,6 +379,8 @@ class SettingsNotifier extends Notifier<SettingsState> {
   }
 
   Future<void> clearApiKey() async {
+    _recoveryGen++; // clearing the key supersedes any background recovery
+    _apiKeyRetrying = false;
     await _secureStorage.deleteApiKey();
     _apiKey = null;
     _apiKeyFromEnv = false;
