@@ -6,6 +6,10 @@ All notable changes to Wombat are documented here. This project adheres to
 ## [Unreleased]
 
 ### Added
+- **macOS desktop support**: the `macos/` runner is now part of the repo, with
+  the sandbox entitlements the app needs (OpenRouter network access, microphone
+  for voice notes, open/save panels, Keychain for the API key), the launcher
+  icon, and a CI job that builds the target on every push/PR.
 - **GitHub Actions CI** (`.github/workflows/flutter.yml`): runs `flutter analyze`
   and `flutter test` on every push to `main` and on pull requests, pinned to the
   same Flutter version as the Claude Code web hook.
