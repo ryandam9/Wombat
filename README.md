@@ -6,8 +6,9 @@ key you get one chat interface over hundreds of models from OpenAI, Anthropic,
 Google, Meta, Mistral, and more — with streaming replies, saved conversations,
 live usage/cost tracking, and a clean Material 3 interface.
 
-> Targets **Android** and **Linux desktop** out of the box (other platforms are
-> a one-command scaffold away — see [Other platforms](#other-platforms)).
+> Targets **Android**, **Linux desktop** and **macOS desktop** out of the box
+> (other platforms are a one-command scaffold away — see
+> [Other platforms](#other-platforms)).
 
 > 🤖 **This app is fully written by Claude Opus 4.8.** Every line of code,
 > test, and this documentation was authored by Anthropic's Claude Opus 4.8.
@@ -146,6 +147,7 @@ flutter pub get
 
 # 3. Run
 flutter run -d linux      # Linux desktop
+flutter run -d macos      # macOS desktop
 flutter run -d android    # connected Android device / emulator
 ```
 
@@ -153,11 +155,12 @@ Then open **Settings**, paste your API key, pick a model, and start chatting.
 
 ### Other platforms
 
-The repo ships the **Android** and **Linux** platform folders. To add more,
-generate their scaffolding (this won't touch `lib/` or `pubspec.yaml`):
+The repo ships the **Android**, **Linux** and **macOS** platform folders. To
+add more, generate their scaffolding (this won't touch `lib/` or
+`pubspec.yaml`):
 
 ```bash
-flutter create --platforms=windows,macos,ios,web .
+flutter create --platforms=windows,ios,web .
 flutter pub get
 ```
 
@@ -323,6 +326,25 @@ flutter clean && flutter pub get && flutter run -d linux
 Secure storage uses the Android Keystore. The app declares the `RECORD_AUDIO`
 permission for in-app voice recording (requested at runtime); attachments use
 the system file picker — no extra setup.
+
+### macOS
+
+Building needs **Xcode** (with the command-line tools) and **CocoaPods**
+(`sudo gem install cocoapods` or `brew install cocoapods`); Flutter fetches the
+pods automatically on first build.
+
+The app runs **sandboxed** with the entitlements it needs already declared in
+`macos/Runner/*.entitlements`:
+
+| Entitlement | Why |
+|-------------|-----|
+| `com.apple.security.network.client` | Chat requests to the OpenRouter API |
+| `com.apple.security.device.audio-input` | In-app voice recording (macOS also shows a one-time microphone permission prompt) |
+| `com.apple.security.files.user-selected.read-write` | Attaching files and saving replies via open/save panels |
+| `keychain-access-groups` | `flutter_secure_storage` keeps the API key in the macOS Keychain |
+
+Run with `flutter run -d macos`, or build a release bundle with
+`flutter build macos` (output under `build/macos/Build/Products/Release/`).
 
 ## Troubleshooting
 
